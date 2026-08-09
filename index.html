@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#173f42" />
+    <meta name="description" content="附近餐饮 Web MVP：验证高德附近餐饮搜索数据。" />
+    <title>附近吃什么 · 高德餐饮 MVP</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">AMAP FOOD MVP</p>
+          <h1>附近吃什么</h1>
+        </div>
+        <span id="dataMode" class="status-pill">演示数据</span>
+      </header>
+
+      <section class="control-panel" aria-label="搜索条件">
+        <div class="field-group">
+          <label for="provinceSelect">省份</label>
+          <select id="provinceSelect"></select>
+        </div>
+        <div class="field-group">
+          <label for="citySelect">城市</label>
+          <select id="citySelect" disabled></select>
+        </div>
+        <button id="citySearchButton" class="primary-button" type="button">搜索附近餐饮</button>
+        <div class="range-note">搜索范围：<strong>2 公里</strong></div>
+      </section>
+
+      <section class="status-bar" aria-live="polite">
+        <span id="statusText">正在准备演示数据…</span>
+        <span id="cityLabel">上海市</span>
+      </section>
+
+      <section class="content-grid">
+        <aside class="results-panel" aria-label="餐饮结果">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">NEARBY RESULTS</span>
+              <h2>附近餐饮</h2>
+            </div>
+            <strong id="resultCount">0 家</strong>
+          </div>
+          <div id="resultList" class="result-list" aria-live="polite"></div>
+          <div id="emptyState" class="empty-state" hidden>
+            <strong>附近没有返回餐饮</strong>
+            <p>可以换一个城市，或拖动地图后重新搜索。</p>
+          </div>
+        </aside>
+
+        <section class="map-panel" aria-label="餐饮地图">
+          <div id="map" class="map-canvas"></div>
+          <div id="mapFallback" class="map-fallback" hidden>
+            <div class="fallback-grid"></div>
+            <div class="fallback-center"></div>
+            <span>演示地图 · 配置高德 Key 后显示真实地图</span>
+          </div>
+          <button id="searchHereButton" class="search-here-button" type="button" hidden>在此区域搜索</button>
+          <div class="map-caption">拖动地图后，点击“在此区域搜索”</div>
+
+          <article id="detailPanel" class="detail-panel" hidden>
+            <button id="detailCloseButton" class="detail-close" type="button" aria-label="关闭详情">×</button>
+            <p id="detailType" class="eyebrow">餐饮服务</p>
+            <h2 id="detailName">餐饮名称</h2>
+            <dl>
+              <div><dt>营业时间</dt><dd id="detailHours">未提供</dd></div>
+              <div><dt>地址</dt><dd id="detailAddress">未提供</dd></div>
+              <div><dt>距离</dt><dd id="detailDistance">未知距离</dd></div>
+            </dl>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <script src="./config.js"></script>
+    <script src="./city-data.js"></script>
+    <script src="./app-core.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
