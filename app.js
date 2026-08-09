@@ -4,6 +4,10 @@
   const CONFIG = window.LETS_EAT_CONFIG || {};
   const CITY_DATA = window.LETS_EAT_CITY_DATA || [];
   const CORE = window.LETS_EAT_CORE;
+  const NEARBY_SEARCH_KEYWORD = CORE.NEARBY_SEARCH_KEYWORD || '餐饮';
+  const MAX_POI_RESULTS = CORE.MAX_POI_RESULTS || 200;
+  const SEARCH_PAGE_SIZE = CORE.SEARCH_PAGE_SIZE || 50;
+  const MAX_SEARCH_PAGES = Math.ceil(MAX_POI_RESULTS / SEARCH_PAGE_SIZE);
   const RADIUS_METERS = 2000;
   const DEFAULT_CITY = { province: '上海市', name: '上海市', center: [121.4737, 31.2304] };
 
@@ -19,6 +23,9 @@
     live: false,
     ignoreNextMove: false,
     requestId: 0,
+    pagesFetched: 0,
+    capped: false,
+    partialError: null,
   };
 
   const elements = {
@@ -241,6 +248,68 @@
     setStatus('地图位置已改变，点击按钮搜索新区域', 'notice');
   }
 
+  function searchPage(center, pageIndex, requestId) {
+    return new Promise((resolve, reject) => {
+      if (requestId !== state.requestId) {
+        reject({ stale: true });
+        return;
+      }
+      state.placeSearch.setPageSize(SEARCH_PAGE_SIZE);
+      state.placeSearch.setPageIndex(pageIndex);
+      state.placeSearch.searchNearBy(NEARBY_SEARCH_KEYWORD, center, RADIUS_METERS, (status, result) => {
+        if (requestId !== state.requestId) {
+          reject({ stale: true });
+          return;
+        }
+        if (status !== 'complete') {
+          reject({
+            pageIndex,
+            status,
+            message: result?.info || result?.message || '请检查 securityJsCode 与 Key 是否匹配、接口权限和域名白名单',
+          });
+          return;
+        }
+        resolve({ pageIndex, pois: result?.poiList?.pois || [] });
+      });
+    });
+  }
+
+  async function fetchNearbyBatch(center, requestId) {
+    const places = [];
+    let nextPage = 1;
+
+    while (nextPage <= MAX_SEARCH_PAGES && places.length < MAX_POI_RESULTS) {
+      if (requestId !== state.requestId) return;
+      setStatus(`正在获取第 ${nextPage}/${MAX_SEARCH_PAGES} 页餐饮数据…`, 'loading');
+      try {
+        const response = await searchPage(center, nextPage, requestId);
+        const normalized = response.pois.map((poi, index) => CORE.normalizePoi(poi, index));
+        const merged = CORE.mergeUniquePois(places, normalized, MAX_POI_RESULTS);
+        places.splice(0, places.length, ...merged);
+        state.pagesFetched = nextPage;
+        state.capped = places.length >= MAX_POI_RESULTS;
+        state.places = places.slice();
+        renderResults(state.places);
+
+        if (!response.pois.length || response.pois.length < SEARCH_PAGE_SIZE || state.capped) break;
+        nextPage += 1;
+      } catch (error) {
+        if (error?.stale || requestId !== state.requestId) return;
+        state.partialError = error;
+        break;
+      }
+    }
+
+    if (requestId !== state.requestId) return;
+    if (state.partialError) {
+      setStatus(`已获取 ${places.length} 条，第 ${state.partialError.pageIndex} 页失败：${state.partialError.message}`, 'error');
+    } else if (state.capped) {
+      setStatus(`已获取 ${places.length} 条，达到本次测试上限`, 'success');
+    } else {
+      setStatus(`本次获取 ${places.length} 条，已完成 ${state.pagesFetched} 页查询`, places.length ? 'success' : 'notice');
+    }
+  }
+
   function searchNearby(center) {
     state.searchCenter = center.slice();
     elements.searchHereButton.hidden = true;
@@ -251,26 +320,11 @@
     }
 
     const requestId = ++state.requestId;
-    setStatus(`正在搜索${state.selectedCity.name}附近餐饮…`, 'loading');
-    elements.resultList.innerHTML = '';
-    elements.emptyState.hidden = true;
-
-    state.placeSearch.searchNearBy('', center, RADIUS_METERS, (status, result) => {
-      if (requestId !== state.requestId) return;
-      if (status !== 'complete') {
-        renderResults([]);
-        setStatus(`高德搜索失败（${status}）：${result?.info || result?.message || '接口未返回详细原因'}`, 'error');
-        return;
-      }
-      const pois = result?.poiList?.pois || [];
-      if (!pois.length) {
-        renderResults([]);
-        setStatus('高德搜索完成：附近没有返回餐饮 POI', 'notice');
-        return;
-      }
-      renderResults(pois.map((poi, index) => CORE.normalizePoi(poi, index)));
-      setStatus(`高德搜索完成：返回 ${pois.length} 家餐饮`, 'success');
-    });
+    state.pagesFetched = 0;
+    state.capped = false;
+    state.partialError = null;
+    renderResults([]);
+    void fetchNearbyBatch(center, requestId);
   }
 
   function searchAtMapCenter() {
@@ -294,12 +348,16 @@
     state.map.on('moveend', markMapMoved);
     setMode(true);
     hideDemoMap();
+    if (!hasSecurityCode()) {
+      setStatus('地图已加载，但 config.js 缺少 securityJsCode，暂时无法搜索餐饮', 'error');
+      return;
+    }
     window.AMap.plugin(['AMap.PlaceSearch'], () => {
       state.placeSearch = new window.AMap.PlaceSearch({
         city: '全国',
         citylimit: false,
         type: '餐饮服务',
-        pageSize: 20,
+        pageSize: SEARCH_PAGE_SIZE,
         pageIndex: 1,
         extensions: 'all',
       });
@@ -309,6 +367,10 @@
 
   function hasAmapConfig() {
     return Boolean(String(CONFIG.key || '').trim());
+  }
+
+  function hasSecurityCode() {
+    return Boolean(String(CONFIG.securityJsCode || '').trim());
   }
 
   function loadAmap() {
