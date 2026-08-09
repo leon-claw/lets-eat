@@ -7,6 +7,7 @@
   const NEARBY_SEARCH_KEYWORD = CORE.NEARBY_SEARCH_KEYWORD || '餐饮';
   const MAX_POI_RESULTS = CORE.MAX_POI_RESULTS || 200;
   const SEARCH_PAGE_SIZE = CORE.SEARCH_PAGE_SIZE || 50;
+  const LIST_PAGE_SIZE = CORE.LIST_PAGE_SIZE || 20;
   const MAX_SEARCH_PAGES = Math.ceil(MAX_POI_RESULTS / SEARCH_PAGE_SIZE);
   const RADIUS_METERS = 2000;
   const DEFAULT_CITY = { province: '上海市', name: '上海市', center: [121.4737, 31.2304] };
@@ -26,6 +27,7 @@
     pagesFetched: 0,
     capped: false,
     partialError: null,
+    listPage: 1,
   };
 
   const elements = {
@@ -37,6 +39,14 @@
     cityLabel: document.querySelector('#cityLabel'),
     resultList: document.querySelector('#resultList'),
     resultCount: document.querySelector('#resultCount'),
+    collectedCount: document.querySelector('#collectedCount'),
+    categoryCount: document.querySelector('#categoryCount'),
+    pagesFetched: document.querySelector('#pagesFetched'),
+    categoryList: document.querySelector('#categoryList'),
+    categoryEmptyState: document.querySelector('#categoryEmptyState'),
+    previousPageButton: document.querySelector('#previousPageButton'),
+    nextPageButton: document.querySelector('#nextPageButton'),
+    listPageLabel: document.querySelector('#listPageLabel'),
     emptyState: document.querySelector('#emptyState'),
     map: document.querySelector('#map'),
     mapFallback: document.querySelector('#mapFallback'),
@@ -152,12 +162,13 @@
   }
 
   function renderCards() {
-    const places = state.places;
-    elements.resultCount.textContent = `${places.length} 家`;
-    elements.emptyState.hidden = places.length > 0;
-    elements.resultList.innerHTML = places.map((place, index) => `
+    const page = CORE.paginate(state.places, state.listPage, LIST_PAGE_SIZE);
+    state.listPage = page.page;
+    elements.resultCount.textContent = `${page.total} 家`;
+    elements.emptyState.hidden = page.total > 0;
+    elements.resultList.innerHTML = page.items.map((place, index) => `
       <button class="result-card ${place.id === state.selectedId ? 'is-selected' : ''}" data-place-id="${escapeHtml(place.id)}" type="button">
-        <span class="result-index">${String(index + 1).padStart(2, '0')}</span>
+        <span class="result-index">${String((page.page - 1) * LIST_PAGE_SIZE + index + 1).padStart(2, '0')}</span>
         <span class="result-body">
           <strong>${escapeHtml(place.name)}</strong>
           <span>${escapeHtml(place.type)} · ${escapeHtml(place.address)}</span>
@@ -169,14 +180,41 @@
     elements.resultList.querySelectorAll('[data-place-id]').forEach((card) => {
       card.addEventListener('click', () => selectPlace(card.dataset.placeId));
     });
+    elements.listPageLabel.textContent = `第 ${page.page} / ${page.pageCount} 页`;
+    elements.previousPageButton.disabled = page.page <= 1;
+    elements.nextPageButton.disabled = page.page >= page.pageCount;
+  }
+
+  function renderCategoryPanel() {
+    const categories = CORE.aggregateCategories(state.places);
+    const maxCount = Math.max(1, categories[0]?.count || 0);
+    elements.categoryCount.textContent = String(categories.length);
+    elements.categoryEmptyState.hidden = categories.length > 0;
+    elements.categoryList.innerHTML = categories.map((category) => `
+      <div class="category-row">
+        <div class="category-row-top"><span>${escapeHtml(category.name)}</span><strong>${category.count} 家</strong></div>
+        <div class="category-bar"><i style="width:${Math.round((category.count / maxCount) * 100)}%"></i></div>
+      </div>
+    `).join('');
+  }
+
+  function renderBatchSummary() {
+    elements.collectedCount.textContent = String(state.places.length);
+    elements.pagesFetched.textContent = `${state.pagesFetched}/${MAX_SEARCH_PAGES}`;
+  }
+
+  function renderBatchState() {
+    renderBatchSummary();
+    renderCategoryPanel();
+    renderCards();
+    renderMarkers();
   }
 
   function renderResults(places) {
     state.places = places.slice().sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
     state.selectedId = null;
     closeDetail();
-    renderCards();
-    renderMarkers();
+    renderBatchState();
   }
 
   function renderDemoMap() {
@@ -202,7 +240,11 @@
     setMode(false);
     state.places = buildDemoPlaces(center);
     state.selectedId = null;
-    renderCards();
+    state.pagesFetched = 0;
+    state.capped = false;
+    state.partialError = null;
+    state.listPage = 1;
+    renderBatchState();
     renderDemoMap();
     elements.searchHereButton.hidden = true;
     setStatus(message, 'notice');
@@ -323,6 +365,7 @@
     state.pagesFetched = 0;
     state.capped = false;
     state.partialError = null;
+    state.listPage = 1;
     renderResults([]);
     void fetchNearbyBatch(center, requestId);
   }
@@ -397,6 +440,17 @@
     elements.citySearchButton.addEventListener('click', cityChanged);
     elements.searchHereButton.addEventListener('click', searchAtMapCenter);
     elements.detailCloseButton.addEventListener('click', closeDetail);
+    elements.previousPageButton.addEventListener('click', () => {
+      if (state.listPage <= 1) return;
+      state.listPage -= 1;
+      renderCards();
+    });
+    elements.nextPageButton.addEventListener('click', () => {
+      const page = CORE.paginate(state.places, state.listPage, LIST_PAGE_SIZE);
+      if (state.listPage >= page.pageCount) return;
+      state.listPage += 1;
+      renderCards();
+    });
   }
 
   function boot() {

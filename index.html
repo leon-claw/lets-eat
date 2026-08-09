@@ -45,11 +45,26 @@
             </div>
             <strong id="resultCount">0 家</strong>
           </div>
+          <section class="batch-summary" aria-label="本次抓取摘要">
+            <div><span>已抓取</span><strong id="collectedCount">0</strong></div>
+            <div><span>分类数</span><strong id="categoryCount">0</strong></div>
+            <div><span>请求页数</span><strong id="pagesFetched">0/4</strong></div>
+          </section>
+          <section class="category-panel" aria-label="餐饮分类统计">
+            <div class="subsection-heading"><h3>餐饮分类</h3><span>按数量</span></div>
+            <div id="categoryList"></div>
+            <p id="categoryEmptyState">暂无分类数据</p>
+          </section>
           <div id="resultList" class="result-list" aria-live="polite"></div>
           <div id="emptyState" class="empty-state" hidden>
             <strong>附近没有返回餐饮</strong>
             <p>可以换一个城市，或拖动地图后重新搜索。</p>
           </div>
+          <nav class="pagination" aria-label="餐饮结果分页">
+            <button id="previousPageButton" type="button" disabled>上一页</button>
+            <span id="listPageLabel">第 1 / 1 页</span>
+            <button id="nextPageButton" type="button" disabled>下一页</button>
+          </nav>
         </aside>
 
         <section class="map-panel" aria-label="餐饮地图">
