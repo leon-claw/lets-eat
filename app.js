@@ -134,7 +134,7 @@
         const marker = new window.AMap.Marker({
           position: place.location,
           offset: new window.AMap.Pixel(-14, -14),
-          content: `<div class="amap-number-marker ${place.id === state.selectedId ? 'is-selected' : ''}">${String(index + 1).padStart(2, '0')}</div>`,
+          content: `<div class="amap-number-marker ${place.id === state.selectedId ? 'is-selected' : ''}"><span>${String(index + 1).padStart(2, '0')}</span></div>`,
           zIndex: place.id === state.selectedId ? 120 : 20,
         });
         marker.on('click', () => selectPlace(place.id));
@@ -259,7 +259,7 @@
       if (requestId !== state.requestId) return;
       if (status !== 'complete') {
         renderResults([]);
-        setStatus(`高德搜索失败：${result?.info || '接口未返回成功状态'}`, 'error');
+        setStatus(`高德搜索失败（${status}）：${result?.info || result?.message || '接口未返回详细原因'}`, 'error');
         return;
       }
       const pois = result?.poiList?.pois || [];
