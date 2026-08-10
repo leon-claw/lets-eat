@@ -41,6 +41,59 @@ describe('chooseFoodReducer', () => {
     expect(getProgress(next)).toEqual({ current: 2, total: 2 });
   });
 
+  it('adds a right-swiped choice to candidates and advances the deck', () => {
+    const first = choice('first');
+    const second = choice('second');
+    const choosing = chooseFoodReducer(initialChooseFoodState, {
+      type: 'load-success',
+      choices: [first, second],
+    });
+
+    const liked = chooseFoodReducer(choosing, { type: 'like' });
+
+    expect(liked).toMatchObject({
+      status: 'choosing',
+      index: 1,
+      likedChoices: [first],
+    });
+    expect(getCurrentChoice(liked)).toEqual(second);
+  });
+
+  it('keeps the final right-swiped choice and enters the completed round', () => {
+    const first = choice('first');
+    const choosing = chooseFoodReducer(initialChooseFoodState, {
+      type: 'load-success',
+      choices: [first],
+    });
+
+    const exhausted = chooseFoodReducer(choosing, { type: 'like' });
+
+    expect(exhausted).toMatchObject({
+      status: 'exhausted',
+      index: 1,
+      likedChoices: [first],
+    });
+  });
+
+  it('undoes the latest candidate swipe', () => {
+    const first = choice('first');
+    const second = choice('second');
+    const choosing = chooseFoodReducer(initialChooseFoodState, {
+      type: 'load-success',
+      choices: [first, second],
+    });
+    const liked = chooseFoodReducer(choosing, { type: 'like' });
+
+    const undone = chooseFoodReducer(liked, { type: 'undo' });
+
+    expect(undone).toMatchObject({
+      status: 'choosing',
+      index: 0,
+      likedChoices: [],
+    });
+    expect(getCurrentChoice(undone)).toEqual(first);
+  });
+
   it('enters exhausted after skipping the final choice', () => {
     const choosing = chooseFoodReducer(initialChooseFoodState, {
       type: 'load-success',

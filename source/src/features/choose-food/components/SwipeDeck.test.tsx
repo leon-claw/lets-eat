@@ -13,45 +13,59 @@ const choice: FoodChoice = {
   representativeFoods: ['白切鸡', '烧鹅'],
 };
 
+const nextChoice: FoodChoice = {
+  id: 'hotpot',
+  name: '火锅',
+  description: '一锅容纳多种口味。',
+  coverImage: 'https://example.com/hotpot.jpg',
+  tags: ['热闹', '多人'],
+  representativeFoods: ['毛肚', '肥牛'],
+};
+
 describe('SwipeDeck', () => {
-  it('exposes skip as a button action', async () => {
+  it('restores the original deck controls and maps their actions', async () => {
     const user = userEvent.setup();
     const onSkip = vi.fn();
-    const onSelect = vi.fn();
+    const onLike = vi.fn();
+    const onSuperlike = vi.fn();
+    const onUndo = vi.fn();
+    const onOpenDecision = vi.fn();
     const onInteractionLockChange = vi.fn();
 
     render(
       <SwipeDeck
         choice={choice}
+        nextChoice={nextChoice}
+        current={1}
+        total={16}
+        likedCount={2}
+        canUndo
         onSkip={onSkip}
-        onSelect={onSelect}
+        onLike={onLike}
+        onSuperlike={onSuperlike}
+        onUndo={onUndo}
+        onOpenDecision={onOpenDecision}
         onInteractionLockChange={onInteractionLockChange}
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: '换一个' }));
+    expect(screen.getByText('滑动选菜器')).toBeInTheDocument();
+    expect(screen.getByText('已挑 1 / 16')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: nextChoice.name })).toBeInTheDocument();
+
+    await user.click(screen.getByTitle('不喜欢 / 换一个'));
 
     await waitFor(() => expect(onSkip).toHaveBeenCalledOnce());
-    expect(onSelect).not.toHaveBeenCalled();
-  });
+    await user.click(screen.getByTitle('喜欢 / 想吃'));
+    await waitFor(() => expect(onLike).toHaveBeenCalledOnce());
 
-  it('exposes select as a button action', async () => {
-    const user = userEvent.setup();
-    const onSkip = vi.fn();
-    const onSelect = vi.fn();
+    await user.click(screen.getByTitle('必吃榜 / 强推'));
+    await waitFor(() => expect(onSuperlike).toHaveBeenCalledOnce());
 
-    render(
-      <SwipeDeck
-        choice={choice}
-        onSkip={onSkip}
-        onSelect={onSelect}
-        onInteractionLockChange={vi.fn()}
-      />,
-    );
+    await user.click(screen.getByTitle('撤销上一划'));
+    expect(onUndo).toHaveBeenCalledOnce();
 
-    await user.click(screen.getByRole('button', { name: '就吃这个' }));
-
-    await waitFor(() => expect(onSelect).toHaveBeenCalledOnce());
-    expect(onSkip).not.toHaveBeenCalled();
+    await user.click(screen.getByTitle('决策转盘摇号'));
+    expect(onOpenDecision).toHaveBeenCalledOnce();
   });
 });

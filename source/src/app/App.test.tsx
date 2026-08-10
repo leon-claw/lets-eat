@@ -26,24 +26,33 @@ const second: FoodChoice = {
 const deterministicRandom = () => 0.99;
 
 describe('App', () => {
-  it('completes skip, select, and restart in one page', async () => {
+  it('keeps the original deck and completion flow on one page', async () => {
     const user = userEvent.setup();
     const repository: FoodChoiceRepository = {
       list: vi.fn().mockResolvedValue([first, second]),
     };
 
     render(<App repository={repository} random={deterministicRandom} />);
-    expect(await screen.findByRole('heading', { name: first.name })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: first.name, level: 2 })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '换一个' }));
-    expect(await screen.findByRole('heading', { name: second.name })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '喜欢 / 想吃' }));
+    expect(await screen.findByRole('heading', { name: second.name, level: 2 })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '就吃这个' }));
-    expect(await screen.findByText('今天就吃')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: second.name })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '不喜欢 / 换一个' }));
+    expect(await screen.findByRole('heading', { name: '看完全部菜品啦！' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '查看备选清单 (1)' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '重新选择' }));
-    expect(await screen.findByRole('button', { name: '换一个' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '查看备选清单 (1)' }));
+    expect(screen.getByRole('dialog', { name: '备选清单 (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: first.name })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '关闭备选清单' }));
+
+    await user.click(screen.getByRole('button', { name: '今天吃什么？摇号帮你决断！' }));
+    expect(screen.getByRole('dialog', { name: '今天吃什么？摇号决断！' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '关闭摇号' }));
+
+    await user.click(screen.getByRole('button', { name: '再刷一遍' }));
+    expect(await screen.findByText('滑动选菜器')).toBeInTheDocument();
   });
 
   it('shows an empty state when no choices are available', async () => {
@@ -79,12 +88,12 @@ describe('App', () => {
     };
 
     render(<App repository={repository} random={deterministicRandom} />);
-    await screen.findByRole('heading', { name: first.name });
-    await user.click(screen.getByRole('button', { name: '换一个' }));
-    await screen.findByRole('heading', { name: second.name });
-    await user.click(screen.getByRole('button', { name: '换一个' }));
+    await screen.findByRole('heading', { name: first.name, level: 2 });
+    await user.click(screen.getByRole('button', { name: '不喜欢 / 换一个' }));
+    await screen.findByRole('heading', { name: second.name, level: 2 });
+    await user.click(screen.getByRole('button', { name: '不喜欢 / 换一个' }));
 
-    await waitFor(() => expect(screen.getByText('这一轮已经看完了')).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: '重新开始' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/你还没有选中菜系/)).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: '再刷一遍' })).toBeInTheDocument();
   });
 });

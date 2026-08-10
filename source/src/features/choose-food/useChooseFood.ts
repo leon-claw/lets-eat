@@ -37,6 +37,9 @@ export function useChooseFood(
   }, [random, repository, retryToken]);
 
   const skip = useCallback(() => dispatch({ type: 'skip' }), []);
+  const like = useCallback(() => dispatch({ type: 'like' }), []);
+  const superlike = useCallback(() => dispatch({ type: 'superlike' }), []);
+  const undo = useCallback(() => dispatch({ type: 'undo' }), []);
   const select = useCallback(() => dispatch({ type: 'select' }), []);
   const retry = useCallback(() => setRetryToken((token) => token + 1), []);
   const setInteractionLocked = useCallback(
@@ -50,8 +53,12 @@ export function useChooseFood(
   return {
     state,
     currentChoice: getCurrentChoice(state),
+    nextChoice: state.status === 'choosing' ? state.choices[state.index + 1] ?? null : null,
     progress: getProgress(state),
     skip,
+    like,
+    superlike,
+    undo,
     select,
     restart,
     retry,

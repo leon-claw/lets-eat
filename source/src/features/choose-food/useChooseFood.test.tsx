@@ -1,51 +1,47 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import type { FoodChoice } from '@/entities/food-choice/types';
 import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
 import { useChooseFood } from './useChooseFood';
 
-const choice = (id: string): FoodChoice => ({
-  id,
-  name: id,
-  description: `${id} description`,
-  coverImage: `https://example.com/${id}.jpg`,
-  tags: ['标签一', '标签二'],
-  representativeFoods: ['代表菜一', '代表菜二'],
-});
+const first: FoodChoice = {
+  id: 'first',
+  name: '粤菜',
+  description: '清鲜细腻。',
+  coverImage: 'https://example.com/first.jpg',
+  tags: ['清鲜', '聚餐'],
+  representativeFoods: ['白切鸡', '烧鹅'],
+};
 
-const deterministicRandom = () => 0.99;
+const second: FoodChoice = {
+  id: 'second',
+  name: '火锅',
+  description: '热闹满足。',
+  coverImage: 'https://example.com/second.jpg',
+  tags: ['热闹', '多人'],
+  representativeFoods: ['毛肚', '肥牛'],
+};
+
+const orderedRandom = () => 0.999;
 
 describe('useChooseFood', () => {
-  it('loads choices and exposes skip/select actions', async () => {
+  it('exposes candidates, the next card, and undo for a swipe round', async () => {
     const repository: FoodChoiceRepository = {
-      list: vi.fn().mockResolvedValue([choice('first'), choice('second')]),
+      list: async () => [first, second],
     };
-    const { result } = renderHook(() => useChooseFood(repository, deterministicRandom));
+    const { result } = renderHook(() => useChooseFood(repository, orderedRandom));
 
-    await waitFor(() => expect(result.current.state.status).toBe('choosing'));
-    expect(result.current.currentChoice?.id).toBe('first');
+    await waitFor(() => expect(result.current.currentChoice).toEqual(first));
+    expect(result.current.nextChoice).toEqual(second);
 
-    act(() => result.current.skip());
-    expect(result.current.currentChoice?.id).toBe('second');
+    act(() => result.current.like());
 
-    act(() => result.current.select());
-    expect(result.current.state.status).toBe('selected');
-    expect(result.current.state.selectedChoice?.id).toBe('second');
-  });
+    expect(result.current.currentChoice).toEqual(second);
+    expect(result.current.state.likedChoices).toEqual([first]);
 
-  it('exposes retry after repository failure', async () => {
-    const repository: FoodChoiceRepository = {
-      list: vi.fn()
-        .mockRejectedValueOnce(new Error('network failed'))
-        .mockResolvedValueOnce([choice('recovered')]),
-    };
-    const { result } = renderHook(() => useChooseFood(repository, deterministicRandom));
+    act(() => result.current.undo());
 
-    await waitFor(() => expect(result.current.state.status).toBe('error'));
-    expect(result.current.state.errorMessage).toBe('加载失败，请重试');
-
-    act(() => result.current.retry());
-    await waitFor(() => expect(result.current.state.status).toBe('choosing'));
-    expect(result.current.currentChoice?.id).toBe('recovered');
+    expect(result.current.currentChoice).toEqual(first);
+    expect(result.current.state.likedChoices).toEqual([]);
   });
 });
