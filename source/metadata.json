@@ -1,6 +1,0 @@
-{
-  "name": "美团吃什么 - Swipe选菜神器",
-  "description": "基于美团APP视觉DNA打造的移动端Tinder式滑动选菜工具，包含左右滑选菜、智能决策摇号、已选清单及美团风格设置等功能。",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

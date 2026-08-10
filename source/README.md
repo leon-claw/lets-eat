@@ -1,20 +1,48 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# 今天吃什么 Web 版
 
-# Run and deploy your AI Studio app
+一个帮助用户快速决定“今天吃什么”的单页 Web 原型。
 
-This contains everything you need to run your app locally.
+当前版本使用本地模拟数据，用户可以通过左滑、右滑或按钮在粤菜、火锅、烧烤、螺蛳粉、轻食等混合饮食选项中做选择。
 
-View your app in AI Studio: https://ai.studio/apps/a8e3bad0-b5ca-4043-99b6-4ee821c6c4ca
+## 本地运行
 
-## Run Locally
+环境要求：Node.js 20.19+；使用 Node.js 22 时建议 22.12+，可以避免 Vite React 插件的 engine warning。
 
-**Prerequisites:**  Node.js
+```bash
+npm install
+npm run dev
+```
 
+Vite 会输出本地访问地址。如果 3000 端口已被占用，它会自动使用下一个可用端口。
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 验证命令
+
+```bash
+npm test
+npm run lint
+npm run build
+```
+
+## 当前范围
+
+- 单页饮食选项选择流程
+- 16 条本地模拟饮食选项
+- 左滑或“换一个”：跳过
+- 右滑或“就吃这个”：选定
+- 选定后可以重新开始
+- 桌面端鼠标操作和移动端触摸操作
+
+当前不包含地图、附近餐厅、餐厅列表、登录、订单、优惠券、收藏、用户偏好、后端服务和微信小程序。
+
+## 目录结构
+
+```text
+src/
+├── app/                         # 应用组合和页面状态展示
+├── entities/food-choice/        # FoodChoice 模型、仓储契约和模拟实现
+├── features/choose-food/        # 选择状态机、Hook 和刷卡组件
+├── shared/                      # 通用组件、工具和全局样式
+└── main.tsx                     # Web 入口
+```
+
+数据通过 `FoodChoiceRepository` 获取。未来接入服务端时，可以增加新的仓储实现；再增加 `Restaurant` 实体，通过 `foodChoiceIds` 将餐厅与饮食选项关联起来，不需要重写选择流程。
