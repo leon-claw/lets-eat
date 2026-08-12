@@ -22,6 +22,8 @@
 
 - 在规划、实现或修改产品功能前，必须先阅读
   `docs/superpowers/specs/2026-08-12-food-game-e2e-design.md`。
+- 涉及后端、多人同步、数据持久化、部署或测试时，还必须阅读
+  `docs/superpowers/specs/2026-08-12-food-game-multiplayer-technical-design.md`。
 - 该文档是当前完整 Web 版产品流程和交互规则的主要事实来源。
 - 当前 MVP 使用所有用户共享的只读固定菜品库，不提供设置、菜品新增、编辑或图片上传功能。
 - Figma 只用于确认视觉布局和层级，不用于补全未写明的业务规则。
