@@ -35,7 +35,7 @@ export class CatalogRepository {
   private readonly hashDocument: (document: CatalogDocument) => Promise<string>;
 
   constructor(options: CatalogRepositoryOptions) {
-    this.fetcher = options.fetcher ?? fetch;
+    this.fetcher = options.fetcher ?? globalThis.fetch.bind(globalThis);
     this.cache = options.cache;
     this.hashDocument = options.hashDocument ?? hashCatalogDocument;
   }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useState } from 'react';
-import { createChoiceRound } from '@/entities/food-choice/model';
+import type { DatasetType, Decision } from '@lets-eat/contracts';
 import { mockFoodChoiceRepository } from '@/entities/food-choice/mock-repository';
-import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
+import type { FoodChoiceRepository, FoodChoiceVersion } from '@/entities/food-choice/repository';
 import {
   chooseFoodReducer,
   getCurrentChoice,
@@ -12,6 +12,12 @@ import {
 export function useChooseFood(
   repository: FoodChoiceRepository = mockFoodChoiceRepository,
   random: () => number = Math.random,
+  options: {
+    datasetType?: DatasetType;
+    version?: FoodChoiceVersion;
+    decisions?: Record<string, Decision>;
+    history?: string[];
+  } = {},
 ) {
   const [state, dispatch] = useReducer(chooseFoodReducer, initialChooseFoodState);
   const [retryToken, setRetryToken] = useState(0);
@@ -21,10 +27,15 @@ export function useChooseFood(
     dispatch({ type: 'load-start' });
 
     repository
-      .list('large')
+      .list(options.datasetType ?? 'large', options.version)
       .then((choices) => {
         if (!isActive) return;
-        dispatch({ type: 'load-success', choices });
+        dispatch({
+          type: 'load-success',
+          choices,
+          decisions: options.decisions,
+          history: options.history,
+        });
       })
       .catch(() => {
         if (!isActive) return;
@@ -34,32 +45,28 @@ export function useChooseFood(
     return () => {
       isActive = false;
     };
-  }, [random, repository, retryToken]);
+  }, [options.datasetType, options.decisions, options.history, options.version, random, repository, retryToken]);
 
-  const skip = useCallback(() => dispatch({ type: 'skip' }), []);
+  const dislike = useCallback(() => dispatch({ type: 'dislike' }), []);
   const like = useCallback(() => dispatch({ type: 'like' }), []);
-  const superlike = useCallback(() => dispatch({ type: 'superlike' }), []);
   const undo = useCallback(() => dispatch({ type: 'undo' }), []);
-  const select = useCallback(() => dispatch({ type: 'select' }), []);
   const retry = useCallback(() => setRetryToken((token) => token + 1), []);
   const setInteractionLocked = useCallback(
     (locked: boolean) => dispatch({ type: 'set-interaction-locked', locked }),
     [],
   );
   const restart = useCallback(() => {
-    dispatch({ type: 'restart', choices: createChoiceRound(state.choices, random) });
-  }, [random, state.choices]);
+    dispatch({ type: 'restart', choices: state.choices });
+  }, [state.choices]);
 
   return {
     state,
     currentChoice: getCurrentChoice(state),
     nextChoice: state.status === 'choosing' ? state.choices[state.index + 1] ?? null : null,
     progress: getProgress(state),
-    skip,
+    dislike,
     like,
-    superlike,
     undo,
-    select,
     restart,
     retry,
     setInteractionLocked,

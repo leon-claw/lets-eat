@@ -17,150 +17,53 @@ const choice = (id: string): FoodChoice => ({
 });
 
 describe('chooseFoodReducer', () => {
-  it('enters empty when the repository returns no choices', () => {
-    const state = chooseFoodReducer(initialChooseFoodState, {
-      type: 'load-success',
-      choices: [],
-    });
-
-    expect(state.status).toBe('empty');
+  it('enters empty when no choices are available', () => {
+    expect(chooseFoodReducer(initialChooseFoodState, { type: 'load-success', choices: [] }).status).toBe('empty');
   });
 
-  it('moves to the next choice when skipping', () => {
-    const first = choice('first');
-    const second = choice('second');
+  it('records liked and disliked decisions independently', () => {
     const choosing = chooseFoodReducer(initialChooseFoodState, {
-      type: 'load-success',
-      choices: [first, second],
-    });
-
-    const next = chooseFoodReducer(choosing, { type: 'skip' });
-
-    expect(next.index).toBe(1);
-    expect(getCurrentChoice(next)).toEqual(second);
-    expect(getProgress(next)).toEqual({ current: 2, total: 2 });
-  });
-
-  it('adds a right-swiped choice to candidates and advances the deck', () => {
-    const first = choice('first');
-    const second = choice('second');
-    const choosing = chooseFoodReducer(initialChooseFoodState, {
-      type: 'load-success',
-      choices: [first, second],
-    });
-
-    const liked = chooseFoodReducer(choosing, { type: 'like' });
-
-    expect(liked).toMatchObject({
-      status: 'choosing',
-      index: 1,
-      likedChoices: [first],
-    });
-    expect(getCurrentChoice(liked)).toEqual(second);
-  });
-
-  it('keeps the final right-swiped choice and enters the completed round', () => {
-    const first = choice('first');
-    const choosing = chooseFoodReducer(initialChooseFoodState, {
-      type: 'load-success',
-      choices: [first],
-    });
-
-    const exhausted = chooseFoodReducer(choosing, { type: 'like' });
-
-    expect(exhausted).toMatchObject({
-      status: 'exhausted',
-      index: 1,
-      likedChoices: [first],
-    });
-  });
-
-  it('undoes the latest candidate swipe', () => {
-    const first = choice('first');
-    const second = choice('second');
-    const choosing = chooseFoodReducer(initialChooseFoodState, {
-      type: 'load-success',
-      choices: [first, second],
+      type: 'load-success', choices: [choice('first'), choice('second')],
     });
     const liked = chooseFoodReducer(choosing, { type: 'like' });
+    const exhausted = chooseFoodReducer(liked, { type: 'dislike' });
 
+    expect(liked.likedChoices.map((item) => item.id)).toEqual(['first']);
+    expect(exhausted.status).toBe('exhausted');
+    expect(exhausted.history.map((item) => item.decision)).toEqual(['liked', 'disliked']);
+  });
+
+  it('undoes the latest binary decision', () => {
+    const choosing = chooseFoodReducer(initialChooseFoodState, {
+      type: 'load-success', choices: [choice('first'), choice('second')],
+    });
+    const liked = chooseFoodReducer(choosing, { type: 'like' });
     const undone = chooseFoodReducer(liked, { type: 'undo' });
 
-    expect(undone).toMatchObject({
-      status: 'choosing',
-      index: 0,
-      likedChoices: [],
-    });
-    expect(getCurrentChoice(undone)).toEqual(first);
+    expect(undone.index).toBe(0);
+    expect(undone.likedChoices).toEqual([]);
+    expect(getCurrentChoice(undone)?.id).toBe('first');
   });
 
-  it('enters exhausted after skipping the final choice', () => {
-    const choosing = chooseFoodReducer(initialChooseFoodState, {
+  it('restores the first item without a decision after refresh', () => {
+    const restored = chooseFoodReducer(initialChooseFoodState, {
       type: 'load-success',
       choices: [choice('first'), choice('second')],
+      decisions: { first: 'liked' },
+      history: ['first'],
     });
-    const second = chooseFoodReducer(choosing, { type: 'skip' });
 
-    const exhausted = chooseFoodReducer(second, { type: 'skip' });
-
-    expect(exhausted.status).toBe('exhausted');
-    expect(getCurrentChoice(exhausted)).toBeNull();
+    expect(restored.index).toBe(1);
+    expect(getCurrentChoice(restored)?.id).toBe('second');
+    expect(getProgress(restored)).toEqual({ current: 2, total: 2 });
   });
 
-  it('stores the current choice when selecting', () => {
-    const first = choice('first');
+  it('ignores decisions while interaction is locked', () => {
     const choosing = chooseFoodReducer(initialChooseFoodState, {
-      type: 'load-success',
-      choices: [first],
+      type: 'load-success', choices: [choice('first'), choice('second')],
     });
+    const locked = chooseFoodReducer(choosing, { type: 'set-interaction-locked', locked: true });
 
-    const selected = chooseFoodReducer(choosing, { type: 'select' });
-
-    expect(selected.status).toBe('selected');
-    expect(selected.selectedChoice).toEqual(first);
-  });
-
-  it('ignores skip while interaction is locked', () => {
-    const choosing = chooseFoodReducer(initialChooseFoodState, {
-      type: 'load-success',
-      choices: [choice('first'), choice('second')],
-    });
-    const locked = chooseFoodReducer(choosing, {
-      type: 'set-interaction-locked',
-      locked: true,
-    });
-
-    expect(chooseFoodReducer(locked, { type: 'skip' })).toBe(locked);
-  });
-
-  it('restarts a new round and clears the selected result', () => {
-    const selected = chooseFoodReducer(
-      chooseFoodReducer(initialChooseFoodState, {
-        type: 'load-success',
-        choices: [choice('first')],
-      }),
-      { type: 'select' },
-    );
-
-    const restarted = chooseFoodReducer(selected, {
-      type: 'restart',
-      choices: [choice('second'), choice('first')],
-    });
-
-    expect(restarted).toMatchObject({
-      status: 'choosing',
-      index: 0,
-      selectedChoice: null,
-      errorMessage: null,
-    });
-  });
-
-  it('enters error and keeps a user-facing failure message', () => {
-    const state = chooseFoodReducer(initialChooseFoodState, {
-      type: 'load-failure',
-      message: '加载失败，请重试',
-    });
-
-    expect(state).toMatchObject({ status: 'error', errorMessage: '加载失败，请重试' });
+    expect(chooseFoodReducer(locked, { type: 'like' })).toBe(locked);
   });
 });

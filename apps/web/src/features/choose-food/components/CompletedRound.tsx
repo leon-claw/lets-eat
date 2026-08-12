@@ -1,17 +1,15 @@
 import { motion } from 'motion/react';
-import { Dices, ShoppingBag } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import type { FoodChoice } from '@/entities/food-choice/types';
 
 interface CompletedRoundProps {
   likedChoices: FoodChoice[];
-  onOpenDecision(): void;
   onOpenCandidates(): void;
   onRestart(): void;
 }
 
 export function CompletedRound({
   likedChoices,
-  onOpenDecision,
   onOpenCandidates,
   onRestart,
 }: CompletedRoundProps) {
@@ -42,14 +40,6 @@ export function CompletedRound({
         <div className="space-y-3">
           {likedCount > 0 && (
             <>
-              <button
-                type="button"
-                onClick={onOpenDecision}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#FFD100] px-4 py-3 text-sm font-extrabold text-gray-900 shadow-md transition-transform hover:bg-[#ffc800] active:scale-[0.98]"
-              >
-                <Dices className="h-5 w-5" />
-                今天吃什么？摇号帮你决断！
-              </button>
               <button
                 type="button"
                 onClick={onOpenCandidates}

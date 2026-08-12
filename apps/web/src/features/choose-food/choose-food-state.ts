@@ -1,36 +1,40 @@
+import type { Decision } from '@lets-eat/contracts';
 import type { FoodChoice } from '@/entities/food-choice/types';
 
 export type ChooseFoodStatus =
   | 'loading'
   | 'choosing'
-  | 'selected'
   | 'exhausted'
   | 'empty'
   | 'error';
+
+export interface ChoiceHistoryRecord {
+  choice: FoodChoice;
+  decision: Decision;
+}
 
 export interface ChooseFoodState {
   status: ChooseFoodStatus;
   choices: FoodChoice[];
   index: number;
-  selectedChoice: FoodChoice | null;
   likedChoices: FoodChoice[];
-  history: Array<{
-    choice: FoodChoice;
-    action: 'skip' | 'like' | 'superlike';
-  }>;
+  history: ChoiceHistoryRecord[];
   errorMessage: string | null;
   interactionLocked: boolean;
 }
 
 export type ChooseFoodAction =
   | { type: 'load-start' }
-  | { type: 'load-success'; choices: FoodChoice[] }
+  | {
+      type: 'load-success';
+      choices: FoodChoice[];
+      decisions?: Record<string, Decision>;
+      history?: string[];
+    }
   | { type: 'load-failure'; message: string }
-  | { type: 'skip' }
+  | { type: 'dislike' }
   | { type: 'like' }
-  | { type: 'superlike' }
   | { type: 'undo' }
-  | { type: 'select' }
   | { type: 'restart'; choices: FoodChoice[] }
   | { type: 'set-interaction-locked'; locked: boolean };
 
@@ -38,17 +42,13 @@ export const initialChooseFoodState: ChooseFoodState = {
   status: 'loading',
   choices: [],
   index: 0,
-  selectedChoice: null,
   likedChoices: [],
   history: [],
   errorMessage: null,
   interactionLocked: false,
 };
 
-function advanceRound(
-  state: ChooseFoodState,
-  action: 'skip' | 'like' | 'superlike',
-): ChooseFoodState {
+function advanceRound(state: ChooseFoodState, decision: Decision): ChooseFoodState {
   if (state.status !== 'choosing' || state.interactionLocked || state.choices.length === 0) {
     return state;
   }
@@ -57,25 +57,39 @@ function advanceRound(
   if (!currentChoice) return state;
 
   const nextIndex = state.index + 1;
-  const likedChoices = action === 'skip'
+  const likedChoices = decision === 'disliked'
     ? state.likedChoices
     : [...state.likedChoices, currentChoice];
-  const history = [...state.history, { choice: currentChoice, action }];
+  const history = [...state.history, { choice: currentChoice, decision }];
 
   return nextIndex >= state.choices.length
-    ? {
-        ...state,
-        status: 'exhausted',
-        index: nextIndex,
-        likedChoices,
-        history,
-      }
-    : {
-        ...state,
-        index: nextIndex,
-        likedChoices,
-        history,
-      };
+    ? { ...state, status: 'exhausted', index: nextIndex, likedChoices, history }
+    : { ...state, index: nextIndex, likedChoices, history };
+}
+
+function restoreRound(
+  choices: FoodChoice[],
+  decisions: Record<string, Decision>,
+  historyIds: string[],
+): ChooseFoodState {
+  if (choices.length === 0) return { ...initialChooseFoodState, status: 'empty' };
+
+  const history = historyIds.flatMap((id) => {
+    const choice = choices.find((item) => item.id === id);
+    const decision = decisions[id];
+    return choice && decision ? [{ choice, decision }] : [];
+  });
+  const likedChoices = choices.filter((choice) => decisions[choice.id] === 'liked');
+  const index = choices.findIndex((choice) => !decisions[choice.id]);
+
+  return {
+    ...initialChooseFoodState,
+    status: index === -1 ? 'exhausted' : 'choosing',
+    choices,
+    index: index === -1 ? choices.length : index,
+    likedChoices,
+    history,
+  };
 }
 
 export function chooseFoodReducer(
@@ -87,32 +101,16 @@ export function chooseFoodReducer(
       return { ...initialChooseFoodState };
 
     case 'load-success':
-      return action.choices.length === 0
-        ? {
-            ...initialChooseFoodState,
-            status: 'empty',
-          }
-        : {
-            ...initialChooseFoodState,
-            status: 'choosing',
-            choices: action.choices,
-          };
+      return restoreRound(action.choices, action.decisions ?? {}, action.history ?? []);
 
     case 'load-failure':
-      return {
-        ...initialChooseFoodState,
-        status: 'error',
-        errorMessage: action.message,
-      };
+      return { ...initialChooseFoodState, status: 'error', errorMessage: action.message };
 
-    case 'skip':
-      return advanceRound(state, 'skip');
+    case 'dislike':
+      return advanceRound(state, 'disliked');
 
     case 'like':
-      return advanceRound(state, 'like');
-
-    case 'superlike':
-      return advanceRound(state, 'superlike');
+      return advanceRound(state, 'liked');
 
     case 'undo': {
       if (state.status !== 'choosing' || state.interactionLocked || state.history.length === 0) {
@@ -121,7 +119,7 @@ export function chooseFoodReducer(
 
       const lastRecord = state.history[state.history.length - 1];
       const history = state.history.slice(0, -1);
-      const likedChoices = lastRecord.action === 'skip'
+      const likedChoices = lastRecord.decision === 'disliked'
         ? state.likedChoices
         : state.likedChoices.filter((choice) => choice.id !== lastRecord.choice.id);
 
@@ -133,26 +131,8 @@ export function chooseFoodReducer(
       };
     }
 
-    case 'select': {
-      if (state.status !== 'choosing' || state.interactionLocked || state.choices.length === 0) {
-        return state;
-      }
-
-      return {
-        ...state,
-        status: 'selected',
-        selectedChoice: state.choices[state.index],
-      };
-    }
-
     case 'restart':
-      return action.choices.length === 0
-        ? { ...initialChooseFoodState, status: 'empty' }
-        : {
-            ...initialChooseFoodState,
-            status: 'choosing',
-            choices: action.choices,
-          };
+      return restoreRound(action.choices, {}, []);
 
     case 'set-interaction-locked':
       return { ...state, interactionLocked: action.locked };
@@ -166,8 +146,5 @@ export function getCurrentChoice(state: ChooseFoodState): FoodChoice | null {
 
 export function getProgress(state: ChooseFoodState): { current: number; total: number } {
   const total = state.choices.length;
-  return {
-    current: total === 0 ? 0 : Math.min(state.index + 1, total),
-    total,
-  };
+  return { current: total === 0 ? 0 : Math.min(state.index + 1, total), total };
 }
