@@ -217,8 +217,7 @@ export function SwipeDeck({
           dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
           dragElastic={0.85}
           onDragEnd={handleDragEnd}
-          whileGrab={{ cursor: 'grabbing' }}
-          className="absolute z-10 flex h-full w-full cursor-grab flex-col justify-between overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-xl touch-pan-y"
+          className="absolute z-10 flex h-full w-full cursor-grab flex-col justify-between overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-xl active:cursor-grabbing touch-pan-y"
         >
           <motion.div style={{ opacity: likeOpacity }} className="pointer-events-none absolute right-6 top-6 z-20 flex rotate-12 items-center gap-1 rounded-2xl border-2 border-white bg-emerald-500 px-3.5 py-1 text-lg font-black text-white shadow-lg">
             <Heart className="h-5 w-5 fill-white" /> 想吃 / YUM
