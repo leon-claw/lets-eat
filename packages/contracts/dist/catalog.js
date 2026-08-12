@@ -1,0 +1,27 @@
+import { z } from 'zod';
+import { DatasetTypeSchema } from './common.js';
+export const CatalogItemSchema = z.object({
+    id: z.string().regex(/^[a-z0-9-]+$/),
+    name: z.string().min(1).max(40),
+    description: z.string().min(1).max(240),
+    imageUrl: z.string().min(1),
+    datasetType: DatasetTypeSchema,
+    order: z.number().int().positive(),
+    tags: z.array(z.string().min(1)).max(5),
+    representativeFoods: z.array(z.string().min(1)).max(5),
+}).strict();
+export const CatalogDocumentSchema = z.object({
+    catalogVersion: z.string().regex(/^v[1-9]\d*$/),
+    items: z.array(CatalogItemSchema).min(1),
+}).strict();
+export const CatalogManifestSchema = z.object({
+    catalogVersion: z.string().regex(/^v[1-9]\d*$/),
+    catalogHash: z.string().regex(/^[a-f0-9]{64}$/),
+    catalogUrl: z.string().min(1),
+    counts: z.object({
+        large: z.number().int().nonnegative(),
+        small: z.number().int().nonnegative(),
+    }).strict(),
+}).strict();
+export const GetCatalogManifestResponseSchema = CatalogManifestSchema;
+export const GetCatalogResponseSchema = CatalogDocumentSchema;

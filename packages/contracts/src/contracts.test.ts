@@ -1,0 +1,70 @@
+import { randomUUID } from 'node:crypto';
+import { describe, expect, it } from 'vitest';
+import {
+  CatalogDocumentSchema,
+  ClientAuthMessageSchema,
+  JoinRoomRequestSchema,
+  PutDecisionRequestSchema,
+  RoomSnapshotSchema,
+  ServerEventSchema,
+} from './index.js';
+
+describe('shared contracts', () => {
+  it('rejects a non-numeric room code and unsupported decision', () => {
+    expect(JoinRoomRequestSchema.safeParse({
+      code: '12AB5678',
+      displayName: '测试用户',
+    }).success).toBe(false);
+    expect(PutDecisionRequestSchema.safeParse({ decision: 'superlike' }).success).toBe(false);
+  });
+
+  it('rejects a room snapshot that exposes member decisions', () => {
+    const hostUserId = randomUUID();
+    const parsed = RoomSnapshotSchema.safeParse({
+      id: randomUUID(),
+      code: '12345678',
+      status: 'waiting',
+      selectedDataset: 'large',
+      revision: 1,
+      currentRoundId: null,
+      hostUserId,
+      members: [{
+        id: randomUUID(),
+        userId: hostUserId,
+        displayName: '测试房主',
+        role: 'host',
+        joinedAt: new Date(0).toISOString(),
+        decisions: [],
+      }],
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('accepts a valid catalog and revision-only realtime envelope', () => {
+    expect(CatalogDocumentSchema.safeParse({
+      catalogVersion: 'v1',
+      items: [{
+        id: 'cantonese',
+        name: '粤菜',
+        description: '清鲜细腻',
+        imageUrl: '/api/catalog-assets/v1/images/cantonese.webp',
+        datasetType: 'large',
+        order: 1,
+        tags: ['清鲜'],
+        representativeFoods: ['白切鸡'],
+      }],
+    }).success).toBe(true);
+    expect(ServerEventSchema.safeParse({
+      eventId: randomUUID(),
+      type: 'room.updated',
+      roomId: randomUUID(),
+      roomRevision: 2,
+      occurredAt: new Date(0).toISOString(),
+    }).success).toBe(true);
+  });
+
+  it('rejects websocket authentication without a room subscription', () => {
+    expect(ClientAuthMessageSchema.safeParse({ type: 'auth', token: 'signed-token' }).success).toBe(false);
+  });
+});
