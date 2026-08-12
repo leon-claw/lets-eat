@@ -3,7 +3,7 @@ import { BrowserRouter, MemoryRouter, Navigate, Route, Routes, useLocation, useN
 import { createBrowserCatalogFoodChoiceRepository } from '@/entities/catalog/food-choice-repository';
 import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
 import { DatasetPage } from '@/pages/DatasetPage';
-import { GamePage } from '@/pages/GamePage';
+import { GamePage, MultiplayerGameRoute } from '@/pages/GamePage';
 import { HomePage } from '@/pages/HomePage';
 import { ModePage } from '@/pages/ModePage';
 import { ResultPage } from '@/pages/ResultPage';
@@ -46,7 +46,7 @@ function RouteTree({ repository, roomClient }: { repository: FoodChoiceRepositor
       <Route path="/game/single" element={<GamePage repository={repository} />} />
       <Route path="/result/single" element={<ResultPage repository={repository} />} />
       <Route path="/room/:roomId" element={roomClient && identity ? <RoomRoute roomClient={roomClient} userId={identity.userId} /> : <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] text-sm font-bold text-slate-500">正在恢复房间…</div>} />
-      <Route path="/game/round/:roundId" element={<MultiplayerPlaceholder title="多人游戏准备中" message="下一步将接入多人滑动选菜和断线恢复。" />} />
+      <Route path="/game/round/:roundId" element={<MultiplayerGameRoute repository={repository} roundClient={roomClient} />} />
       <Route path="/result/round/:roundId" element={<MultiplayerPlaceholder title="本轮结果" message="结果页将在多人选菜流程完成后开放。" />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

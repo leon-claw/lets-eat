@@ -3,12 +3,16 @@ import {
   ChangeDatasetResponseSchema,
   CreateRoomResponseSchema,
   CurrentRoomResponseSchema,
+  CompleteRoundResponseSchema,
+  GetRoundResponseSchema,
   GetRoomResponseSchema,
   JoinRoomResponseSchema,
   StartRoundResponseSchema,
   type ChangeDatasetRequest,
   type CreateRoomRequest,
   type JoinRoomRequest,
+  type Decision,
+  type RoundSnapshot,
   type RoomSnapshot,
 } from '@lets-eat/contracts';
 import { ApiClient, ApiClientError } from '@/shared/http/api-client';
@@ -59,6 +63,22 @@ export class RoomClient {
 
   async startRound(room: RoomSnapshot, idempotencyKey = crypto.randomUUID()) {
     return this.withAuthRetry(() => this.api.request(StartRoundResponseSchema, `/api/rooms/${room.id}/rounds`, { method: 'POST', body: { expectedRoomRevision: room.revision }, idempotencyKey }));
+  }
+
+  async getRound(roundId: string) {
+    return this.withAuthRetry(() => this.api.request(GetRoundResponseSchema, `/api/rounds/${roundId}`));
+  }
+
+  async putDecision(roundId: string, catalogItemId: string, decision: Decision) {
+    return this.withAuthRetry(() => this.api.request(EmptyResponseSchema, `/api/rounds/${roundId}/decisions/${catalogItemId}`, { method: 'PUT', body: { decision } }));
+  }
+
+  async deleteDecision(roundId: string, catalogItemId: string) {
+    return this.withAuthRetry(() => this.api.request(EmptyResponseSchema, `/api/rounds/${roundId}/decisions/${catalogItemId}`, { method: 'DELETE' }));
+  }
+
+  async completeRound(round: RoundSnapshot, idempotencyKey = crypto.randomUUID()) {
+    return this.withAuthRetry(() => this.api.request(CompleteRoundResponseSchema, `/api/rounds/${round.id}/complete`, { method: 'POST', body: { expectedRoundRevision: round.revision }, idempotencyKey }));
   }
 
   private async withAuthRetry<T>(operation: () => Promise<T>): Promise<T> {
