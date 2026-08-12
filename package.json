@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "pnpm --filter @lets-eat/web dev",
     "dev:web": "pnpm --filter @lets-eat/web dev",
+    "dev:api": "pnpm --filter @lets-eat/contracts build && pnpm --filter @lets-eat/api dev",
     "build": "pnpm -r --workspace-concurrency=1 build",
     "lint": "pnpm -r --workspace-concurrency=1 lint",
     "test": "pnpm -r --workspace-concurrency=1 test"

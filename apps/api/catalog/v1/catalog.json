@@ -1,0 +1,165 @@
+{
+  "catalogVersion": "v1",
+  "items": [
+    {
+      "id": "cantonese",
+      "name": "粤菜",
+      "description": "清鲜细腻，重视食材本味，适合想吃得舒服又有仪式感的一餐。",
+      "imageUrl": "/api/catalog-assets/v1/images/cantonese.webp",
+      "datasetType": "large",
+      "order": 1,
+      "tags": ["清鲜", "聚餐", "老少皆宜"],
+      "representativeFoods": ["白切鸡", "烧鹅", "煲仔饭"]
+    },
+    {
+      "id": "sichuan",
+      "name": "川菜",
+      "description": "麻辣鲜香、层次丰富，适合今天想来点刺激和下饭滋味。",
+      "imageUrl": "/api/catalog-assets/v1/images/sichuan.webp",
+      "datasetType": "large",
+      "order": 2,
+      "tags": ["麻辣", "下饭", "重口味"],
+      "representativeFoods": ["水煮鱼", "回锅肉", "麻婆豆腐"]
+    },
+    {
+      "id": "hunan",
+      "name": "湘菜",
+      "description": "香辣浓郁、锅气十足，酸辣与鲜香都很突出。",
+      "imageUrl": "/api/catalog-assets/v1/images/hunan.webp",
+      "datasetType": "large",
+      "order": 3,
+      "tags": ["香辣", "锅气", "下饭"],
+      "representativeFoods": ["剁椒鱼头", "小炒黄牛肉", "辣椒炒肉"]
+    },
+    {
+      "id": "japanese",
+      "name": "日料",
+      "description": "味道清爽、摆盘精致，可以丰盛也可以轻盈。",
+      "imageUrl": "/api/catalog-assets/v1/images/japanese.webp",
+      "datasetType": "large",
+      "order": 4,
+      "tags": ["清爽", "精致", "约会"],
+      "representativeFoods": ["寿司", "刺身", "鳗鱼饭"]
+    },
+    {
+      "id": "korean",
+      "name": "韩餐",
+      "description": "甜辣酱香和丰富小菜组合，适合想吃肉也想吃主食。",
+      "imageUrl": "/api/catalog-assets/v1/images/korean.webp",
+      "datasetType": "large",
+      "order": 5,
+      "tags": ["甜辣", "烤肉", "分享"],
+      "representativeFoods": ["韩式烤肉", "石锅拌饭", "部队锅"]
+    },
+    {
+      "id": "western",
+      "name": "西餐",
+      "description": "牛排、意面和烘焙香气组成一顿节奏舒缓的正餐。",
+      "imageUrl": "/api/catalog-assets/v1/images/western.webp",
+      "datasetType": "large",
+      "order": 6,
+      "tags": ["约会", "仪式感", "奶香"],
+      "representativeFoods": ["牛排", "意大利面", "披萨"]
+    },
+    {
+      "id": "southeast-asian",
+      "name": "东南亚菜",
+      "description": "香茅、椰奶和酸辣风味明亮，适合换一种热带口味。",
+      "imageUrl": "/api/catalog-assets/v1/images/southeast-asian.webp",
+      "datasetType": "large",
+      "order": 7,
+      "tags": ["酸辣", "香料", "开胃"],
+      "representativeFoods": ["冬阴功", "咖喱蟹", "菠萝炒饭"]
+    },
+    {
+      "id": "northeast",
+      "name": "东北菜",
+      "description": "份量实在、咸香热乎，适合多人分享和痛快吃饭。",
+      "imageUrl": "/api/catalog-assets/v1/images/northeast.webp",
+      "datasetType": "large",
+      "order": 8,
+      "tags": ["量大", "咸香", "聚餐"],
+      "representativeFoods": ["锅包肉", "地三鲜", "铁锅炖"]
+    },
+    {
+      "id": "yunnan",
+      "name": "云南菜",
+      "description": "菌菇、香草和酸辣风味自然鲜活，地方特色鲜明。",
+      "imageUrl": "/api/catalog-assets/v1/images/yunnan.webp",
+      "datasetType": "large",
+      "order": 9,
+      "tags": ["菌香", "清鲜", "地方特色"],
+      "representativeFoods": ["汽锅鸡", "野生菌火锅", "过桥米线"]
+    },
+    {
+      "id": "seafood",
+      "name": "海鲜",
+      "description": "虾蟹贝类带来鲜甜滋味，适合想认真犒劳自己的一餐。",
+      "imageUrl": "/api/catalog-assets/v1/images/seafood.webp",
+      "datasetType": "large",
+      "order": 10,
+      "tags": ["鲜甜", "聚餐", "犒劳"],
+      "representativeFoods": ["清蒸鱼", "椒盐虾", "蒜蓉生蚝"]
+    },
+    {
+      "id": "hotpot",
+      "name": "火锅",
+      "description": "一锅容纳多种口味，适合朋友聚会或慢慢吃一顿。",
+      "imageUrl": "/api/catalog-assets/v1/images/hotpot.webp",
+      "datasetType": "small",
+      "order": 1,
+      "tags": ["热闹", "多人", "自由搭配"],
+      "representativeFoods": ["毛肚", "肥牛", "虾滑"]
+    },
+    {
+      "id": "barbecue",
+      "name": "烧烤",
+      "description": "炭火焦香配上孜然和辣椒，是夜晚最直接的满足。",
+      "imageUrl": "/api/catalog-assets/v1/images/barbecue.webp",
+      "datasetType": "small",
+      "order": 2,
+      "tags": ["宵夜", "焦香", "朋友聚会"],
+      "representativeFoods": ["羊肉串", "烤鸡翅", "烤茄子"]
+    },
+    {
+      "id": "luosifen",
+      "name": "螺蛳粉",
+      "description": "酸、辣、鲜、香集中爆发，适合口味明确的独食时刻。",
+      "imageUrl": "/api/catalog-assets/v1/images/luosifen.webp",
+      "datasetType": "small",
+      "order": 3,
+      "tags": ["酸辣", "独食", "地方特色"],
+      "representativeFoods": ["虎皮鸭脚", "炸腐竹", "酸笋"]
+    },
+    {
+      "id": "noodles",
+      "name": "面食",
+      "description": "汤面、拌面和炒面选择丰富，是稳定又快速的一餐。",
+      "imageUrl": "/api/catalog-assets/v1/images/noodles.webp",
+      "datasetType": "small",
+      "order": 4,
+      "tags": ["管饱", "快捷", "独食"],
+      "representativeFoods": ["兰州牛肉面", "炸酱面", "油泼面"]
+    },
+    {
+      "id": "light-food",
+      "name": "轻食",
+      "description": "蔬菜、谷物和优质蛋白搭配，清爽但不必委屈胃口。",
+      "imageUrl": "/api/catalog-assets/v1/images/light-food.webp",
+      "datasetType": "small",
+      "order": 5,
+      "tags": ["清爽", "低负担", "高蛋白"],
+      "representativeFoods": ["鸡胸沙拉", "谷物碗", "全麦三明治"]
+    },
+    {
+      "id": "dessert-drinks",
+      "name": "甜品奶茶",
+      "description": "奶香、果香和甜味负责给今天增加一点即时快乐。",
+      "imageUrl": "/api/catalog-assets/v1/images/dessert-drinks.webp",
+      "datasetType": "small",
+      "order": 6,
+      "tags": ["下午茶", "甜口", "休闲"],
+      "representativeFoods": ["杨枝甘露", "芋圆", "珍珠奶茶"]
+    }
+  ]
+}
