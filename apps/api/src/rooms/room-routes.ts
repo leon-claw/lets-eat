@@ -10,8 +10,10 @@ import { ApiError } from '../http/api-error.js';
 import { requireAuth } from '../auth/auth-middleware.js';
 import type { TokenService } from '../auth/token-service.js';
 import { RoomService } from './room-service.js';
+import type { RealtimeHub } from '../realtime/realtime-hub.js';
+import { createRealtimeEvent } from '../realtime/realtime-events.js';
 
-export function createRoomRouter(roomService: RoomService, tokenService: TokenService): Router {
+export function createRoomRouter(roomService: RoomService, tokenService: TokenService, hub?: RealtimeHub): Router {
   const router = Router();
   const auth = requireAuth(tokenService);
 
@@ -23,12 +25,15 @@ export function createRoomRouter(roomService: RoomService, tokenService: TokenSe
     const input = parseBody(CreateRoomRequestSchema, request.body);
     const key = request.header('idempotency-key');
     const room = await roomService.createRoom(requireUserId(request), input, key || undefined);
+    hub?.publish(createRealtimeEvent({ type: 'room.updated', roomId: room.id, roomRevision: room.revision }));
     response.status(201).json(room);
   });
 
   router.post('/rooms/join', auth, async (request, response) => {
     const input = parseBody(JoinRoomRequestSchema, request.body);
-    response.json(await roomService.joinRoom(requireUserId(request), input));
+    const room = await roomService.joinRoom(requireUserId(request), input);
+    hub?.publish(createRealtimeEvent({ type: 'room.updated', roomId: room.id, roomRevision: room.revision }));
+    response.json(room);
   });
 
   router.get('/rooms/:roomId', auth, async (request, response) => {
@@ -37,16 +42,24 @@ export function createRoomRouter(roomService: RoomService, tokenService: TokenSe
 
   router.patch('/rooms/:roomId/dataset', auth, async (request, response) => {
     const input = parseBody(ChangeDatasetRequestSchema, request.body);
-    response.json(await roomService.changeDataset(requireUserId(request), getParam(request.params.roomId), input));
+    const room = await roomService.changeDataset(requireUserId(request), getParam(request.params.roomId), input);
+    hub?.publish(createRealtimeEvent({ type: 'room.updated', roomId: room.id, roomRevision: room.revision }));
+    response.json(room);
   });
 
   router.post('/rooms/:roomId/leave', auth, async (request, response) => {
-    await roomService.leaveRoom(requireUserId(request), getParam(request.params.roomId));
+    const roomId = getParam(request.params.roomId);
+    const before = await roomService.getRoom(requireUserId(request), roomId);
+    await roomService.leaveRoom(requireUserId(request), roomId);
+    hub?.publish(createRealtimeEvent({ type: 'room.updated', roomId, roomRevision: before.revision + 1 }));
     response.status(204).end();
   });
 
   router.delete('/rooms/:roomId', auth, async (request, response) => {
-    await roomService.deleteRoom(requireUserId(request), getParam(request.params.roomId));
+    const roomId = getParam(request.params.roomId);
+    const before = await roomService.getRoom(requireUserId(request), roomId);
+    await roomService.deleteRoom(requireUserId(request), roomId);
+    hub?.publish(createRealtimeEvent({ type: 'room.closed', roomId, roomRevision: before.revision }));
     response.status(204).end();
   });
 

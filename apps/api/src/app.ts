@@ -11,6 +11,7 @@ import type { RoomService } from './rooms/room-service.js';
 import { createRoomRouter } from './rooms/room-routes.js';
 import type { RoundService } from './rounds/round-service.js';
 import { createRoundRouter } from './rounds/round-routes.js';
+import type { RealtimeHub } from './realtime/realtime-hub.js';
 
 export interface AppDependencies {
   catalogService: CatalogService;
@@ -18,9 +19,10 @@ export interface AppDependencies {
   pool?: Pool;
   roomService?: RoomService;
   roundService?: RoundService;
+  realtimeHub?: RealtimeHub;
 }
 
-export function createApp({ catalogService, tokenService, pool, roomService, roundService }: AppDependencies): Express {
+export function createApp({ catalogService, tokenService, pool, roomService, roundService, realtimeHub }: AppDependencies): Express {
   const app = express();
   app.disable('x-powered-by');
   app.use(requestIdMiddleware);
@@ -31,8 +33,8 @@ export function createApp({ catalogService, tokenService, pool, roomService, rou
     maxAge: '1y',
   }));
   if (tokenService) app.use('/api/auth', createAuthRouter(tokenService));
-  if (tokenService && roomService) app.use('/api', createRoomRouter(roomService, tokenService));
-  if (tokenService && roundService) app.use('/api', createRoundRouter(roundService, tokenService));
+  if (tokenService && roomService) app.use('/api', createRoomRouter(roomService, tokenService, realtimeHub));
+  if (tokenService && roundService) app.use('/api', createRoundRouter(roundService, tokenService, roomService, realtimeHub));
   app.use('/health', createHealthRouter(pool));
 
   app.use((_request, _response, next) => {

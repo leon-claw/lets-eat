@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { beforeAll, afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app.js';
 import { TokenService } from '../auth/token-service.js';
 import { createCatalogFixture } from '../catalog/catalog-test-fixture.js';
@@ -8,12 +8,14 @@ import { decisions, idempotencyRecords, roomMembers, rooms, roundMembers, rounds
 import { createTestDatabase, closeTestDatabase } from '../test/database.js';
 import { RoomService } from '../rooms/room-service.js';
 import { RoundService } from './round-service.js';
+import { RealtimeHub } from '../realtime/realtime-hub.js';
 
 describe('round HTTP routes', () => {
   let database: Awaited<ReturnType<typeof createTestDatabase>>;
   let app: ReturnType<typeof createApp>;
   let tokens: TokenService;
   let roundService: RoundService;
+  let realtimeHub: RealtimeHub;
 
   beforeAll(async () => {
     database = await createTestDatabase();
@@ -22,17 +24,21 @@ describe('round HTTP routes', () => {
     const catalogService = await CatalogService.fromDirectory(root, 'v1');
     tokens = new TokenService('a'.repeat(32));
     roundService = new RoundService({ db: database.db, catalogService });
+    realtimeHub = new RealtimeHub();
+    vi.spyOn(realtimeHub, 'publish');
     app = createApp({
       catalogService,
       pool: database.pool,
       tokenService: tokens,
       roomService: new RoomService({ db: database.db, codeGenerator: () => '12345678', roundLifecycle: roundService }),
       roundService,
+      realtimeHub,
     });
   });
 
   beforeEach(async () => {
     if (!database) return;
+    vi.clearAllMocks();
     await database.db.delete(decisions);
     await database.db.delete(roundMembers);
     await database.db.delete(rounds);
@@ -65,12 +71,16 @@ describe('round HTTP routes', () => {
       .expect(201);
     expect(started.body.members).toHaveLength(2);
     expect(started.body.ownDecisions).toEqual([]);
+    const publishMock = vi.mocked(realtimeHub.publish);
+    expect(publishMock).toHaveBeenCalledWith(expect.objectContaining({ type: 'round.started', roomId: created.body.id, roundId: started.body.id }));
+    const eventsBeforeDecisions = publishMock.mock.calls.length;
 
     await request(app)
       .put(`/api/rounds/${started.body.id}/decisions/cantonese`)
       .set('authorization', `Bearer ${host.token}`)
       .send({ decision: 'liked' })
       .expect(204);
+    expect(publishMock.mock.calls.length).toBe(eventsBeforeDecisions);
     const hostView = await request(app)
       .get(`/api/rounds/${started.body.id}`)
       .set('authorization', `Bearer ${host.token}`)

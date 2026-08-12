@@ -8,6 +8,9 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { TokenService } from './auth/token-service.js';
 import { RoomService } from './rooms/room-service.js';
 import { RoundService } from './rounds/round-service.js';
+import { createServer } from 'node:http';
+import { attachWebSocketServer } from './realtime/websocket-server.js';
+import { RealtimeHub } from './realtime/realtime-hub.js';
 
 const env = parseEnv();
 const database = createDatabase(env.DATABASE_URL);
@@ -19,14 +22,19 @@ const catalogRoot = resolve(process.env.CATALOG_ROOT ?? 'catalog');
 const catalogService = await CatalogService.fromDirectory(catalogRoot, catalogVersion);
 const tokenService = new TokenService(env.JWT_SECRET);
 const roundService = new RoundService({ db: database.db, catalogService });
+const realtimeHub = new RealtimeHub();
+const roomService = new RoomService({ db: database.db, roundLifecycle: roundService });
 const app = createApp({
   catalogService,
   pool: database.pool,
   tokenService,
-  roomService: new RoomService({ db: database.db, roundLifecycle: roundService }),
+  roomService,
   roundService,
+  realtimeHub,
 });
 
-app.listen(port, '0.0.0.0', () => {
+const httpServer = createServer(app);
+attachWebSocketServer({ httpServer, tokenService, roomService, hub: realtimeHub });
+httpServer.listen(port, '0.0.0.0', () => {
   process.stdout.write(`lets-eat API listening on ${port}\n`);
 });

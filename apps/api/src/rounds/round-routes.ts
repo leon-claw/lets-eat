@@ -12,8 +12,11 @@ import { requireAuth } from '../auth/auth-middleware.js';
 import type { TokenService } from '../auth/token-service.js';
 import { ApiError } from '../http/api-error.js';
 import { RoundService } from './round-service.js';
+import type { RealtimeHub } from '../realtime/realtime-hub.js';
+import { createRealtimeEvent } from '../realtime/realtime-events.js';
+import type { RoomService } from '../rooms/room-service.js';
 
-export function createRoundRouter(roundService: RoundService, tokenService: TokenService): Router {
+export function createRoundRouter(roundService: RoundService, tokenService: TokenService, roomService?: RoomService, hub?: RealtimeHub): Router {
   const router = Router();
   const auth = requireAuth(tokenService);
 
@@ -25,6 +28,8 @@ export function createRoundRouter(roundService: RoundService, tokenService: Toke
       input,
       request.header('idempotency-key') || undefined,
     );
+    const room = roomService ? await roomService.getRoom(requireUserId(request), getParam(request.params.roomId)) : null;
+    if (room) hub?.publish(createRealtimeEvent({ type: 'round.started', roomId: room.id, roomRevision: room.revision, roundId: round.id, roundRevision: round.revision }));
     response.status(201).json(round);
   });
 
@@ -60,17 +65,22 @@ export function createRoundRouter(roundService: RoundService, tokenService: Toke
       input,
       request.header('idempotency-key') || undefined,
     );
+    const room = roomService ? await roomService.getRoom(requireUserId(request), round.roomId) : null;
+    if (room) hub?.publish(createRealtimeEvent({ type: round.status === 'completed' ? 'round.completed' : 'member.progressed', roomId: room.id, roomRevision: room.revision, roundId: round.id, roundRevision: round.revision }));
     response.json(round);
   });
 
   router.post('/rounds/:roundId/members/:memberId/remove', auth, async (request, response) => {
     const input = parseBody(RemoveRoundMemberRequestSchema, request.body);
-    response.json(await roundService.removeMember(
+    const round = await roundService.removeMember(
       requireUserId(request),
       getParam(request.params.roundId),
       getParam(request.params.memberId),
       input,
-    ));
+    );
+    const room = roomService ? await roomService.getRoom(requireUserId(request), round.roomId) : null;
+    if (room) hub?.publish(createRealtimeEvent({ type: round.status === 'completed' ? 'round.completed' : 'member.progressed', roomId: room.id, roomRevision: room.revision, roundId: round.id, roundRevision: round.revision }));
+    response.json(round);
   });
 
   router.get('/rounds/:roundId/result', auth, async (request, response) => {
@@ -79,7 +89,9 @@ export function createRoundRouter(roundService: RoundService, tokenService: Toke
 
   router.post('/rooms/:roomId/open-next-round', auth, async (request, response) => {
     const input = parseBody(OpenNextRoundRequestSchema, request.body);
-    response.json(await roundService.openNextRound(requireUserId(request), getParam(request.params.roomId), input));
+    const room = await roundService.openNextRound(requireUserId(request), getParam(request.params.roomId), input);
+    hub?.publish(createRealtimeEvent({ type: 'room.updated', roomId: room.id, roomRevision: room.revision }));
+    response.json(room);
   });
 
   return router;
