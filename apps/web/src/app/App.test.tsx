@@ -21,7 +21,11 @@ describe('App', () => {
       list: async () => choices,
     };
 
-    render(<App repository={repository} />);
+    const roomClient = {
+      getIdentity: async () => ({ userId: '11111111-1111-4111-8111-111111111111', token: 'token', expiresAt: new Date(Date.now() + 60_000).toISOString() }),
+      getCurrentRoom: async () => ({ room: null }),
+    } as never;
+    render(<App repository={repository} roomClient={roomClient} />);
 
     expect(screen.getByRole('heading', { name: '今天吃什么' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /返回/ })).not.toBeInTheDocument();
