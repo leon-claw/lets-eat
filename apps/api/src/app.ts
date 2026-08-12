@@ -7,14 +7,17 @@ import { createAuthRouter } from './auth/auth-routes.js';
 import { createHealthRouter } from './operations/health-routes.js';
 import type { TokenService } from './auth/token-service.js';
 import type { Pool } from 'pg';
+import type { RoomService } from './rooms/room-service.js';
+import { createRoomRouter } from './rooms/room-routes.js';
 
 export interface AppDependencies {
   catalogService: CatalogService;
   tokenService?: TokenService;
   pool?: Pool;
+  roomService?: RoomService;
 }
 
-export function createApp({ catalogService, tokenService, pool }: AppDependencies): Express {
+export function createApp({ catalogService, tokenService, pool, roomService }: AppDependencies): Express {
   const app = express();
   app.disable('x-powered-by');
   app.use(requestIdMiddleware);
@@ -25,6 +28,7 @@ export function createApp({ catalogService, tokenService, pool }: AppDependencie
     maxAge: '1y',
   }));
   if (tokenService) app.use('/api/auth', createAuthRouter(tokenService));
+  if (tokenService && roomService) app.use('/api', createRoomRouter(roomService, tokenService));
   app.use('/health', createHealthRouter(pool));
 
   app.use((_request, _response, next) => {

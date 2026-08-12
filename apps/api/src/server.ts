@@ -6,6 +6,7 @@ import { parseEnv } from './config/env.js';
 import { createDatabase } from './db/client.js';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { TokenService } from './auth/token-service.js';
+import { RoomService } from './rooms/room-service.js';
 
 const env = parseEnv();
 const database = createDatabase(env.DATABASE_URL);
@@ -15,7 +16,13 @@ const port = env.API_PORT;
 const catalogVersion = env.CATALOG_VERSION;
 const catalogRoot = resolve(process.env.CATALOG_ROOT ?? 'catalog');
 const catalogService = await CatalogService.fromDirectory(catalogRoot, catalogVersion);
-const app = createApp({ catalogService, pool: database.pool, tokenService: new TokenService(env.JWT_SECRET) });
+const tokenService = new TokenService(env.JWT_SECRET);
+const app = createApp({
+  catalogService,
+  pool: database.pool,
+  tokenService,
+  roomService: new RoomService({ db: database.db }),
+});
 
 app.listen(port, '0.0.0.0', () => {
   process.stdout.write(`lets-eat API listening on ${port}\n`);
