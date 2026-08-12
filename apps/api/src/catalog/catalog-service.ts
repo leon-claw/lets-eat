@@ -3,8 +3,11 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   CatalogDocumentSchema,
+  DatasetTypeSchema,
   type CatalogDocument,
+  type CatalogItem,
   type CatalogManifest,
+  type DatasetType,
 } from '@lets-eat/contracts';
 
 function canonicalize(value: unknown): string {
@@ -70,5 +73,22 @@ export class CatalogService {
 
   getCatalog(version: string): CatalogDocument | null {
     return this.catalogs.get(version) ?? null;
+  }
+
+  getCurrentSelection(datasetType: DatasetType): {
+    catalogVersion: string;
+    catalogHash: string;
+    datasetType: DatasetType;
+    items: CatalogItem[];
+  } {
+    DatasetTypeSchema.parse(datasetType);
+    const catalog = this.catalogs.get(this.manifest.catalogVersion);
+    if (!catalog) throw new Error(`Current catalog version not found: ${this.manifest.catalogVersion}`);
+    return {
+      catalogVersion: this.manifest.catalogVersion,
+      catalogHash: this.manifest.catalogHash,
+      datasetType,
+      items: catalog.items.filter((item) => item.datasetType === datasetType).sort((left, right) => left.order - right.order),
+    };
   }
 }

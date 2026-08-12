@@ -9,15 +9,18 @@ import type { TokenService } from './auth/token-service.js';
 import type { Pool } from 'pg';
 import type { RoomService } from './rooms/room-service.js';
 import { createRoomRouter } from './rooms/room-routes.js';
+import type { RoundService } from './rounds/round-service.js';
+import { createRoundRouter } from './rounds/round-routes.js';
 
 export interface AppDependencies {
   catalogService: CatalogService;
   tokenService?: TokenService;
   pool?: Pool;
   roomService?: RoomService;
+  roundService?: RoundService;
 }
 
-export function createApp({ catalogService, tokenService, pool, roomService }: AppDependencies): Express {
+export function createApp({ catalogService, tokenService, pool, roomService, roundService }: AppDependencies): Express {
   const app = express();
   app.disable('x-powered-by');
   app.use(requestIdMiddleware);
@@ -29,6 +32,7 @@ export function createApp({ catalogService, tokenService, pool, roomService }: A
   }));
   if (tokenService) app.use('/api/auth', createAuthRouter(tokenService));
   if (tokenService && roomService) app.use('/api', createRoomRouter(roomService, tokenService));
+  if (tokenService && roundService) app.use('/api', createRoundRouter(roundService, tokenService));
   app.use('/health', createHealthRouter(pool));
 
   app.use((_request, _response, next) => {

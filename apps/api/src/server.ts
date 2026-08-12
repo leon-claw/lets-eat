@@ -7,6 +7,7 @@ import { createDatabase } from './db/client.js';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { TokenService } from './auth/token-service.js';
 import { RoomService } from './rooms/room-service.js';
+import { RoundService } from './rounds/round-service.js';
 
 const env = parseEnv();
 const database = createDatabase(env.DATABASE_URL);
@@ -22,6 +23,7 @@ const app = createApp({
   pool: database.pool,
   tokenService,
   roomService: new RoomService({ db: database.db }),
+  roundService: new RoundService({ db: database.db, catalogService }),
 });
 
 app.listen(port, '0.0.0.0', () => {
