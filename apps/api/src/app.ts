@@ -3,12 +3,18 @@ import { createCatalogRouter } from './catalog/catalog-routes.js';
 import type { CatalogService } from './catalog/catalog-service.js';
 import { ApiError } from './http/api-error.js';
 import { requestIdMiddleware } from './http/request-id.js';
+import { createAuthRouter } from './auth/auth-routes.js';
+import { createHealthRouter } from './operations/health-routes.js';
+import type { TokenService } from './auth/token-service.js';
+import type { Pool } from 'pg';
 
 export interface AppDependencies {
   catalogService: CatalogService;
+  tokenService?: TokenService;
+  pool?: Pool;
 }
 
-export function createApp({ catalogService }: AppDependencies): Express {
+export function createApp({ catalogService, tokenService, pool }: AppDependencies): Express {
   const app = express();
   app.disable('x-powered-by');
   app.use(requestIdMiddleware);
@@ -18,6 +24,8 @@ export function createApp({ catalogService }: AppDependencies): Express {
     immutable: true,
     maxAge: '1y',
   }));
+  if (tokenService) app.use('/api/auth', createAuthRouter(tokenService));
+  app.use('/health', createHealthRouter(pool));
 
   app.use((_request, _response, next) => {
     next(new ApiError(404, 'NOT_FOUND', '接口不存在'));
