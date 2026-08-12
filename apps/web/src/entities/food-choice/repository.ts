@@ -1,5 +1,6 @@
 import type { FoodChoice } from './types';
+import type { DatasetType } from '@lets-eat/contracts';
 
 export interface FoodChoiceRepository {
-  list(): Promise<FoodChoice[]>;
+  list(datasetType?: DatasetType): Promise<FoodChoice[]>;
 }

@@ -45,6 +45,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@lets-eat/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@tailwindcss/vite':
         specifier: ^4.1.14
         version: 4.3.3(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.12))

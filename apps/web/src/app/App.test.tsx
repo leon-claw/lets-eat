@@ -34,6 +34,7 @@ describe('App', () => {
 
     render(<App repository={repository} random={deterministicRandom} />);
     expect(await screen.findByRole('heading', { name: first.name, level: 2 })).toBeInTheDocument();
+    expect(repository.list).toHaveBeenCalledWith('large');
 
     await user.click(screen.getByRole('button', { name: '喜欢 / 想吃' }));
     expect(await screen.findByRole('heading', { name: second.name, level: 2 })).toBeInTheDocument();

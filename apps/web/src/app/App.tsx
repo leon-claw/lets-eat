@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
-import { mockFoodChoiceRepository } from '@/entities/food-choice/mock-repository';
+import { createBrowserCatalogFoodChoiceRepository } from '@/entities/catalog/food-choice-repository';
 import { CandidateListDialog } from '@/features/choose-food/components/CandidateListDialog';
 import { CompletedRound } from '@/features/choose-food/components/CompletedRound';
 import { DecisionWheelDialog } from '@/features/choose-food/components/DecisionWheelDialog';
@@ -12,8 +12,10 @@ export interface AppProps {
   random?: () => number;
 }
 
+const defaultRepository = createBrowserCatalogFoodChoiceRepository();
+
 export default function App({
-  repository = mockFoodChoiceRepository,
+  repository = defaultRepository,
   random = Math.random,
 }: AppProps) {
   const chooseFood = useChooseFood(repository, random);

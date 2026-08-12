@@ -21,10 +21,10 @@ export function useChooseFood(
     dispatch({ type: 'load-start' });
 
     repository
-      .list()
+      .list('large')
       .then((choices) => {
         if (!isActive) return;
-        dispatch({ type: 'load-success', choices: createChoiceRound(choices, random) });
+        dispatch({ type: 'load-success', choices });
       })
       .catch(() => {
         if (!isActive) return;
