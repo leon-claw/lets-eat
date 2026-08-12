@@ -55,6 +55,6 @@ describe('AppRouter', () => {
     await user.click(await screen.findByRole('button', { name: '喜欢' }));
 
     expect(await screen.findByRole('heading', { name: '看完全部菜品啦！' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '查看备选清单 (1)' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: '查看备选清单 (1)' })).toBeInTheDocument();
   });
 });

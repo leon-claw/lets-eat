@@ -11,13 +11,15 @@ export async function createTestApp() {
   const root = await createCatalogFixture();
   const catalogService = await CatalogService.fromDirectory(root, 'v1');
   const database = await createTestDatabase();
-  return database
-    ? { app: createApp({
+  const roundService = database ? new RoundService({ db: database.db, catalogService }) : null;
+  if (database && roundService) {
+    return { app: createApp({
       catalogService,
       pool: database.pool,
       tokenService: new TokenService('a'.repeat(32)),
-      roomService: new RoomService({ db: database.db }),
-      roundService: new RoundService({ db: database.db, catalogService }),
-    }), database }
-    : { app: createApp({ catalogService }), database: null };
+      roomService: new RoomService({ db: database.db, roundLifecycle: roundService }),
+      roundService,
+    }), database };
+  }
+  return { app: createApp({ catalogService }), database: null };
 }

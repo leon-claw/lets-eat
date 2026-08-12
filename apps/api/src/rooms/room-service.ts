@@ -20,6 +20,11 @@ interface RoomServiceOptions {
   idempotency?: IdempotencyService;
   now?: () => Date;
   codeGenerator?: () => string;
+  roundLifecycle?: ActiveRoundGuestLeaveHandler;
+}
+
+export interface ActiveRoundGuestLeaveHandler {
+  removeGuestFromActiveRound(executor: DatabaseExecutor, roomId: string, roomMemberId: string): Promise<boolean>;
 }
 
 export class RoomService {
@@ -203,8 +208,11 @@ export class RoomService {
       const member = await this.findMembership(tx, actorUserId, roomId);
       if (!member) throw new ApiError(403, 'ROOM_MEMBER_REQUIRED', '只有房间成员可以退出房间');
       if (member.role === 'host') throw new ApiError(409, 'HOST_MUST_CLOSE_ROOM', '房主需要关闭房间');
+      const finalized = room.status === 'playing' && this.options.roundLifecycle
+        ? await this.options.roundLifecycle.removeGuestFromActiveRound(tx, room.id, member.id)
+        : false;
       await tx.delete(roomMembers).where(eq(roomMembers.id, member.id));
-      await this.touchRoom(tx, room.id, room.revision + 1);
+      if (!finalized) await this.touchRoom(tx, room.id, room.revision + 1);
       return null;
     });
   }

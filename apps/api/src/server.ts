@@ -18,12 +18,13 @@ const catalogVersion = env.CATALOG_VERSION;
 const catalogRoot = resolve(process.env.CATALOG_ROOT ?? 'catalog');
 const catalogService = await CatalogService.fromDirectory(catalogRoot, catalogVersion);
 const tokenService = new TokenService(env.JWT_SECRET);
+const roundService = new RoundService({ db: database.db, catalogService });
 const app = createApp({
   catalogService,
   pool: database.pool,
   tokenService,
-  roomService: new RoomService({ db: database.db }),
-  roundService: new RoundService({ db: database.db, catalogService }),
+  roomService: new RoomService({ db: database.db, roundLifecycle: roundService }),
+  roundService,
 });
 
 app.listen(port, '0.0.0.0', () => {

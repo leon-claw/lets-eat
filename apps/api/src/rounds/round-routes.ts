@@ -1,5 +1,13 @@
 import { Router } from 'express';
-import { GetRoundResponseSchema, PutDecisionRequestSchema, StartRoundRequestSchema } from '@lets-eat/contracts';
+import {
+  CompleteRoundRequestSchema,
+  GetRoundResponseSchema,
+  GetRoundResultResponseSchema,
+  OpenNextRoundRequestSchema,
+  PutDecisionRequestSchema,
+  RemoveRoundMemberRequestSchema,
+  StartRoundRequestSchema,
+} from '@lets-eat/contracts';
 import { requireAuth } from '../auth/auth-middleware.js';
 import type { TokenService } from '../auth/token-service.js';
 import { ApiError } from '../http/api-error.js';
@@ -42,6 +50,36 @@ export function createRoundRouter(roundService: RoundService, tokenService: Toke
       getParam(request.params.catalogItemId),
     );
     response.status(204).end();
+  });
+
+  router.post('/rounds/:roundId/complete', auth, async (request, response) => {
+    const input = parseBody(CompleteRoundRequestSchema, request.body);
+    const round = await roundService.completeRound(
+      requireUserId(request),
+      getParam(request.params.roundId),
+      input,
+      request.header('idempotency-key') || undefined,
+    );
+    response.json(round);
+  });
+
+  router.post('/rounds/:roundId/members/:memberId/remove', auth, async (request, response) => {
+    const input = parseBody(RemoveRoundMemberRequestSchema, request.body);
+    response.json(await roundService.removeMember(
+      requireUserId(request),
+      getParam(request.params.roundId),
+      getParam(request.params.memberId),
+      input,
+    ));
+  });
+
+  router.get('/rounds/:roundId/result', auth, async (request, response) => {
+    response.json(GetRoundResultResponseSchema.parse(await roundService.getResult(requireUserId(request), getParam(request.params.roundId))));
+  });
+
+  router.post('/rooms/:roomId/open-next-round', auth, async (request, response) => {
+    const input = parseBody(OpenNextRoundRequestSchema, request.body);
+    response.json(await roundService.openNextRound(requireUserId(request), getParam(request.params.roomId), input));
   });
 
   return router;

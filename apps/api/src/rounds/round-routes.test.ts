@@ -13,6 +13,7 @@ describe('round HTTP routes', () => {
   let database: Awaited<ReturnType<typeof createTestDatabase>>;
   let app: ReturnType<typeof createApp>;
   let tokens: TokenService;
+  let roundService: RoundService;
 
   beforeAll(async () => {
     database = await createTestDatabase();
@@ -20,12 +21,13 @@ describe('round HTTP routes', () => {
     const root = await createCatalogFixture();
     const catalogService = await CatalogService.fromDirectory(root, 'v1');
     tokens = new TokenService('a'.repeat(32));
+    roundService = new RoundService({ db: database.db, catalogService });
     app = createApp({
       catalogService,
       pool: database.pool,
       tokenService: tokens,
-      roomService: new RoomService({ db: database.db, codeGenerator: () => '12345678' }),
-      roundService: new RoundService({ db: database.db, catalogService }),
+      roomService: new RoomService({ db: database.db, codeGenerator: () => '12345678', roundLifecycle: roundService }),
+      roundService,
     });
   });
 
@@ -89,5 +91,49 @@ describe('round HTTP routes', () => {
       .toEqual([expect.objectContaining({ decision: 'disliked' })]);
     expect((await request(app).get(`/api/rounds/${started.body.id}`).set('authorization', `Bearer ${host.token}`)).body.ownDecisions)
       .toEqual([expect.objectContaining({ decision: 'liked' })]);
+  });
+
+  it('completes a round, returns the frozen result, and opens the next waiting round', async () => {
+    if (!database) return;
+    const host = await tokens.issue();
+    const created = await request(app)
+      .post('/api/rooms')
+      .set('authorization', `Bearer ${host.token}`)
+      .send({ displayName: '房主' })
+      .expect(201);
+    const started = await request(app)
+      .post(`/api/rooms/${created.body.id}/rounds`)
+      .set('authorization', `Bearer ${host.token}`)
+      .set('idempotency-key', 'round-start-complete')
+      .send({ expectedRoomRevision: 0 })
+      .expect(201);
+
+    for (const [itemId, decision] of [['cantonese', 'liked'], ['western', 'disliked']] as const) {
+      await request(app)
+        .put(`/api/rounds/${started.body.id}/decisions/${itemId}`)
+        .set('authorization', `Bearer ${host.token}`)
+        .send({ decision })
+        .expect(204);
+    }
+    const completed = await request(app)
+      .post(`/api/rounds/${started.body.id}/complete`)
+      .set('authorization', `Bearer ${host.token}`)
+      .set('idempotency-key', 'round-complete-1')
+      .send({ expectedRoundRevision: 0 })
+      .expect(200);
+    expect(completed.body.status).toBe('completed');
+
+    const result = await request(app)
+      .get(`/api/rounds/${started.body.id}/result`)
+      .set('authorization', `Bearer ${host.token}`)
+      .expect(200);
+    expect(result.body.items).toEqual([{ catalogItemId: 'cantonese', likeCount: 1, order: 1 }]);
+
+    const reopened = await request(app)
+      .post(`/api/rooms/${created.body.id}/open-next-round`)
+      .set('authorization', `Bearer ${host.token}`)
+      .send({ expectedRoomRevision: completed.body.revision + 1 })
+      .expect(200);
+    expect(reopened.body).toMatchObject({ status: 'waiting', currentRoundId: null });
   });
 });
