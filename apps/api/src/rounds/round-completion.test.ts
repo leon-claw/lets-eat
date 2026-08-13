@@ -70,7 +70,7 @@ describe('RoundService completion lifecycle', () => {
     expect(guestView.status).toBe('playing');
   });
 
-  it('freezes sorted anonymous counts when the last active member completes', async () => {
+  it('freezes the liked intersection and each completed player list', async () => {
     if (!database) return;
     const { hostId, guestId, round, room } = await startTwoMembers();
     await decideAll(hostId, round.id, true);
@@ -80,23 +80,38 @@ describe('RoundService completion lifecycle', () => {
     const completed = await roundService.completeRound(guestId, round.id, { expectedRoundRevision: partial.revision }, 'complete-guest');
     expect(completed.status).toBe('completed');
     const result = await roundService.getResult(hostId, round.id);
-    expect(result.items).toEqual([
-      { catalogItemId: 'cantonese', likeCount: 2, order: 1 },
-      { catalogItemId: 'western', likeCount: 1, order: 2 },
-    ]);
+    expect(result.commonItems).toEqual([{ catalogItemId: 'cantonese', order: 1 }]);
+    expect(result.players).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        displayName: '房主',
+        items: [
+          { catalogItemId: 'cantonese', order: 1 },
+          { catalogItemId: 'western', order: 2 },
+        ],
+      }),
+      expect.objectContaining({
+        displayName: '客人',
+        items: [{ catalogItemId: 'cantonese', order: 1 }],
+      }),
+    ]));
     const [storedRoom] = await database.db.select().from(rooms).where(eq(rooms.id, room.id));
     expect(storedRoom).toMatchObject({ status: 'results', currentRoundId: round.id });
     expect(await roundService.getResult(guestId, round.id)).toEqual(result);
   });
 
-  it('returns an empty item array when nobody liked an item', async () => {
+  it('returns an empty intersection and empty lists when nobody liked an item', async () => {
     if (!database) return;
     const { hostId, guestId, round } = await startTwoMembers();
     await decideAll(hostId, round.id, false);
     const partial = await roundService.completeRound(hostId, round.id, { expectedRoundRevision: 0 }, 'complete-host');
     await decideAll(guestId, round.id, false);
     await roundService.completeRound(guestId, round.id, { expectedRoundRevision: partial.revision }, 'complete-guest');
-    expect((await roundService.getResult(hostId, round.id)).items).toEqual([]);
+    const result = await roundService.getResult(hostId, round.id);
+    expect(result.commonItems).toEqual([]);
+    expect(result.players).toEqual(expect.arrayContaining([
+      expect.objectContaining({ displayName: '房主', items: [] }),
+      expect.objectContaining({ displayName: '客人', items: [] }),
+    ]));
   });
 
   it('allows only the host to remove an unfinished guest and deletes guest decisions', async () => {
@@ -122,7 +137,7 @@ describe('RoundService completion lifecycle', () => {
     const guestMember = completedHost.members.find((member) => !member.isSelf)!;
     const finished = await roundService.removeMember(hostId, round.id, guestMember.memberId, { expectedRoundRevision: completedHost.revision });
     expect(finished.status).toBe('completed');
-    expect((await roundService.getResult(hostId, round.id)).items).toHaveLength(2);
+    expect((await roundService.getResult(hostId, round.id)).commonItems).toHaveLength(2);
     await expect(roundService.putDecision(guestId, round.id, 'cantonese', 'liked')).rejects.toMatchObject({ code: 'ROUND_NOT_PLAYING' });
   });
 
@@ -147,10 +162,11 @@ describe('RoundService completion lifecycle', () => {
     await roomService.leaveRoom(guestId, room.id);
     expect(await roundService.getResult(hostId, round.id)).toEqual(expect.objectContaining({
       roundId: round.id,
-      items: [
-        expect.objectContaining({ catalogItemId: 'cantonese', likeCount: 1 }),
-        expect.objectContaining({ catalogItemId: 'western', likeCount: 1 }),
+      commonItems: [
+        { catalogItemId: 'cantonese', order: 1 },
+        { catalogItemId: 'western', order: 2 },
       ],
+      players: [expect.objectContaining({ displayName: '房主' })],
     }));
     const [storedRound] = await database.db.select().from(rounds).where(eq(rounds.id, round.id));
     const [storedRoom] = await database.db.select().from(rooms).where(eq(rooms.id, room.id));

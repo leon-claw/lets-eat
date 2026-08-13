@@ -358,20 +358,38 @@ export class RoundService {
       .where(eq(roundMembers.roundId, round.id));
     if (activeMembers.some((member) => member.status === 'choosing')) return false;
     if (round.status === 'completed') return true;
-    const liked = await executor.select({ catalogItemId: decisions.catalogItemId })
+    const completedMembers = await executor.select({
+      memberId: roundMembers.roomMemberId,
+      displayName: roomMembers.displayName,
+    })
+      .from(roundMembers)
+      .innerJoin(roomMembers, eq(roundMembers.roomMemberId, roomMembers.id))
+      .where(and(eq(roundMembers.roundId, round.id), eq(roundMembers.status, 'completed')))
+      .orderBy(asc(roomMembers.joinedAt), asc(roomMembers.id));
+    const liked = await executor.select({
+      memberId: decisions.roomMemberId,
+      catalogItemId: decisions.catalogItemId,
+    })
       .from(decisions)
-      .innerJoin(roundMembers, and(
-        eq(roundMembers.roundId, decisions.roundId),
-        eq(roundMembers.roomMemberId, decisions.roomMemberId),
-      ))
-      .where(and(eq(decisions.roundId, round.id), eq(decisions.decision, 'liked'), eq(roundMembers.status, 'completed')));
+      .where(and(eq(decisions.roundId, round.id), eq(decisions.decision, 'liked')));
+    const likedByMember = new Map<string, string[]>();
+    for (const decision of liked) {
+      const memberItems = likedByMember.get(decision.memberId) ?? [];
+      memberItems.push(decision.catalogItemId);
+      likedByMember.set(decision.memberId, memberItems);
+    }
     const items = this.getRoundItems(round.catalogVersion, round.datasetType);
+    const aggregated = aggregateResult(items, completedMembers.map((member) => ({
+      memberId: member.memberId,
+      displayName: member.displayName,
+      likedItemIds: likedByMember.get(member.memberId) ?? [],
+    })));
     const result = GetRoundResultResponseSchema.parse({
       roundId: round.id,
       catalogVersion: round.catalogVersion,
       catalogHash: round.catalogHash,
       datasetType: round.datasetType,
-      items: aggregateResult(items, liked.map((item) => item.catalogItemId)),
+      ...aggregated,
     });
     await executor.update(rounds).set({ status: 'completed', revision: nextRevision, resultSnapshot: result, completedAt: this.now() }).where(eq(rounds.id, round.id));
     await executor.update(rooms).set({ status: 'results', currentRoundId: round.id, revision: (await this.getRoomRevision(executor, round.roomId)) + 1, lastActivityAt: this.now(), updatedAt: this.now() }).where(eq(rooms.id, round.roomId));

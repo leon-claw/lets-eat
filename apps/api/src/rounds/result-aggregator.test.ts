@@ -9,15 +9,28 @@ const items: CatalogItem[] = [
 ];
 
 describe('aggregateResult', () => {
-  it('sorts by like count descending and fixed catalog order for ties', () => {
-    expect(aggregateResult(items, ['one', 'two', 'one', 'three', 'two'])).toEqual([
-      { catalogItemId: 'two', likeCount: 2, order: 1 },
-      { catalogItemId: 'one', likeCount: 2, order: 2 },
-      { catalogItemId: 'three', likeCount: 1, order: 3 },
-    ]);
+  it('returns the common intersection and each player liked list in catalog order', () => {
+    expect(aggregateResult(items, [
+      { memberId: '11111111-1111-4111-8111-111111111111', displayName: '玩家 A', likedItemIds: ['one', 'two'] },
+      { memberId: '22222222-2222-4222-8222-222222222222', displayName: '玩家 B', likedItemIds: ['two', 'three'] },
+    ])).toEqual({
+      commonItems: [{ catalogItemId: 'two', order: 1 }],
+      players: [
+        {
+          memberId: '11111111-1111-4111-8111-111111111111',
+          displayName: '玩家 A',
+          items: [{ catalogItemId: 'two', order: 1 }, { catalogItemId: 'one', order: 2 }],
+        },
+        {
+          memberId: '22222222-2222-4222-8222-222222222222',
+          displayName: '玩家 B',
+          items: [{ catalogItemId: 'two', order: 1 }, { catalogItemId: 'three', order: 3 }],
+        },
+      ],
+    });
   });
 
-  it('ignores items with no likes and returns an explicit empty result', () => {
-    expect(aggregateResult(items, ['missing'])).toEqual([]);
+  it('returns an empty intersection when there are no valid players', () => {
+    expect(aggregateResult(items, [])).toEqual({ commonItems: [], players: [] });
   });
 });

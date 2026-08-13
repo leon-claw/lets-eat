@@ -1,50 +1,35 @@
-# 今天吃什么 Web 版
+# Web 前端包
 
-一个帮助用户快速决定“今天吃什么”的单页 Web 原型。
+这是“今天吃什么”的 React + Vite 前端包，负责首页、单人选择、多人房间和滑动选菜页面。
 
-当前版本使用本地模拟数据，用户可以通过左滑、右滑、上滑或圆形按钮，在粤菜、火锅、烧烤、螺蛳粉、轻食等菜系中做选择。
-
-## 本地运行
-
-环境要求：Node.js 20.19+；使用 Node.js 22 时建议 22.12+，可以避免 Vite React 插件的 engine warning。
+完整项目的启动方式请看根目录 [README.md](../../README.md)。推荐在项目根目录执行：
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev:stack
 ```
 
-Vite 会输出本地访问地址。如果 3000 端口已被占用，它会自动使用下一个可用端口。
+这会自动启动 PostgreSQL、数据库迁移、Express API 和 Web 开发服务器。
 
-## 验证命令
+## 仅启动 Web
+
+如果 API 和 PostgreSQL 已经由其他终端或服务启动，可以单独运行：
 
 ```bash
-npm test
-npm run lint
-npm run build
+pnpm dev
 ```
 
-## 当前范围
+默认访问 <http://localhost:3000>。Vite 会将 `/api` 和 `/ws` 请求代理到 `API_PORT` 指定的 API 地址，默认是 `http://localhost:3001`。
 
-- 单页饮食选项选择流程
-- 16 条本地模拟饮食选项
-- 左滑或“换一个”：跳过
-- 右滑或“喜欢”：加入备选清单
-- 上滑或“强推”：加入备选清单
-- 可撤销上一次划动，并在本轮结束后查看备选清单或摇号决断
-- 还原原版的叠卡预览、圆形操作栏和“看完全部菜品”完成页视觉
-- 桌面端鼠标操作和移动端触摸操作
+## 前端验证
 
-当前不包含地图、附近餐厅、餐厅列表、登录、订单、优惠券、收藏、用户偏好、后端服务和微信小程序。
-
-## 目录结构
-
-```text
-src/
-├── app/                         # 应用组合和页面状态展示
-├── entities/food-choice/        # FoodChoice 模型、仓储契约和模拟实现
-├── features/choose-food/        # 选择状态机、Hook 和刷卡组件
-├── shared/                      # 通用组件、工具和全局样式
-└── main.tsx                     # Web 入口
+```bash
+pnpm lint
+pnpm test
+pnpm build
 ```
 
-数据通过 `FoodChoiceRepository` 获取。未来接入服务端时，可以增加新的仓储实现；再增加 `Restaurant` 实体，通过 `foodChoiceIds` 将餐厅与饮食选项关联起来，不需要重写选择流程。
+产品流程和交互规则以以下规格为准：
+
+- `docs/superpowers/specs/2026-08-12-food-game-e2e-design.md`
+- `docs/superpowers/specs/2026-08-12-food-game-multiplayer-technical-design.md`

@@ -32,8 +32,13 @@ export class IndexedDbDecisionStore implements DecisionOperationStore {
 
   async list(roundId: string): Promise<QueuedDecisionOperation[]> {
     const database = await this.database;
-    const operations = await database.getAllFromIndex('operations', 'by-round', roundId);
-    return operations.sort((left, right) => (left.sequence ?? 0) - (right.sequence ?? 0));
+    const [operations, sequences] = await Promise.all([
+      database.getAllFromIndex('operations', 'by-round', roundId),
+      database.getAllKeysFromIndex('operations', 'by-round', roundId),
+    ]);
+    return operations
+      .map((operation, index) => ({ ...operation, sequence: Number(sequences[index]) }))
+      .sort((left, right) => (left.sequence ?? 0) - (right.sequence ?? 0));
   }
 
   async remove(sequence: number): Promise<void> {

@@ -5,8 +5,10 @@ import {
   CurrentRoomResponseSchema,
   CompleteRoundResponseSchema,
   GetRoundResponseSchema,
+  GetRoundResultResponseSchema,
   GetRoomResponseSchema,
   JoinRoomResponseSchema,
+  OpenNextRoundResponseSchema,
   StartRoundResponseSchema,
   type ChangeDatasetRequest,
   type CreateRoomRequest,
@@ -61,12 +63,23 @@ export class RoomClient {
     return this.withAuthRetry(() => this.api.request(EmptyResponseSchema, `/api/rooms/${roomId}`, { method: 'DELETE' }));
   }
 
+  async openNextRound(room: RoomSnapshot) {
+    return this.withAuthRetry(() => this.api.request(OpenNextRoundResponseSchema, `/api/rooms/${room.id}/open-next-round`, {
+      method: 'POST',
+      body: { expectedRoomRevision: room.revision },
+    }));
+  }
+
   async startRound(room: RoomSnapshot, idempotencyKey = crypto.randomUUID()) {
     return this.withAuthRetry(() => this.api.request(StartRoundResponseSchema, `/api/rooms/${room.id}/rounds`, { method: 'POST', body: { expectedRoomRevision: room.revision }, idempotencyKey }));
   }
 
   async getRound(roundId: string) {
     return this.withAuthRetry(() => this.api.request(GetRoundResponseSchema, `/api/rounds/${roundId}`));
+  }
+
+  async getRoundResult(roundId: string) {
+    return this.withAuthRetry(() => this.api.request(GetRoundResultResponseSchema, `/api/rounds/${roundId}/result`));
   }
 
   async putDecision(roundId: string, catalogItemId: string, decision: Decision) {

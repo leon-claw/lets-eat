@@ -94,6 +94,10 @@ export class RealtimeClient {
 
   private handleEvent(event: ServerEvent): void {
     if (!this.options) return;
+    if (event.type === 'room.closed') {
+      this.options.onStale({ room: true, round: false, reconnected: false });
+      return;
+    }
     const room = event.roomRevision > this.options.revisions.roomRevision;
     const round = event.roundRevision !== undefined
       && (this.options.revisions.roundRevision === undefined || event.roundRevision > this.options.revisions.roundRevision);

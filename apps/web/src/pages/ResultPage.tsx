@@ -2,11 +2,17 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { FoodChoice } from '@/entities/food-choice/types';
 import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
+import type { RoundResult, RoundSnapshot } from '@lets-eat/contracts';
+import type { MultiplayerRoundClient } from '@/features/multiplayer/useMultiplayerRound';
 import { createSingleRoundStore } from '@/features/single-round/single-round-store';
 import { CandidateListDialog } from '@/features/choose-food/components/CandidateListDialog';
 import { PageShell } from '@/shared/components/PageShell';
 
 interface ResultPageProps { repository: FoodChoiceRepository; }
+
+export interface MultiplayerResultClient extends Pick<MultiplayerRoundClient, 'getRound'> {
+  getRoundResult(roundId: string): Promise<RoundResult>;
+}
 
 export function ResultPage({ repository }: ResultPageProps) {
   const navigate = useNavigate();
@@ -48,5 +54,113 @@ export function ResultPage({ repository }: ResultPageProps) {
       </section>
       <CandidateListDialog isOpen={isListOpen} choices={choices} onClose={() => setIsListOpen(false)} />
     </PageShell>
+  );
+}
+
+interface MultiplayerResultPageProps {
+  repository: FoodChoiceRepository;
+  roundId: string;
+  roundClient: MultiplayerResultClient;
+}
+
+interface MultiplayerResultPlayer {
+  memberId: string;
+  displayName: string;
+  choices: FoodChoice[];
+}
+
+export function MultiplayerResultPage({ repository, roundId, roundClient }: MultiplayerResultPageProps) {
+  const navigate = useNavigate();
+  const [round, setRound] = useState<RoundSnapshot | null>(null);
+  const [commonChoices, setCommonChoices] = useState<FoodChoice[]>([]);
+  const [players, setPlayers] = useState<MultiplayerResultPlayer[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setLoaded(false);
+    setError('');
+    void Promise.all([roundClient.getRound(roundId), roundClient.getRoundResult(roundId)])
+      .then(async ([nextRound, result]) => {
+        const choices = await repository.list(result.datasetType, {
+          catalogVersion: result.catalogVersion,
+          catalogHash: result.catalogHash,
+        });
+        if (!active) return;
+        const choicesById = new Map(choices.map((choice) => [choice.id, choice]));
+        const resolveChoices = (items: RoundResult['commonItems']) => items
+          .map((item) => choicesById.get(item.catalogItemId))
+          .filter((choice): choice is FoodChoice => choice !== undefined);
+        setRound(nextRound);
+        setCommonChoices(resolveChoices(result.commonItems));
+        setPlayers(result.players.map((player) => ({
+          memberId: player.memberId,
+          displayName: player.displayName,
+          choices: resolveChoices(player.items),
+        })));
+      })
+      .catch((cause) => {
+        if (active) setError(cause instanceof Error ? cause.message : '结果加载失败，请重试');
+      })
+      .finally(() => {
+        if (active) setLoaded(true);
+      });
+    return () => { active = false; };
+  }, [repository, roundClient, roundId]);
+
+  if (!loaded) return <ResultStatusPage message="正在整理大家的选择…" />;
+  if (error || !round) return <ResultStatusPage message={error || '结果加载失败，请重试'} error onRetry={() => window.location.reload()} />;
+
+  return (
+    <PageShell title="本轮结果">
+      <section className="rounded-[2rem] bg-white p-6 text-center shadow-lg">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFD100] text-3xl">🎉</div>
+        <h2 className="text-2xl font-black">大家都选中的菜品</h2>
+        <p className="mt-2 text-sm text-slate-500">
+          {commonChoices.length > 0 ? `共有 ${commonChoices.length} 道菜是大家共同喜欢的` : '这轮暂时没有共同喜欢的菜品'}
+        </p>
+        {commonChoices.length > 0 && (
+          <div className="mt-6 space-y-3 text-left">
+            {commonChoices.map((choice) => (
+              <article key={choice.id} className="flex items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3">
+                {choice.coverImage && <img src={choice.coverImage} alt="" className="h-14 w-14 rounded-xl object-cover" referrerPolicy="no-referrer" />}
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate font-black text-amber-950">{choice.name}</h3>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+        <div className="mt-8 border-t border-slate-100 pt-6 text-left">
+          <h3 className="text-lg font-black text-slate-950">所有玩家选中的菜品</h3>
+          <div className="mt-4 space-y-4">
+            {players.map((player) => (
+              <section key={player.memberId} className="rounded-2xl bg-slate-50 p-4">
+                <h4 className="font-black text-slate-900">{player.displayName}</h4>
+                {player.choices.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {player.choices.map((choice) => <span key={choice.id} className="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-slate-700">{choice.name}</span>)}
+                  </div>
+                ) : <p className="mt-2 text-sm text-slate-400">没有选中菜品</p>}
+              </section>
+            ))}
+          </div>
+        </div>
+        <button type="button" onClick={() => navigate(`/room/${round.roomId}`)} className="mt-6 w-full rounded-2xl bg-slate-950 px-4 py-3 font-black text-white">返回房间</button>
+      </section>
+    </PageShell>
+  );
+}
+
+function ResultStatusPage({ message, error = false, onRetry }: { message: string; error?: boolean; onRetry?: () => void }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] px-6 text-center">
+      <section className="w-full max-w-md rounded-3xl bg-white p-8 shadow-lg">
+        <div className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full text-2xl ${error ? 'bg-rose-100' : 'bg-amber-100'}`}>{error ? '!' : '🍽️'}</div>
+        <h1 className="text-xl font-black">{message}</h1>
+        {onRetry && <button type="button" onClick={onRetry} className="mt-6 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white">重试</button>}
+      </section>
+    </div>
   );
 }

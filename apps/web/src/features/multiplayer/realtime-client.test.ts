@@ -42,6 +42,24 @@ describe('RealtimeClient', () => {
     stop();
   });
 
+  it('reports room closure even when the close event has the current revision', () => {
+    const onStale = vi.fn();
+    const client = new RealtimeClient({ WebSocketImpl: FakeSocket });
+    client.connect({ token: 'token', roomId: ROOM_ID, revisions: { roomRevision: 3 }, onStale, url: 'ws://test/ws' });
+    const socket = FakeSocket.instances[0]!;
+    socket.open();
+    socket.message(JSON.stringify({ type: 'auth.ok', roomId: ROOM_ID }));
+    socket.message(JSON.stringify({
+      type: 'room.closed',
+      eventId: crypto.randomUUID(),
+      roomId: ROOM_ID,
+      roomRevision: 3,
+      occurredAt: new Date().toISOString(),
+    }));
+
+    expect(onStale).toHaveBeenCalledWith({ room: true, round: false, reconnected: false });
+  });
+
   it('refetches after reconnect and caps exponential delay at ten seconds', () => {
     const onStale = vi.fn();
     const client = new RealtimeClient({ WebSocketImpl: FakeSocket });

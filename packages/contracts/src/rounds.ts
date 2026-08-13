@@ -53,8 +53,13 @@ export const RoundSnapshotSchema = z.object({
 
 export const ResultItemSchema = z.object({
   catalogItemId: z.string().min(1),
-  likeCount: z.number().int().positive(),
   order: z.number().int().positive(),
+}).strict();
+
+export const ResultPlayerSchema = z.object({
+  memberId: UuidSchema,
+  displayName: z.string().trim().min(1).max(24),
+  items: z.array(ResultItemSchema),
 }).strict();
 
 export const RoundResultSchema = z.object({
@@ -62,7 +67,8 @@ export const RoundResultSchema = z.object({
   catalogVersion: z.string().regex(/^v[1-9]\d*$/),
   catalogHash: z.string().regex(/^[a-f0-9]{64}$/),
   datasetType: DatasetTypeSchema,
-  items: z.array(ResultItemSchema),
+  commonItems: z.array(ResultItemSchema),
+  players: z.array(ResultPlayerSchema).max(8),
 }).strict();
 
 export const StartRoundResponseSchema = RoundSnapshotSchema;
@@ -79,4 +85,5 @@ export type OwnDecision = z.infer<typeof OwnDecisionSchema>;
 export type RoundMember = z.infer<typeof RoundMemberSchema>;
 export type RoundSnapshot = z.infer<typeof RoundSnapshotSchema>;
 export type ResultItem = z.infer<typeof ResultItemSchema>;
+export type ResultPlayer = z.infer<typeof ResultPlayerSchema>;
 export type RoundResult = z.infer<typeof RoundResultSchema>;

@@ -137,7 +137,13 @@ describe('round HTTP routes', () => {
       .get(`/api/rounds/${started.body.id}/result`)
       .set('authorization', `Bearer ${host.token}`)
       .expect(200);
-    expect(result.body.items).toEqual([{ catalogItemId: 'cantonese', likeCount: 1, order: 1 }]);
+    expect(result.body.commonItems).toEqual([{ catalogItemId: 'cantonese', order: 1 }]);
+    expect(result.body.players).toEqual([
+      expect.objectContaining({
+        displayName: '房主',
+        items: [{ catalogItemId: 'cantonese', order: 1 }],
+      }),
+    ]);
 
     const reopened = await request(app)
       .post(`/api/rooms/${created.body.id}/open-next-round`)

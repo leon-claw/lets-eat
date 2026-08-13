@@ -6,6 +6,7 @@ import {
   JoinRoomRequestSchema,
   PutDecisionRequestSchema,
   RoomSnapshotSchema,
+  RoundResultSchema,
   ServerEventSchema,
 } from './index.js';
 
@@ -66,5 +67,20 @@ describe('shared contracts', () => {
 
   it('rejects websocket authentication without a room subscription', () => {
     expect(ClientAuthMessageSchema.safeParse({ type: 'auth', token: 'signed-token' }).success).toBe(false);
+  });
+
+  it('accepts a frozen multiplayer intersection and player detail result', () => {
+    expect(RoundResultSchema.safeParse({
+      roundId: randomUUID(),
+      catalogVersion: 'v1',
+      catalogHash: 'a'.repeat(64),
+      datasetType: 'large',
+      commonItems: [{ catalogItemId: 'cantonese', order: 1 }],
+      players: [{
+        memberId: randomUUID(),
+        displayName: '玩家 A',
+        items: [{ catalogItemId: 'cantonese', order: 1 }, { catalogItemId: 'western', order: 2 }],
+      }],
+    }).success).toBe(true);
   });
 });

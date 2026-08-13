@@ -1,6 +1,6 @@
 import { Users, UserRound } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { PageShell } from '@/shared/components/PageShell';
 import type { RoomClient } from '@/entities/room/room-client';
 import { createDisplayNameStore } from '@/features/identity/display-name-store';
@@ -9,7 +9,12 @@ interface ModePageProps { roomClient?: RoomClient; }
 
 export function ModePage({ roomClient }: ModePageProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [message, setMessage] = useState('');
+  const routeNotice = typeof location.state === 'object' && location.state !== null && 'notice' in location.state && typeof location.state.notice === 'string'
+    ? location.state.notice
+    : '';
+  const visibleMessage = message || routeNotice;
   return (
     <PageShell title="选择游戏模式">
       <section className="space-y-4">
@@ -24,7 +29,7 @@ export function ModePage({ roomClient }: ModePageProps) {
         }} className="flex w-full items-center gap-4 rounded-3xl bg-slate-950 p-5 text-left text-white shadow-lg transition hover:bg-slate-800">
           <Users className="h-8 w-8 text-amber-300" /><span><strong className="block text-xl">组队游戏</strong><small className="text-sm text-slate-300">和朋友一起决定今天吃什么</small></span>
         </button>
-        {message && <p role="status" className="rounded-2xl bg-amber-50 px-4 py-3 text-center text-sm font-bold text-amber-800">{message}</p>}
+        {visibleMessage && <p role="status" className="rounded-2xl bg-amber-50 px-4 py-3 text-center text-sm font-bold text-amber-800">{visibleMessage}</p>}
       </section>
     </PageShell>
   );

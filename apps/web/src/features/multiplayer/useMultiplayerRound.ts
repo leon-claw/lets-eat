@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Decision, RoundSnapshot } from '@lets-eat/contracts';
 import type { FoodChoice } from '@/entities/food-choice/types';
 import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
+import { ApiClientError } from '@/shared/http/api-client';
 import { DecisionQueue, type DecisionOperationStore, type DecisionTransport } from './decision-queue';
 import { createIndexedDbDecisionStore } from './indexeddb-decision-store';
 import { RealtimeClient } from './realtime-client';
@@ -64,10 +65,13 @@ export function useMultiplayerRound(
   const completionKey = useRef<string | null>(null);
   const mountedRef = useRef(true);
 
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
-  const load = useCallback(async () => {
-    setStatus('loading');
+  const load = useCallback(async (background = false) => {
+    if (!background) setStatus('loading');
     setErrorMessage('');
     try {
       const snapshot = await client.getRound(roundId);
@@ -98,7 +102,7 @@ export function useMultiplayerRound(
         });
       }
     } catch (cause) {
-      setStatus('error');
+      if (!background) setStatus('error');
       setErrorMessage(cause instanceof Error ? cause.message : '多人回合加载失败');
     }
   }, [client, queue, repository, retryVersion, roundId]);
@@ -117,7 +121,7 @@ export function useMultiplayerRound(
         roomId: round.roomId,
         revisions: { roomRevision: 0, roundRevision: round.revision },
         onStale: (state) => {
-          if (state.round || state.reconnected) void load();
+          if (state.round || state.reconnected) void load(true);
         },
       });
     }).catch(() => undefined);
@@ -191,6 +195,12 @@ export function useMultiplayerRound(
       else setStatus('waiting');
     }).catch((cause) => {
       if (!mountedRef.current) return;
+      if (cause instanceof ApiClientError && cause.code === 'ROUND_REVISION_CONFLICT') {
+        completionInFlight.current = false;
+        setErrorMessage('');
+        void load(true);
+        return;
+      }
       setStatus('choosing');
       setErrorMessage(cause instanceof Error ? cause.message : '完成回合同步失败，请重试');
       completionInFlight.current = false;
@@ -226,7 +236,7 @@ export function useMultiplayerRound(
     dislike: () => decide('disliked'),
     undo,
     retry,
-    refresh: load,
+    refresh: () => load(true),
     setInteractionLocked: (_locked: boolean) => undefined,
     allDecided,
   };

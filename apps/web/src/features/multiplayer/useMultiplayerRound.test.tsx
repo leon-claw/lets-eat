@@ -1,6 +1,8 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { RoundSnapshot } from '@lets-eat/contracts';
+import { ApiClientError } from '@/shared/http/api-client';
 import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
 import { DecisionQueue, type DecisionOperationStore, type DecisionTransport, type QueuedDecisionOperation } from './decision-queue';
 import { useMultiplayerRound, type MultiplayerRoundClient } from './useMultiplayerRound';
@@ -106,5 +108,68 @@ describe('useMultiplayerRound', () => {
     expect(client.completeRound).not.toHaveBeenCalled();
     releases[1]?.();
     await waitFor(() => expect(client.completeRound).toHaveBeenCalledOnce());
+  });
+
+  it('completes after the final decision under React StrictMode', async () => {
+    const client = makeClient();
+    const queue = makeQueue({ put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined) });
+    const { result } = renderHook(() => useMultiplayerRound(ROUND_ID, client, repository, { queue }), { wrapper: StrictMode });
+
+    await waitFor(() => expect(result.current.status).toBe('choosing'));
+    act(() => { result.current.like(); });
+    await waitFor(() => expect(result.current.currentChoice?.id).toBe('item-2'));
+    act(() => { result.current.dislike(); });
+
+    await waitFor(() => expect(client.completeRound).toHaveBeenCalledOnce());
+    expect(result.current.status).toBe('completed');
+  });
+
+  it('refreshes and retries when another member completes first', async () => {
+    const latestSnapshot: RoundSnapshot = {
+      ...snapshot,
+      revision: 1,
+      ownDecisions: [
+        { catalogItemId: 'item-1', decision: 'liked', updatedAt: new Date().toISOString() },
+        { catalogItemId: 'item-2', decision: 'disliked', updatedAt: new Date().toISOString() },
+      ],
+    };
+    const client = makeClient({
+      getRound: vi.fn()
+        .mockResolvedValueOnce(snapshot)
+        .mockResolvedValueOnce(latestSnapshot),
+      completeRound: vi.fn()
+        .mockRejectedValueOnce(new ApiClientError(409, 'ROUND_REVISION_CONFLICT', '轮次信息已更新', 'request-1', latestSnapshot))
+        .mockResolvedValueOnce({ ...latestSnapshot, status: 'completed' }),
+    });
+    const queue = makeQueue({ put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined) });
+    const { result } = renderHook(() => useMultiplayerRound(ROUND_ID, client, repository, { queue }));
+
+    await waitFor(() => expect(result.current.status).toBe('choosing'));
+    act(() => { result.current.like(); });
+    await waitFor(() => expect(result.current.currentChoice?.id).toBe('item-2'));
+    act(() => { result.current.dislike(); });
+    await waitFor(() => expect(result.current.status).toBe('completed'));
+    expect(client.getRound).toHaveBeenCalledTimes(2);
+    expect(client.completeRound).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the current choosing UI while a background refresh is pending', async () => {
+    let resolveRefresh!: (nextSnapshot: RoundSnapshot) => void;
+    const refreshPending = new Promise<RoundSnapshot>((resolve) => { resolveRefresh = resolve; });
+    const client = makeClient({
+      getRound: vi.fn()
+        .mockResolvedValueOnce(snapshot)
+        .mockReturnValueOnce(refreshPending),
+    });
+    const queue = makeQueue({ put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined) });
+    const { result } = renderHook(() => useMultiplayerRound(ROUND_ID, client, repository, { queue }));
+
+    await waitFor(() => expect(result.current.status).toBe('choosing'));
+    act(() => { void result.current.refresh(); });
+    await waitFor(() => expect(client.getRound).toHaveBeenCalledTimes(2));
+    expect(result.current.status).toBe('choosing');
+
+    act(() => { resolveRefresh(snapshot); });
+    await waitFor(() => expect(result.current.status).toBe('choosing'));
   });
 });
