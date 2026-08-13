@@ -84,6 +84,24 @@ describe('RoomPage', () => {
     expect(screen.getByRole('button', { name: '加入房间' })).toBeInTheDocument();
   });
 
+  it('shows a stable pending state while the host starts a round', async () => {
+    const user = userEvent.setup();
+    const client = {
+      startRound: vi.fn(() => new Promise<never>(() => {})),
+    };
+
+    render(
+      <MemoryRouter>
+        <RoomPage roomClient={client as never} userId={HOST} room={room} />
+      </MemoryRouter>,
+    );
+
+    const startButton = screen.getByRole('button', { name: '开始游戏' });
+    expect(startButton).toHaveClass('pressable');
+    await user.click(startButton);
+    expect(screen.getByRole('button', { name: '正在开始游戏…' })).toBeDisabled();
+  });
+
   it('shows guest dataset as read-only and waiting text', async () => {
     renderPage(GUEST);
     expect(await screen.findByText('待房主开始')).toBeInTheDocument();

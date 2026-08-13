@@ -6,6 +6,13 @@
   background: #f5f5f7;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --duration-press: 140ms;
+  --duration-fast: 180ms;
+  --duration-page: 220ms;
+  --duration-dialog: 240ms;
 }
 
 * {
@@ -35,4 +42,122 @@ button:focus-visible {
 
 .no-scrollbar {
   scrollbar-width: none;
+}
+
+.page-shell-enter {
+  animation: page-shell-enter var(--duration-page) var(--ease-out) both;
+}
+
+.pressable {
+  transition:
+    transform var(--duration-press) var(--ease-out),
+    color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
+}
+
+.pressable:active {
+  transform: scale(0.98);
+}
+
+.hover-lift {
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) ease;
+}
+
+.entry-fade-up {
+  animation: entry-fade-up var(--duration-page) var(--ease-out) both;
+}
+
+.entry-pop {
+  animation: entry-pop var(--duration-dialog) var(--ease-out) both;
+}
+
+.dialog-backdrop {
+  animation: dialog-backdrop-enter var(--duration-dialog) ease both;
+}
+
+.entry-delay-40 {
+  animation-delay: 40ms;
+}
+
+.entry-delay-80 {
+  animation-delay: 80ms;
+}
+
+.entry-delay-120 {
+  animation-delay: 120ms;
+}
+
+@keyframes page-shell-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes entry-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes entry-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-shell-enter,
+  .entry-fade-up,
+  .entry-pop,
+  .dialog-backdrop {
+    animation-name: entry-fade;
+    animation-duration: var(--duration-fast);
+    animation-delay: 0ms;
+  }
+
+  .pressable:active,
+  .hover-lift:hover {
+    transform: none;
+  }
+}
+
+@keyframes entry-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }

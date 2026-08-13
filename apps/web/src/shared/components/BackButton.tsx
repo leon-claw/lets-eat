@@ -13,7 +13,7 @@ export function BackButton({ onClick, label = '返回' }: BackButtonProps) {
       type="button"
       data-testid="page-back-button"
       onClick={onClick ?? (() => navigate(-1))}
-      className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-sm font-bold text-slate-600 transition hover:bg-slate-100"
+      className="pressable inline-flex items-center gap-1 rounded-full px-2 py-1 text-sm font-bold text-slate-600 hover:bg-slate-100"
     >
       <ArrowLeft className="h-4 w-4" />
       {label}

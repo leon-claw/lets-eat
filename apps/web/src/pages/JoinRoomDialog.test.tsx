@@ -16,4 +16,15 @@ describe('JoinRoomDialog', () => {
     await user.click(screen.getByRole('button', { name: '取消' }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('exposes a pop-in panel and an explicit pending label while joining', async () => {
+    const user = userEvent.setup();
+    const onJoin = vi.fn(() => new Promise<never>(() => {}));
+    render(<JoinRoomDialog open displayName="小明" onJoin={onJoin} onClose={vi.fn()} />);
+
+    expect(screen.getByTestId('join-room-dialog-panel')).toHaveClass('entry-pop');
+    await user.type(screen.getByLabelText('房间号'), '12345678');
+    await user.click(screen.getByRole('button', { name: '加入' }));
+    expect(screen.getByRole('button', { name: '正在加入…' })).toBeDisabled();
+  });
 });
