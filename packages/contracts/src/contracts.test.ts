@@ -65,6 +65,23 @@ describe('shared contracts', () => {
     }).success).toBe(true);
   });
 
+  it('accepts a catalog item with an intentionally blank image and cuisine tags', () => {
+    expect(CatalogDocumentSchema.safeParse({
+      catalogVersion: 'v2',
+      items: [{
+        id: 'hotpot',
+        name: '火锅',
+        description: '一锅容纳多种口味。',
+        imageUrl: '',
+        datasetType: 'small',
+        order: 1,
+        tags: ['热闹'],
+        representativeFoods: ['毛肚'],
+        cuisineTags: ['sichuan', 'cantonese'],
+      }],
+    }).success).toBe(true);
+  });
+
   it('rejects websocket authentication without a room subscription', () => {
     expect(ClientAuthMessageSchema.safeParse({ type: 'auth', token: 'signed-token' }).success).toBe(false);
   });

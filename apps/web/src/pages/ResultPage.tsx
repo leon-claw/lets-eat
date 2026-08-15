@@ -7,6 +7,8 @@ import type { MultiplayerRoundClient } from '@/features/multiplayer/useMultiplay
 import { createSingleRoundStore } from '@/features/single-round/single-round-store';
 import { CandidateListDialog } from '@/features/choose-food/components/CandidateListDialog';
 import { PageShell } from '@/shared/components/PageShell';
+import { useFeedback } from '@/shared/components/FeedbackProvider';
+import { ImageWithFallback } from '@/shared/components/ImageWithFallback';
 
 interface ResultPageProps { repository: FoodChoiceRepository; }
 
@@ -71,6 +73,7 @@ interface MultiplayerResultPlayer {
 
 export function MultiplayerResultPage({ repository, roundId, roundClient }: MultiplayerResultPageProps) {
   const navigate = useNavigate();
+  const { toast } = useFeedback();
   const [round, setRound] = useState<RoundSnapshot | null>(null);
   const [commonChoices, setCommonChoices] = useState<FoodChoice[]>([]);
   const [players, setPlayers] = useState<MultiplayerResultPlayer[]>([]);
@@ -101,16 +104,20 @@ export function MultiplayerResultPage({ repository, roundId, roundClient }: Mult
         })));
       })
       .catch((cause) => {
-        if (active) setError(cause instanceof Error ? cause.message : '结果加载失败，请重试');
+        if (active) {
+          const message = cause instanceof Error ? cause.message : '结果加载失败，请重试';
+          toast({ message, tone: 'error' });
+          setError(message);
+        }
       })
       .finally(() => {
         if (active) setLoaded(true);
       });
     return () => { active = false; };
-  }, [repository, roundClient, roundId]);
+  }, [repository, roundClient, roundId, toast]);
 
   if (!loaded) return <ResultStatusPage message="正在整理大家的选择…" />;
-  if (error || !round) return <ResultStatusPage message={error || '结果加载失败，请重试'} error onRetry={() => window.location.reload()} />;
+  if (error || !round) return <ResultStatusPage message="结果暂时无法加载" detail="请重试，具体原因已通过提示显示。" error onRetry={() => window.location.reload()} />;
 
   return (
     <PageShell title="本轮结果">
@@ -124,7 +131,7 @@ export function MultiplayerResultPage({ repository, roundId, roundClient }: Mult
           <div className="mt-6 space-y-3 text-left">
             {commonChoices.map((choice) => (
               <article key={choice.id} className="flex items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3">
-                {choice.coverImage && <img src={choice.coverImage} alt="" className="h-14 w-14 rounded-xl object-cover" referrerPolicy="no-referrer" />}
+                <ImageWithFallback src={choice.coverImage} alt="" className="h-14 w-14 rounded-xl object-cover" />
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate font-black text-amber-950">{choice.name}</h3>
                 </div>
@@ -153,12 +160,13 @@ export function MultiplayerResultPage({ repository, roundId, roundClient }: Mult
   );
 }
 
-function ResultStatusPage({ message, error = false, onRetry }: { message: string; error?: boolean; onRetry?: () => void }) {
+function ResultStatusPage({ message, detail, error = false, onRetry }: { message: string; detail?: string; error?: boolean; onRetry?: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] px-6 text-center">
       <section className="w-full max-w-md rounded-3xl bg-white p-8 shadow-lg">
         <div className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full text-2xl ${error ? 'bg-rose-100' : 'bg-amber-100'}`}>{error ? '!' : '🍽️'}</div>
         <h1 className="text-xl font-black">{message}</h1>
+        {detail && <p className="mt-3 text-sm text-slate-500">{detail}</p>}
         {onRetry && <button type="button" onClick={onRetry} className="mt-6 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white">重试</button>}
       </section>
     </div>

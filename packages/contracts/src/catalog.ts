@@ -5,11 +5,12 @@ export const CatalogItemSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
   name: z.string().min(1).max(40),
   description: z.string().min(1).max(240),
-  imageUrl: z.string().min(1),
+  imageUrl: z.string().max(500),
   datasetType: DatasetTypeSchema,
   order: z.number().int().positive(),
   tags: z.array(z.string().min(1)).max(5),
   representativeFoods: z.array(z.string().min(1)).max(5),
+  cuisineTags: z.array(z.string().regex(/^[a-z0-9-]+$/)).max(3).optional(),
 }).strict();
 
 export const CatalogDocumentSchema = z.object({

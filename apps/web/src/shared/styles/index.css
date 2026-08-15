@@ -44,6 +44,75 @@ button:focus-visible {
   scrollbar-width: none;
 }
 
+.feedback-provider {
+  min-height: 100vh;
+}
+
+.feedback-layer {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
+.feedback-toast {
+  pointer-events: none;
+  position: fixed;
+  top: 38%;
+  left: 50%;
+  max-width: calc(100vw - 48px);
+  padding: 0.75rem 1.125rem;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 9999px;
+  background: rgb(15 23 42 / 0.9);
+  color: white;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 0.2);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  transform: translate(-50%, -50%);
+}
+
+.feedback-confirm-backdrop {
+  pointer-events: auto;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgb(15 23 42 / 0.42);
+}
+
+.feedback-confirm-panel {
+  width: 100%;
+  max-width: 24rem;
+  border-radius: 1.75rem;
+  background: white;
+  padding: 1.5rem;
+  box-shadow: 0 24px 64px rgb(15 23 42 / 0.2);
+}
+
+.feedback-confirm-cancel,
+.feedback-confirm-submit {
+  flex: 1;
+  border-radius: 1rem;
+  padding: 0.75rem 1rem;
+  font-weight: 800;
+}
+
+.feedback-confirm-cancel {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.feedback-confirm-submit {
+  background: #ffd100;
+  color: #0f172a;
+}
+
 .page-shell-enter {
   animation: page-shell-enter var(--duration-page) var(--ease-out) both;
 }

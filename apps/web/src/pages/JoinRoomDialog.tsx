@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useFeedback } from '@/shared/components/FeedbackProvider';
 
 interface JoinRoomDialogProps {
   open: boolean;
@@ -9,19 +10,18 @@ interface JoinRoomDialogProps {
 
 export function JoinRoomDialog({ open, displayName, onJoin, onClose }: JoinRoomDialogProps) {
   const [code, setCode] = useState('');
-  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  useEffect(() => { if (!open) { setCode(''); setError(''); } }, [open]);
+  const { toast } = useFeedback();
+  useEffect(() => { if (!open) setCode(''); }, [open]);
   if (!open) return null;
 
   const submit = async () => {
     if (!/^\d{8}$/.test(code)) {
-      setError('请输入 8 位数字房间号');
+      toast({ message: '请输入 8 位数字房间号', tone: 'error' });
       return;
     }
     setSubmitting(true);
-    setError('');
-    try { await onJoin(code); } catch (cause) { setError(cause instanceof Error ? cause.message : '加入房间失败'); }
+    try { await onJoin(code); } catch (cause) { toast({ message: cause instanceof Error ? cause.message : '加入房间失败', tone: 'error' }); }
     finally { setSubmitting(false); }
   };
 
@@ -34,7 +34,6 @@ export function JoinRoomDialog({ open, displayName, onJoin, onClose }: JoinRoomD
           房间号
           <input aria-label="房间号" inputMode="numeric" maxLength={8} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 8))} className="pressable mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-lg tracking-[0.3em] outline-none focus:border-amber-400" />
         </label>
-        {error && <p role="alert" className="mt-3 text-sm font-bold text-rose-500">{error}</p>}
         <div className="mt-6 flex gap-3">
           <button type="button" onClick={onClose} className="pressable flex-1 rounded-2xl bg-slate-100 px-4 py-3 font-bold text-slate-700">取消</button>
           <button type="button" disabled={submitting} aria-busy={submitting} onClick={() => void submit()} className="pressable flex-1 rounded-2xl bg-[#FFD100] px-4 py-3 font-black disabled:cursor-wait disabled:opacity-80">{submitting ? '正在加入…' : '加入'}</button>

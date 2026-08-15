@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import { Heart, X } from 'lucide-react';
 import type { FoodChoice } from '@/entities/food-choice/types';
+import { ImageWithFallback } from '@/shared/components/ImageWithFallback';
 
 interface CandidateListDialogProps {
   isOpen: boolean;
@@ -34,7 +35,7 @@ export function CandidateListDialog({ isOpen, choices, onClose }: CandidateListD
         <div className="space-y-3">
           {choices.map((choice) => (
             <article key={choice.id} className="flex gap-3 rounded-2xl bg-white p-3 shadow-sm">
-              <img src={choice.coverImage} alt="" className="h-16 w-16 rounded-xl object-cover" referrerPolicy="no-referrer" />
+              <ImageWithFallback src={choice.coverImage} alt="" className="h-16 w-16 rounded-xl object-cover" />
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-base font-black text-slate-900">{choice.name}</h3>
                 <p className="mt-1 line-clamp-1 text-xs text-slate-500">{choice.description}</p>

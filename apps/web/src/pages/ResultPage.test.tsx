@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
+import { FeedbackProvider } from '@/shared/components/FeedbackProvider';
 import { MultiplayerResultPage } from './ResultPage';
 
 const repository: FoodChoiceRepository = {
@@ -44,5 +45,23 @@ describe('MultiplayerResultPage', () => {
     expect(screen.getByText('火锅')).toBeInTheDocument();
     expect(screen.queryByText(/人喜欢/)).not.toBeInTheDocument();
     expect(screen.queryByText('结果页将在多人选菜流程完成后开放。')).not.toBeInTheDocument();
+  });
+
+  it('shows a toast when the multiplayer result cannot load', async () => {
+    const roundClient = {
+      getRound: vi.fn().mockRejectedValue(new Error('结果接口失败')),
+      getRoundResult: vi.fn(),
+    };
+
+    render(
+      <FeedbackProvider>
+        <MemoryRouter initialEntries={['/result/round/round-1']}>
+          <MultiplayerResultPage repository={repository} roundId="round-1" roundClient={roundClient as never} />
+        </MemoryRouter>
+      </FeedbackProvider>,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('结果接口失败');
+    expect(screen.getByRole('alert')).toHaveClass('feedback-toast');
   });
 });

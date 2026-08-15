@@ -87,8 +87,10 @@ API 只验证令牌签名、签发时间和有效期，不保存登录 Session �
 - 菜单 JSON 和图片位于 API 的版本化只读资源目录。
 - 每个菜单清单包含 `catalogVersion`、`catalogHash`、数据集数量和资源 URL。
 - `catalogHash` 是规范化菜单 JSON 的 SHA-256。
-- 菜单条目包含 `id`、`name`、`description`、`imageUrl`、`datasetType` 和 `order`。
+- 菜单条目包含 `id`、`name`、`description`、`imageUrl`、`datasetType`、`order`、`tags` 和 `representativeFoods`，并可选包含小类到大类的 `cuisineTags`。
+- `imageUrl` 可以为空字符串；前端必须渲染稳定的留白占位，不得产生破图或阻断选菜流程。
 - `datasetType` 只能是 `large` 或 `small`，两个集合没有父子关系。
+- `cuisineTags` 最多包含 3 个大类菜品 ID，仅作为元数据，不改变 `large` 和 `small` 的独立筛选。
 - 菜单 ID 在后续版本中保持稳定；删除或替换条目通过发布新版本完成。
 
 菜单清单使用短缓存并支持 ETag；带版本和 Hash 的 JSON、图片使用不可变长缓存。客户端只有在 Hash 改变时才请求新 URL，因此不需要额外的菜单快照传输和对象存储。Web 客户端最多缓存最近 5 个菜单版本，未使用版本 7 天后清理。未来把图片迁移到 COS 或 CDN 时，只修改资源基础 URL，不改变房间和轮次协议。

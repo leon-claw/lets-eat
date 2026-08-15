@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { animate, motion, useMotionValue, useTransform, type PanInfo } from 'motion/react';
 import { Heart, RotateCcw, Utensils, X } from 'lucide-react';
 import type { FoodChoice } from '@/entities/food-choice/types';
+import { ImageWithFallback } from '@/shared/components/ImageWithFallback';
 
 interface SwipeDeckProps {
   choice: FoodChoice;
@@ -24,7 +25,7 @@ function ChoicePreview({ choice }: { choice: FoodChoice }) {
   return (
     <div className="h-full overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
       <div className="relative h-60 w-full overflow-hidden bg-gray-100">
-        <img src={choice.coverImage} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+        <ImageWithFallback src={choice.coverImage} alt="" className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <div className="absolute bottom-3 left-3 right-3 text-white">
           <div className="text-[10px] font-bold text-amber-300">下一道菜系灵感</div>
@@ -49,7 +50,7 @@ function ChoiceCard({ choice }: { choice: FoodChoice }) {
   return (
     <>
       <div className="relative h-60 w-full shrink-0 overflow-hidden bg-gray-100">
-        <img src={choice.coverImage} alt={choice.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+        <ImageWithFallback src={choice.coverImage} alt={choice.name} className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
         <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
           <span className="flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2.5 py-0.5 text-[11px] font-extrabold text-gray-900 shadow-xs">

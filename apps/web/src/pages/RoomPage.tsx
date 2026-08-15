@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Copy, LogOut, Play, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { DatasetType, RoomSnapshot } from '@lets-eat/contracts';
@@ -7,6 +7,7 @@ import { RoomClient } from '@/entities/room/room-client';
 import { classifyMultiplayerError } from '@/features/multiplayer/error-policy';
 import { JoinRoomDialog } from './JoinRoomDialog';
 import { PageShell } from '@/shared/components/PageShell';
+import { useFeedback } from '@/shared/components/FeedbackProvider';
 
 interface RoomPageProps {
   roomClient: RoomClient;
@@ -19,14 +20,18 @@ interface RoomPageProps {
 
 export function RoomPage({ roomClient, userId, room, onRoomChange, onRefresh, notice }: RoomPageProps) {
   const navigate = useNavigate();
+  const { confirm, toast } = useFeedback();
   const [joinOpen, setJoinOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [busyAction, setBusyAction] = useState<'dataset' | 'leave' | 'start' | 'next' | null>(null);
   const prefersReducedMotion = useReducedMotion();
-  const [actionError, setActionError] = useState('');
   const isHost = room.hostUserId === userId;
   const isResults = room.status === 'results';
   const datasetName = room.selectedDataset === 'large' ? '大类菜品' : '小类菜品';
+
+  useEffect(() => {
+    if (notice) toast(notice);
+  }, [notice, toast]);
 
   const handleActionError = (cause: unknown) => {
     const policy = classifyMultiplayerError(cause);
@@ -37,11 +42,10 @@ export function RoomPage({ roomClient, userId, room, onRoomChange, onRefresh, no
     if (policy.type === 'refresh' && policy.target === 'room') {
       void onRefresh?.();
     }
-    setActionError(policy.message);
+    toast({ message: policy.message, tone: 'error' });
   };
 
   const changeDataset = async (datasetType: DatasetType) => {
-    setActionError('');
     setBusy(true);
     setBusyAction('dataset');
     try { onRoomChange?.(await roomClient.changeDataset(room, { datasetType })); }
@@ -50,8 +54,12 @@ export function RoomPage({ roomClient, userId, room, onRoomChange, onRefresh, no
   };
 
   const closeOrLeave = async () => {
-    if (typeof window.confirm === 'function' && !window.confirm(isHost ? '确定关闭房间吗？' : '确定退出房间吗？')) return;
-    setActionError('');
+    const confirmed = await confirm({
+      title: isHost ? '关闭房间？' : '退出房间？',
+      message: isHost ? '关闭后，其他成员也将离开当前房间。' : '退出后，你需要重新加入房间才能继续。',
+      confirmLabel: isHost ? '关闭房间' : '退出房间',
+    });
+    if (!confirmed) return;
     setBusy(true);
     setBusyAction('leave');
     try {
@@ -63,7 +71,7 @@ export function RoomPage({ roomClient, userId, room, onRoomChange, onRefresh, no
       if (policy.type === 'terminal' && (policy.target === 'room-closed' || policy.target === 'room-expired')) {
         navigate('/mode', { replace: true, state: { notice: policy.message } });
       } else {
-        setActionError(policy.message);
+        toast({ message: policy.message, tone: 'error' });
       }
     } finally { setBusy(false); setBusyAction(null); }
   };
@@ -79,7 +87,6 @@ export function RoomPage({ roomClient, userId, room, onRoomChange, onRefresh, no
   };
 
   const startRound = async () => {
-    setActionError('');
     setBusy(true);
     setBusyAction('start');
     try {
@@ -91,7 +98,6 @@ export function RoomPage({ roomClient, userId, room, onRoomChange, onRefresh, no
   };
 
   const openNextRound = async () => {
-    setActionError('');
     setBusy(true);
     setBusyAction('next');
     try {
@@ -104,8 +110,6 @@ export function RoomPage({ roomClient, userId, room, onRoomChange, onRefresh, no
   return (
     <PageShell title="房间匹配" backLabel={isHost ? '关闭房间' : '退出房间'} onBack={() => void closeOrLeave()}>
       <section className="space-y-4">
-        {notice && <p role="status" className="entry-pop rounded-2xl bg-amber-50 px-4 py-3 text-center text-sm font-bold text-amber-800">{notice}</p>}
-        {actionError && <p role="alert" className="entry-pop rounded-2xl bg-rose-50 px-4 py-3 text-center text-sm font-bold text-rose-700">{actionError}</p>}
         <div className="entry-fade-up rounded-3xl bg-slate-950 p-6 text-center text-white shadow-lg">
           <p className="text-sm text-slate-300">房间号 {room.code}</p>
           <p className="mt-2 text-4xl font-black tracking-[0.18em]">{room.code}</p>

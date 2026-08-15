@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { ApiClientError } from '@/shared/http/api-client';
+import { FeedbackProvider } from '@/shared/components/FeedbackProvider';
 import { RoomPage } from './RoomPage';
 import { RoomSnapshotSchema } from '@lets-eat/contracts';
 
@@ -54,7 +55,7 @@ function renderRoutedPage(userId: string, clientOverrides: Record<string, unknow
     ...render(
       <MemoryRouter initialEntries={[`/room/${room.id}`]}>
         <Routes>
-          <Route path="/room/:roomId" element={<><RoomPage roomClient={client as never} userId={userId} room={room} /><LocationProbe /></>} />
+          <Route path="/room/:roomId" element={<FeedbackProvider><RoomPage roomClient={client as never} userId={userId} room={room} /><LocationProbe /></FeedbackProvider>} />
           <Route path="/mode" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>,
@@ -115,6 +116,7 @@ describe('RoomPage', () => {
     const { client } = renderRoutedPage(GUEST);
 
     await user.click(screen.getAllByRole('button', { name: '退出房间' })[0]!);
+    await user.click(within(screen.getByRole('dialog', { name: '退出房间？' })).getByRole('button', { name: '退出房间' }));
 
     expect(client.leaveRoom).toHaveBeenCalledWith(room.id);
     expect(await screen.findByTestId('location')).toHaveTextContent('/mode');
@@ -127,6 +129,7 @@ describe('RoomPage', () => {
     });
 
     await user.click(screen.getAllByRole('button', { name: '退出房间' })[0]!);
+    await user.click(within(screen.getByRole('dialog', { name: '退出房间？' })).getByRole('button', { name: '退出房间' }));
 
     expect(await screen.findByTestId('location')).toHaveTextContent('/mode');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -140,8 +143,10 @@ describe('RoomPage', () => {
     });
 
     await user.click(screen.getAllByRole('button', { name: '退出房间' })[0]!);
+    await user.click(within(screen.getByRole('dialog', { name: '退出房间？' })).getByRole('button', { name: '退出房间' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('网络暂时不可用，请重试');
+    expect(screen.getByRole('alert')).toHaveClass('feedback-toast');
     expect(screen.getByTestId('location')).toHaveTextContent(`/room/${room.id}`);
     expect(screen.queryByText('Failed to fetch')).not.toBeInTheDocument();
   });
@@ -152,6 +157,28 @@ describe('RoomPage', () => {
     unmount();
     renderPage(GUEST);
     expect(screen.getByTestId('page-back-button')).toHaveTextContent('退出房间');
+  });
+
+  it('uses the app confirm panel before leaving the room', async () => {
+    const user = userEvent.setup();
+    const client = {
+      leaveRoom: vi.fn().mockResolvedValue(undefined),
+    };
+
+    render(
+      <FeedbackProvider>
+        <MemoryRouter>
+          <RoomPage roomClient={client as never} userId={GUEST} room={room} />
+        </MemoryRouter>
+      </FeedbackProvider>,
+    );
+
+    await user.click(screen.getAllByRole('button', { name: '退出房间' })[0]!);
+
+    expect(screen.getByRole('dialog', { name: '退出房间？' })).toBeInTheDocument();
+    expect(client.leaveRoom).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: '取消' }));
+    expect(client.leaveRoom).not.toHaveBeenCalled();
   });
 
   it('keeps the host able to join another room while waiting in results', async () => {

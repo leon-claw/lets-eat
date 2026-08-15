@@ -12,6 +12,7 @@ import { createBrowserRoomClient, type RoomClient } from '@/entities/room/room-c
 import { useEffect, useRef, useState } from 'react';
 import type { RoomSnapshot } from '@lets-eat/contracts';
 import { useRoom } from '@/features/multiplayer/useRoom';
+import { useFeedback, FeedbackProvider } from '@/shared/components/FeedbackProvider';
 
 interface AppRouterProps {
   repository?: FoodChoiceRepository;
@@ -83,6 +84,7 @@ function RoomRoute({ roomClient, userId }: { roomClient: RoomClient; userId: str
   const { roomId = '' } = useParams();
   const state = useRoom(roomClient, roomId, userId);
   const navigate = useNavigate();
+  const { toast } = useFeedback();
 
   useEffect(() => {
     if (state.roomState.type === 'closed' || state.roomState.type === 'expired') {
@@ -93,10 +95,13 @@ function RoomRoute({ roomClient, userId }: { roomClient: RoomClient; userId: str
       navigate(`/game/round/${state.roomState.roundId}`, { replace: true });
     }
   }, [navigate, state.error, state.roomState]);
+  useEffect(() => {
+    if (state.roomState.type === 'unavailable' && state.error) toast({ message: state.error, tone: 'error' });
+  }, [state.error, state.roomState.type, toast]);
 
   if (state.loading || state.roomState.type === 'restoring') return <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] text-sm font-bold text-slate-500">正在恢复房间…</div>;
   if (state.roomState.type === 'closed' || state.roomState.type === 'expired') return <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] text-sm font-bold text-slate-500">正在返回模式选择…</div>;
-  if (!state.room) return <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] text-sm font-bold text-rose-500">{state.error || '房间已关闭或过期'}</div>;
+  if (!state.room) return <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] text-sm font-bold text-slate-500">房间暂时无法恢复，请稍后重试</div>;
   if (state.roomState.type === 'playing') {
     return <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] text-sm font-bold text-slate-500">正在进入游戏…</div>;
   }
@@ -106,5 +111,6 @@ function RoomRoute({ roomClient, userId }: { roomClient: RoomClient; userId: str
 export function AppRouter({ repository = defaultRepository, initialPath, roomClient }: AppRouterProps) {
   const resolvedRoomClient = roomClient ?? (initialPath ? undefined : defaultRoomClient);
   const content: ReactNode = <RouteTree repository={repository} roomClient={resolvedRoomClient} />;
-  return initialPath ? <MemoryRouter initialEntries={[initialPath]}>{content}</MemoryRouter> : <BrowserRouter>{content}</BrowserRouter>;
+  const router = initialPath ? <MemoryRouter initialEntries={[initialPath]}>{content}</MemoryRouter> : <BrowserRouter>{content}</BrowserRouter>;
+  return <FeedbackProvider>{router}</FeedbackProvider>;
 }

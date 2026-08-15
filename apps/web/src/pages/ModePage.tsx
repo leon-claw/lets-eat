@@ -1,34 +1,36 @@
 import { Users, UserRound } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { PageShell } from '@/shared/components/PageShell';
 import type { RoomClient } from '@/entities/room/room-client';
 import { createDisplayNameStore } from '@/features/identity/display-name-store';
+import { useFeedback } from '@/shared/components/FeedbackProvider';
 
 interface ModePageProps { roomClient?: RoomClient; }
 
 export function ModePage({ roomClient }: ModePageProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [message, setMessage] = useState('');
+  const { toast } = useFeedback();
   const [creatingRoom, setCreatingRoom] = useState(false);
   const routeNotice = typeof location.state === 'object' && location.state !== null && 'notice' in location.state && typeof location.state.notice === 'string'
     ? location.state.notice
     : '';
-  const visibleMessage = message || routeNotice;
+  useEffect(() => {
+    if (routeNotice) toast({ message: routeNotice, tone: 'error' });
+  }, [routeNotice, toast]);
 
   const createRoom = () => {
     if (!roomClient) {
-      setMessage('组队功能正在连接中');
+      toast('组队功能正在连接中');
       return;
     }
 
-    setMessage('');
     setCreatingRoom(true);
     const displayName = createDisplayNameStore().loadOrCreate();
     void roomClient.createRoom({ displayName }).then((room) => navigate(`/room/${room.id}`)).catch((cause) => {
       setCreatingRoom(false);
-      setMessage(cause instanceof Error ? cause.message : '创建房间失败');
+      toast({ message: cause instanceof Error ? cause.message : '创建房间失败', tone: 'error' });
     });
   };
 
@@ -42,7 +44,6 @@ export function ModePage({ roomClient }: ModePageProps) {
         <button type="button" aria-label={creatingRoom ? '正在创建房间…' : '组队游戏'} aria-busy={creatingRoom} disabled={creatingRoom} onClick={createRoom} className="pressable hover-lift entry-fade-up entry-delay-80 flex w-full items-center gap-4 rounded-3xl bg-slate-950 p-5 text-left text-white shadow-lg hover:bg-slate-800 disabled:cursor-wait disabled:opacity-80">
           <Users className="h-8 w-8 text-amber-300" /><span><strong className="block text-xl">{creatingRoom ? '正在创建房间…' : '组队游戏'}</strong><small className="text-sm text-slate-300">和朋友一起决定今天吃什么</small></span>
         </button>
-        {visibleMessage && <p role="status" className="entry-pop rounded-2xl bg-amber-50 px-4 py-3 text-center text-sm font-bold text-amber-800">{visibleMessage}</p>}
       </section>
     </PageShell>
   );

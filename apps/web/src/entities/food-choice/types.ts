@@ -5,4 +5,5 @@ export interface FoodChoice {
   coverImage: string;
   tags: string[];
   representativeFoods: string[];
+  cuisineTags?: string[];
 }

@@ -35,6 +35,7 @@ export class CatalogFoodChoiceRepository implements FoodChoiceRepository {
         coverImage: item.imageUrl,
         tags: item.tags,
         representativeFoods: item.representativeFoods,
+        cuisineTags: item.cuisineTags,
       })),
     };
   }

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoomSnapshotSchema, RoundSnapshotSchema } from '@lets-eat/contracts';
@@ -53,7 +53,8 @@ describe('AppRouter', () => {
 
     await user.click(screen.getByRole('button', { name: '组队游戏' }));
 
-    expect(screen.getByText('组队功能正在连接中')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('组队功能正在连接中');
+    expect(screen.getByRole('status')).toHaveClass('feedback-toast');
   });
 
   it('moves a completed single-player round to the result page', async () => {
@@ -193,6 +194,7 @@ describe('AppRouter', () => {
 
     render(<AppRouter repository={repository} initialPath={`/room/${roomId}`} roomClient={roomClient} />);
     await user.click(await screen.findByTestId('page-back-button'));
+    await user.click(within(screen.getByRole('dialog', { name: '关闭房间？' })).getByRole('button', { name: '关闭房间' }));
 
     expect(await screen.findByRole('button', { name: '组队游戏' })).toBeInTheDocument();
     expect(screen.queryByText('房间号 11223344')).not.toBeInTheDocument();
@@ -210,7 +212,8 @@ describe('AppRouter', () => {
     render(<AppRouter repository={repository} initialPath={`/room/${roomId}`} roomClient={roomClient} />);
 
     expect(await screen.findByRole('button', { name: '组队游戏' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('房间已关闭');
+    expect(await screen.findByRole('alert')).toHaveTextContent('房间已关闭');
+    expect(screen.getByRole('alert')).toHaveClass('feedback-toast');
     expect(screen.queryByText('房间不存在')).not.toBeInTheDocument();
   });
 

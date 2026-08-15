@@ -6,6 +6,7 @@ import type { MultiplayerRoundClient } from '@/features/multiplayer/useMultiplay
 import { SwipeDeck } from '@/features/choose-food/components/SwipeDeck';
 import { useSingleRound } from '@/features/single-round/useSingleRound';
 import { useMultiplayerRound } from '@/features/multiplayer/useMultiplayerRound';
+import { useFeedback } from '@/shared/components/FeedbackProvider';
 
 interface GamePageProps {
   repository: FoodChoiceRepository;
@@ -27,6 +28,7 @@ function SingleGamePage({ repository }: { repository: FoodChoiceRepository }) {
   const [params] = useSearchParams();
   const datasetType: DatasetType = params.get('dataset') === 'small' ? 'small' : 'large';
   const game = useSingleRound(repository, datasetType);
+  const { toast } = useFeedback();
 
   useEffect(() => {
     if (game.state.status !== 'exhausted') return;
@@ -34,8 +36,12 @@ function SingleGamePage({ repository }: { repository: FoodChoiceRepository }) {
     return () => window.clearTimeout(timer);
   }, [game.state.status, navigate]);
 
+  useEffect(() => {
+    if (game.state.status === 'error') toast({ message: '加载失败，请重试', tone: 'error' });
+  }, [game.state.status, toast]);
+
   if (game.state.status === 'loading') return <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] text-sm font-bold text-slate-500">正在准备今天的选项…</div>;
-  if (game.state.status === 'error') return <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] text-sm font-bold text-rose-500">加载失败，请返回重试</div>;
+  if (game.state.status === 'error') return <StatusPage message="暂时无法加载菜品" detail="请重试，具体原因已通过提示显示。" error onRetry={() => navigate('/single/dataset')} />;
   if (game.state.status === 'empty') return <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] text-sm font-bold text-slate-500">暂时没有可选菜品</div>;
   if (!game.currentChoice) return null;
 
@@ -61,6 +67,7 @@ function SingleGamePage({ repository }: { repository: FoodChoiceRepository }) {
 function MultiplayerGamePage({ repository, roundId, roundClient }: { repository: FoodChoiceRepository; roundId: string; roundClient: MultiplayerRoundClient }) {
   const navigate = useNavigate();
   const game = useMultiplayerRound(roundId, roundClient, repository);
+  const { toast } = useFeedback();
 
   useEffect(() => {
     if (game.status !== 'completed') return;
@@ -68,8 +75,12 @@ function MultiplayerGamePage({ repository, roundId, roundClient }: { repository:
     return () => window.clearTimeout(timer);
   }, [game.status, navigate, roundId]);
 
+  useEffect(() => {
+    if (game.errorMessage) toast({ message: game.errorMessage, tone: 'error' });
+  }, [game.errorMessage, toast]);
+
   if (game.status === 'loading') return <StatusPage message="正在恢复本轮选择…" />;
-  if (game.status === 'error') return <StatusPage message={game.errorMessage || '加载失败，请重试'} error onRetry={game.retry} />;
+  if (game.status === 'error') return <StatusPage message="暂时无法恢复本轮" detail="请重试，具体原因已通过提示显示。" error onRetry={game.retry} />;
   if (game.status === 'empty') return <StatusPage message="本轮没有可选菜品" />;
   if (game.status === 'waiting') return (
     <StatusPage message="等待其他小伙伴完成选择" detail="你的选择已经安全保存，其他成员完成后会自动进入结果页。" />
@@ -91,7 +102,6 @@ function MultiplayerGamePage({ repository, roundId, roundClient }: { repository:
           onUndo={game.undo}
           onInteractionLockChange={game.setInteractionLocked}
         />
-        {game.errorMessage && <p role="alert" className="mx-6 mb-3 rounded-2xl bg-rose-50 px-4 py-3 text-center text-xs font-bold text-rose-600">{game.errorMessage}</p>}
       </main>
     </div>
   );
