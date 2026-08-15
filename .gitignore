@@ -4,3 +4,9 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# Local agent and browser tooling outputs
+.codex/
+.playwright-cli/
+graphify-out/
+output/

@@ -89,7 +89,7 @@ API 只验证令牌签名、签发时间和有效期，不保存登录 Session �
 - `catalogHash` 是规范化菜单 JSON 的 SHA-256。
 - 菜单条目包含 `id`、`name`、`description`、`imageUrl`、`datasetType`、`order`、`tags` 和 `representativeFoods`，并可选包含小类到大类的 `cuisineTags`。
 - `imageUrl` 可以为空字符串；前端必须渲染稳定的留白占位，不得产生破图或阻断选菜流程。
-- `datasetType` 只能是 `large` 或 `small`，两个集合没有父子关系。
+- 菜单条目的 `datasetType` 只能是 `large` 或 `small`，两个集合没有父子关系；房间的 `selectedDataset` 另允许 `custom`，表示固定菜单的一个房间级子集。
 - `cuisineTags` 最多包含 3 个大类菜品 ID，仅作为元数据，不改变 `large` 和 `small` 的独立筛选。
 - 菜单 ID 在后续版本中保持稳定；删除或替换条目通过发布新版本完成。
 
@@ -99,6 +99,23 @@ MVP 发布过的菜单版本保持不可变且不删除，确保旧轮次在应�
 
 轮次开始时锁定 `catalogVersion`、`catalogHash` 和 `datasetType`。已开始轮次不受新菜单版本发布影响。
 
+### 5.1 本地自定义菜品
+
+Web 用户可以在设置页从当前固定菜单中选择至少 3 个菜品，允许混合 `large` 和 `small`，并将 `catalogVersion` 与 `itemIds` 保存在当前设备的 `localStorage`。设置过程不请求后端，也不进行账号同步。
+
+创建房间时，客户端读取本地配置并提交一次完整的 `CustomCatalogSnapshot`。服务端校验菜单版本、菜单 Hash、ID 唯一性和最小数量后，将快照冻结在房间中。房间创建后不允许修改自定义快照；设置页的新配置只对新房间生效。
+
+```ts
+type CustomCatalogSnapshot = {
+  catalogVersion: string;
+  catalogHash: string;
+  itemIds: string[];
+  selectionHash: string;
+};
+```
+
+`selectionHash` 由服务端对规范化的菜单版本、菜单 Hash 和排序后的 ID 列表计算。创建房间和客人加入时传递完整快照；后续房间状态更新只传递 `selectionHash` 和数量，避免在轮询或 WebSocket 刷新中重复传输 ID 列表。刷新恢复时仅在本地缺少该 Hash 时请求一次房间自定义菜单。
+
 ## 6. 领域模型与数据库
 
 ### 6.1 核心表
@@ -106,7 +123,8 @@ MVP 发布过的菜单版本保持不可变且不删除，确保旧轮次在应�
 `rooms`
 
 - `id`、唯一 8 位数字 `code`、`host_user_id`。
-- `selected_dataset`，默认 `large`。
+- `selected_dataset`，默认 `large`，允许 `large | small | custom`。
+- `custom_catalog`，可空 JSONB，保存创建房间时冻结的 `CustomCatalogSnapshot`。
 - `status`: `waiting | playing | results`。
 - `current_round_id`、`revision`、`last_activity_at`、时间戳。
 
@@ -119,6 +137,7 @@ MVP 发布过的菜单版本保持不可变且不删除，确保旧轮次在应�
 
 - `id`、`room_id`、轮次序号。
 - `catalog_version`、`catalog_hash`、`dataset_type`。
+- `custom_catalog`，可空 JSONB；自定义轮次保存开始时从房间复制的快照，大类或小类轮次为空。
 - `status`: `playing | completed`。
 - `result_snapshot`：完成时生成的匿名聚合 JSON，进行中为空。
 - `revision`、开始和完成时间。
@@ -146,12 +165,13 @@ MVP 发布过的菜单版本保持不可变且不删除，确保旧轮次在应�
 ### 6.2 房间生命周期
 
 - 创建房间时生成 8 位数字房间号，冲突则重试。
+- 创建房间时读取并校验房主本地自定义配置；配置通过后冻结到房间。没有合法配置不影响创建房间，但 `custom` 选项不可用。
 - 房间最多 8 人（含房主），满员后拒绝加入。
 - 房主断线不转让房主身份。
 - 房主主动关闭房间时立即级联删除房间业务数据。
 - 连续 24 小时无业务操作的房间由清理任务删除。
 - 一轮结束后房间进入 `results`，保留当前轮次供所有轮次成员查看冻结结果；结果状态不允许新成员加入。
-- 房主从结果页返回房间并执行“开放下一轮”后，房间回到 `waiting`；此时房主可以修改数据集并开始下一轮，也重新允许加入。结果页返回房间后，当前用户仍可加入另一个房间。
+- 房主从结果页返回房间并执行“开放下一轮”后，房间回到 `waiting`；此时房主可以切换数据集并开始下一轮，也重新允许加入。房间级自定义快照继续沿用，不能在房间内修改；要更换自定义列表必须创建新房间。结果页返回房间后，当前用户仍可加入另一个房间。
 - 轮次进行中暂停新成员加入。
 - `last_activity_at` 仅由创建、加入、退出、修改数据集、开始轮次、保存或撤销决定、完成、移出成员和开放下一轮等业务写操作更新；状态读取、WebSocket 心跳和后台轮询不延长房间寿命。
 
@@ -162,8 +182,9 @@ MVP 发布过的菜单版本保持不可变且不删除，确保旧轮次在应�
 1. 锁定房间记录并检查房主、状态和 revision。
 2. 读取并锁定当前成员，确认人数为 1 至 8 人。
 3. 锁定当前菜单版本和数据集。
-4. 创建轮次及成员快照。
-5. 将房间状态改为 `playing`，递增 revision。
+4. 如果数据集为 `custom`，读取并校验房间级 `custom_catalog`，复制到轮次快照。
+5. 创建轮次及成员快照。
+6. 将房间状态改为 `playing`，递增 revision。
 
 成员完成前，服务端验证其发送队列已经落库，即所选数据集的每个条目都有一条 `liked` 或 `disliked` 决定。最后一个有效成员完成时，事务生成匿名 `result_snapshot`，将轮次标为完成并把房间改为 `results`。后续成员退出可以删除其个人选择，但不得重算或改变该快照。
 
@@ -188,9 +209,11 @@ MVP 发布过的菜单版本保持不可变且不删除，确保旧轮次在应�
 ### 7.2 多人
 
 ```text
-创建房间（默认大类菜品）
-→ 房主可修改数据集，客人只读查看
-→ 房主开始并锁定菜单、数据集和成员
+设置页保存本地自定义菜品（可选）
+→ 创建房间并提交自定义快照（默认大类菜品）
+→ 客人加入并获取房主快照
+→ 房主只切换大类、小类或自定义数据集，不能编辑自定义列表
+→ 房主开始并锁定菜单、数据集、房间快照和成员
 → 成员独立选择
 → 已完成成员等待
 → 全员完成后读取匿名聚合结果
@@ -240,6 +263,7 @@ GET    /api/me/room
 POST   /api/rooms
 POST   /api/rooms/join
 GET    /api/rooms/:roomId
+GET    /api/rooms/:roomId/custom-catalog
 PATCH  /api/rooms/:roomId/dataset
 POST   /api/rooms/:roomId/leave
 DELETE /api/rooms/:roomId
@@ -253,6 +277,10 @@ POST   /api/rounds/:roundId/members/:memberId/remove
 GET    /api/rounds/:roundId/result
 POST   /api/rooms/:roomId/open-next-round
 ```
+
+`POST /api/rooms` 的请求可以携带完整 `customCatalog`；服务端只在创建房间时接受该字段。`PATCH /dataset` 只修改 `large`、`small` 或 `custom` 选择，不接受自定义 ID 列表。`POST /rooms/join` 的入口响应返回完整房间自定义快照；`GET /rooms/:roomId/custom-catalog` 仅供刷新恢复或本地 Hash 缺失时读取。开始轮次接口从房间快照读取自定义菜品，不接受客户端二次替换。
+
+常规房间状态响应包含 `customSelectionHash` 和 `customItemCount`，不重复返回完整 `itemIds`。自定义快照只对房间成员可读。
 
 读取接口根据调用者裁剪数据，绝不把其他成员的决定返回给房主或客人。所有响应使用共享 contracts 校验。
 
@@ -280,6 +308,8 @@ WebSocket 地址为 `/ws`。连接建立后客户端先认证并订阅当前房�
 - `room.closed`
 
 事件信封包含 `eventId`、`type`、`roomId`、`roomRevision`、可选的 `roundId`、可选的 `roundRevision` 和 `occurredAt`，不包含个人逐项选择。`member.progressed` 只在成员状态变成“已完成”或“已移出”时发送，不为每次喜欢/不喜欢广播事件。客户端分别比较房间和轮次 revision；任一版本比本地更新时通过 HTTP 拉取最新快照，两个版本都不更新的旧事件直接忽略。
+
+`room.updated` 事件不包含完整自定义菜品 ID 列表；客户端仅根据 Hash 判断是否需要调用一次自定义菜单读取接口。
 
 客户端使用指数退避自动重连，最长等待 10 秒。连接通过 ping/pong 保活；重连成功后无条件重新读取当前房间和轮次。Cloudflare 或网络终止连接不会丢失业务状态。
 
@@ -318,6 +348,7 @@ WebSocket 地址为 `/ws`。连接建立后客户端先认证并订阅当前房�
 
 - Web：滑动状态机、撤销、固定菜单顺序、菜单缓存和离线发送队列。
 - API：房间权限、人数上限、生命周期、结果排序、空结果、revision 和幂等逻辑。
+- API：自定义列表最小数量、ID 校验、创建房间冻结、客人加入读取、房间内不可修改和菜单版本失效处理。
 - Contracts：所有请求、响应和 WebSocket 事件的正反例校验。
 
 ### 14.2 API 集成测试
@@ -331,6 +362,7 @@ WebSocket 地址为 `/ws`。连接建立后客户端先认证并订阅当前房�
 - 结果状态拒绝加入，房主开放下一轮后恢复加入。
 - 轮次完成后成员退出会删除个人选择，但不会改变结果快照。
 - 权限隔离：任何用户都无法读取他人的逐项选择。
+- 自定义快照只在创建/加入或缺失 Hash 的恢复场景读取，普通房间更新不重复传输完整 ID 列表。
 - 主动关闭和 24 小时清理。
 
 ### 14.3 端到端测试
@@ -355,6 +387,7 @@ Playwright 使用两个独立浏览器上下文模拟房主和客人，验证完
 - 完整 Compose 可以在 ARM64 个人电脑和 AMD64 云服务器运行。
 - 两台设备可以创建或加入同一房间，并在刷新、短暂断网后恢复。
 - 轮次锁定同一菜单版本、数据集、顺序和成员。
+- 自定义菜品在创建房间时冻结，所有成员使用房主快照；房间开放下一轮时继续沿用该快照。
 - 成员的具体选择在聚合前后都不会暴露给其他成员。
 - 所有成员完成或由房主移出未完成成员后，结果稳定且可复现。
 - 房间关闭和过期清理不会删除公共固定菜单。
