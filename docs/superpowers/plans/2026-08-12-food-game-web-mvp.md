@@ -146,7 +146,7 @@ Use this root `package.json`:
   "name": "lets-eat",
   "private": true,
   "packageManager": "pnpm@10.16.1",
-  "engines": { "node": ">=22.14 <23" },
+  "engines": { "node": ">=22.14" },
   "scripts": {
     "dev": "pnpm --filter @lets-eat/web dev",
     "dev:web": "pnpm --filter @lets-eat/web dev",
