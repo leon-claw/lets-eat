@@ -8,6 +8,7 @@ import {
   type RoundSnapshot,
   type StartRoundRequest,
 } from '@lets-eat/contracts';
+import { CustomCatalogSnapshotSchema } from '@lets-eat/contracts';
 import type { Database } from '../db/client.js';
 import { ApiError } from '../http/api-error.js';
 import { IdempotencyService, hashRequest, type DatabaseExecutor } from '../idempotency/idempotency-service.js';
@@ -16,6 +17,7 @@ import type { CatalogService } from '../catalog/catalog-service.js';
 import { presentRound } from './round-presenter.js';
 import { presentRoom } from '../rooms/room-presenter.js';
 import { aggregateResult } from './result-aggregator.js';
+import { getCustomCatalogItems, summarizeCustomCatalog } from '../catalog/custom-catalog.js';
 
 interface RoundServiceOptions {
   db: Database;
@@ -73,7 +75,17 @@ export class RoundService {
         .orderBy(asc(roomMembers.joinedAt), asc(roomMembers.id))
         .for('update');
       if (members.length < 1 || members.length > 8) throw new ApiError(409, 'ROOM_MEMBER_COUNT_INVALID', '当前成员数量无法开始游戏');
-      const selection = this.options.catalogService.getCurrentSelection(room.selectedDataset);
+      const customCatalog = room.selectedDataset === 'custom'
+        ? this.readCustomCatalog(room.customCatalog)
+        : null;
+      const selection = room.selectedDataset === 'custom'
+        ? {
+            catalogVersion: customCatalog!.catalogVersion,
+            catalogHash: customCatalog!.catalogHash,
+            datasetType: 'custom' as const,
+            items: getCustomCatalogItems(this.options.catalogService, customCatalog!),
+          }
+        : this.options.catalogService.getCurrentSelection(room.selectedDataset);
       const [latestRound] = await tx.select({ sequence: rounds.sequence })
         .from(rounds)
         .where(eq(rounds.roomId, roomId))
@@ -86,6 +98,7 @@ export class RoundService {
         catalogVersion: selection.catalogVersion,
         catalogHash: selection.catalogHash,
         datasetType: selection.datasetType,
+        customCatalog,
         status: 'playing',
         revision: 0,
         startedAt: this.now(),
@@ -183,7 +196,7 @@ export class RoundService {
         throw new ApiError(409, 'ROUND_REVISION_CONFLICT', '轮次信息已更新，请刷新后重试', await presentRound(tx, roundId, actorUserId));
       }
       if (roundMember.status !== 'choosing') throw new ApiError(409, 'ROUND_MEMBER_NOT_CHOOSING', '当前成员已经完成选择');
-      const selection = this.getRoundItems(round.catalogVersion, round.datasetType);
+      const selection = this.getRoundItems(round);
       const memberDecisions = await tx.select({ catalogItemId: decisions.catalogItemId })
         .from(decisions)
         .where(and(eq(decisions.roundId, roundId), eq(decisions.roomMemberId, member.id)));
@@ -346,10 +359,23 @@ export class RoundService {
     return { round, member, roundMember };
   }
 
-  private getRoundItems(catalogVersion: string, datasetType: 'large' | 'small') {
-    const catalog = this.options.catalogService.getCatalog(catalogVersion);
+  private getRoundItems(round: typeof rounds.$inferSelect) {
+    if (round.datasetType === 'custom') {
+      return getCustomCatalogItems(this.options.catalogService, this.readCustomCatalog(round.customCatalog));
+    }
+    const catalog = this.options.catalogService.getCatalogWithHash(round.catalogVersion);
     if (!catalog) throw new ApiError(409, 'CATALOG_VERSION_NOT_FOUND', '轮次菜单版本不可用');
-    return catalog.items.filter((item) => item.datasetType === datasetType);
+    if (catalog.catalogHash !== round.catalogHash) {
+      throw new ApiError(409, 'CATALOG_HASH_MISMATCH', '轮次菜单版本校验失败');
+    }
+    return catalog.catalog.items
+      .filter((item) => item.datasetType === round.datasetType)
+      .sort((left, right) => left.order - right.order);
+  }
+
+  private readCustomCatalog(value: unknown) {
+    if (!value) throw new ApiError(409, 'CUSTOM_CATALOG_INVALID', '当前房间没有有效的自定义菜品');
+    return CustomCatalogSnapshotSchema.parse(value);
   }
 
   private async finalizeIfReady(executor: DatabaseExecutor, round: typeof rounds.$inferSelect, nextRevision: number): Promise<boolean> {
@@ -378,7 +404,7 @@ export class RoundService {
       memberItems.push(decision.catalogItemId);
       likedByMember.set(decision.memberId, memberItems);
     }
-    const items = this.getRoundItems(round.catalogVersion, round.datasetType);
+    const items = this.getRoundItems(round);
     const aggregated = aggregateResult(items, completedMembers.map((member) => ({
       memberId: member.memberId,
       displayName: member.displayName,
@@ -389,6 +415,9 @@ export class RoundService {
       catalogVersion: round.catalogVersion,
       catalogHash: round.catalogHash,
       datasetType: round.datasetType,
+      customCatalog: round.customCatalog
+        ? summarizeCustomCatalog(this.readCustomCatalog(round.customCatalog))
+        : null,
       ...aggregated,
     });
     await executor.update(rounds).set({ status: 'completed', revision: nextRevision, resultSnapshot: result, completedAt: this.now() }).where(eq(rounds.id, round.id));
@@ -421,8 +450,7 @@ export class RoundService {
     )).for('update').limit(1);
     if (!roundMember) throw new ApiError(403, 'ROUND_MEMBER_REQUIRED', '只有轮次成员可以提交选择');
     if (roundMember.status !== 'choosing') throw new ApiError(409, 'ROUND_MEMBER_NOT_CHOOSING', '当前成员已经完成选择');
-    const catalog = this.options.catalogService.getCatalog(round.catalogVersion);
-    const item = catalog?.items.find((candidate) => candidate.id === catalogItemId && candidate.datasetType === round.datasetType);
+    const item = this.getRoundItems(round).find((candidate) => candidate.id === catalogItemId);
     if (!item) throw new ApiError(400, 'CATALOG_ITEM_NOT_IN_ROUND', '菜品不属于当前轮次数据集');
     return { round, member, roundMember };
   }

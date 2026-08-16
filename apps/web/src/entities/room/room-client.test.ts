@@ -16,6 +16,21 @@ const room = RoomSnapshotSchema.parse({
 });
 
 describe('RoomClient', () => {
+  it('unwraps room entry responses and exposes the one-time custom catalog snapshot', async () => {
+    const api = new ApiClient({ fetcher: vi.fn() });
+    const identity = new AnonymousIdentity({ storage: window.localStorage, issue: vi.fn() });
+    vi.spyOn(identity, 'ensure').mockResolvedValue({ userId: room.hostUserId, token: 'token-1', expiresAt: new Date(Date.now() + 60_000).toISOString() });
+    const customCatalog = { catalogVersion: 'v1', catalogHash: 'h'.repeat(64), selectionHash: 's'.repeat(64), itemIds: ['a', 'b', 'c'] };
+    const request = vi.spyOn(api, 'request')
+      .mockResolvedValueOnce({ room, customCatalog } as never)
+      .mockResolvedValueOnce(customCatalog as never);
+    const client = new RoomClient(api, identity);
+
+    await expect(client.createRoom({ displayName: '房主' })).resolves.toEqual(room);
+    await expect(client.getCustomCatalog(room.id)).resolves.toEqual(customCatalog);
+    expect(request).toHaveBeenCalledWith(expect.anything(), '/api/rooms', expect.objectContaining({ method: 'POST' }));
+  });
+
   it('retries once with a replacement identity after a 401', async () => {
     const api = new ApiClient({ fetcher: vi.fn() });
     const identity = new AnonymousIdentity({ storage: window.localStorage, issue: vi.fn() });

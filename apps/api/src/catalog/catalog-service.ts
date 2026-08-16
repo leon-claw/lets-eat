@@ -75,6 +75,15 @@ export class CatalogService {
     return this.catalogs.get(version) ?? null;
   }
 
+  getCatalogWithHash(version: string): { catalog: CatalogDocument; catalogHash: string } | null {
+    const catalog = this.catalogs.get(version);
+    if (!catalog) return null;
+    return {
+      catalog,
+      catalogHash: createHash('sha256').update(canonicalize(catalog)).digest('hex'),
+    };
+  }
+
   getCurrentSelection(datasetType: DatasetType): {
     catalogVersion: string;
     catalogHash: string;

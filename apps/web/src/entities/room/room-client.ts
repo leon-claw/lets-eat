@@ -9,6 +9,7 @@ import {
   GetRoomResponseSchema,
   JoinRoomResponseSchema,
   OpenNextRoundResponseSchema,
+  CustomCatalogSnapshotSchema,
   StartRoundResponseSchema,
   type ChangeDatasetRequest,
   type CreateRoomRequest,
@@ -20,6 +21,7 @@ import {
 import { ApiClient, ApiClientError } from '@/shared/http/api-client';
 import { AnonymousIdentity } from '@/features/identity/anonymous-identity';
 import { z } from 'zod';
+import { roomCustomCatalogCache } from '@/features/custom-catalog/room-custom-catalog-cache';
 
 const EmptyResponseSchema = z.undefined();
 
@@ -44,11 +46,35 @@ export class RoomClient {
   }
 
   async createRoom(input: CreateRoomRequest, idempotencyKey = crypto.randomUUID()) {
-    return this.withAuthRetry(() => this.api.request(CreateRoomResponseSchema, '/api/rooms', { method: 'POST', body: input, idempotencyKey }));
+    return this.withAuthRetry(async () => {
+      const entry = await this.api.request(CreateRoomResponseSchema, '/api/rooms', { method: 'POST', body: input, idempotencyKey });
+      this.cacheCustomCatalog(entry.room.id, entry.customCatalog);
+      return entry.room;
+    });
   }
 
   async joinRoom(input: JoinRoomRequest) {
-    return this.withAuthRetry(() => this.api.request(JoinRoomResponseSchema, '/api/rooms/join', { method: 'POST', body: input }));
+    return this.withAuthRetry(async () => {
+      const entry = await this.api.request(JoinRoomResponseSchema, '/api/rooms/join', { method: 'POST', body: input });
+      this.cacheCustomCatalog(entry.room.id, entry.customCatalog);
+      return entry.room;
+    });
+  }
+
+  async getCustomCatalog(roomId: string, selectionHash?: string) {
+    if (selectionHash) {
+      const cached = roomCustomCatalogCache.get(roomId, selectionHash);
+      if (cached) return cached;
+    }
+    return this.withAuthRetry(async () => {
+      const snapshot = await this.api.request(CustomCatalogSnapshotSchema, `/api/rooms/${roomId}/custom-catalog`);
+      roomCustomCatalogCache.put(roomId, snapshot);
+      return snapshot;
+    });
+  }
+
+  clearCustomCatalog(roomId: string) {
+    roomCustomCatalogCache.clear(roomId);
   }
 
   async changeDataset(room: RoomSnapshot, input: Pick<ChangeDatasetRequest, 'datasetType'>) {
@@ -56,11 +82,19 @@ export class RoomClient {
   }
 
   async leaveRoom(roomId: string) {
-    return this.withAuthRetry(() => this.api.request(EmptyResponseSchema, `/api/rooms/${roomId}/leave`, { method: 'POST' }));
+    return this.withAuthRetry(async () => {
+      const response = await this.api.request(EmptyResponseSchema, `/api/rooms/${roomId}/leave`, { method: 'POST' });
+      this.clearCustomCatalog(roomId);
+      return response;
+    });
   }
 
   async deleteRoom(roomId: string) {
-    return this.withAuthRetry(() => this.api.request(EmptyResponseSchema, `/api/rooms/${roomId}`, { method: 'DELETE' }));
+    return this.withAuthRetry(async () => {
+      const response = await this.api.request(EmptyResponseSchema, `/api/rooms/${roomId}`, { method: 'DELETE' });
+      this.clearCustomCatalog(roomId);
+      return response;
+    });
   }
 
   async openNextRound(room: RoomSnapshot) {
@@ -105,6 +139,10 @@ export class RoomClient {
       this.api.setToken(identity.token);
       return operation();
     }
+  }
+
+  private cacheCustomCatalog(roomId: string, snapshot: Awaited<ReturnType<typeof this.getCustomCatalog>> | null) {
+    if (snapshot) roomCustomCatalogCache.put(roomId, snapshot);
   }
 }
 

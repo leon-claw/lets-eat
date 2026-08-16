@@ -14,6 +14,8 @@ interface ResultPageProps { repository: FoodChoiceRepository; }
 
 export interface MultiplayerResultClient extends Pick<MultiplayerRoundClient, 'getRound'> {
   getRoundResult(roundId: string): Promise<RoundResult>;
+  getCustomCatalog?: MultiplayerRoundClient['getCustomCatalog'];
+  clearCustomCatalog?: (roomId: string) => void;
 }
 
 export function ResultPage({ repository }: ResultPageProps) {
@@ -86,10 +88,12 @@ export function MultiplayerResultPage({ repository, roundId, roundClient }: Mult
     setError('');
     void Promise.all([roundClient.getRound(roundId), roundClient.getRoundResult(roundId)])
       .then(async ([nextRound, result]) => {
-        const choices = await repository.list(result.datasetType, {
-          catalogVersion: result.catalogVersion,
-          catalogHash: result.catalogHash,
-        });
+        const choices = result.datasetType === 'custom'
+          ? await loadCustomResultChoices(repository, roundClient, nextRound, result)
+          : await repository.list(result.datasetType, {
+              catalogVersion: result.catalogVersion,
+              catalogHash: result.catalogHash,
+            });
         if (!active) return;
         const choicesById = new Map(choices.map((choice) => [choice.id, choice]));
         const resolveChoices = (items: RoundResult['commonItems']) => items
@@ -102,6 +106,7 @@ export function MultiplayerResultPage({ repository, roundId, roundClient }: Mult
           displayName: player.displayName,
           choices: resolveChoices(player.items),
         })));
+        if (result.datasetType === 'custom') roundClient.clearCustomCatalog?.(nextRound.roomId);
       })
       .catch((cause) => {
         if (active) {
@@ -158,6 +163,23 @@ export function MultiplayerResultPage({ repository, roundId, roundClient }: Mult
       </section>
     </PageShell>
   );
+}
+
+async function loadCustomResultChoices(
+  repository: FoodChoiceRepository,
+  roundClient: MultiplayerResultClient,
+  round: RoundSnapshot,
+  result: RoundResult,
+): Promise<FoodChoice[]> {
+  if (!roundClient.getCustomCatalog || !repository.listByIds) throw new Error('当前客户端不支持自定义菜品');
+  const customCatalog = await roundClient.getCustomCatalog(round.roomId, result.customCatalog?.selectionHash);
+  if (result.customCatalog && customCatalog.selectionHash !== result.customCatalog.selectionHash) {
+    throw new Error('自定义菜品版本已变化，请重新进入房间');
+  }
+  return repository.listByIds(customCatalog.itemIds, {
+    catalogVersion: customCatalog.catalogVersion,
+    catalogHash: customCatalog.catalogHash,
+  });
 }
 
 function ResultStatusPage({ message, detail, error = false, onRetry }: { message: string; detail?: string; error?: boolean; onRetry?: () => void }) {

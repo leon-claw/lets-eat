@@ -61,18 +61,18 @@ describe('round HTTP routes', () => {
     const joined = await request(app)
       .post('/api/rooms/join')
       .set('authorization', `Bearer ${guest.token}`)
-      .send({ code: created.body.code, displayName: '客人' })
+      .send({ code: created.body.room.code, displayName: '客人' })
       .expect(200);
     const started = await request(app)
-      .post(`/api/rooms/${created.body.id}/rounds`)
+      .post(`/api/rooms/${created.body.room.id}/rounds`)
       .set('authorization', `Bearer ${host.token}`)
       .set('idempotency-key', 'round-start-1')
-      .send({ expectedRoomRevision: joined.body.revision })
+      .send({ expectedRoomRevision: joined.body.room.revision })
       .expect(201);
     expect(started.body.members).toHaveLength(2);
     expect(started.body.ownDecisions).toEqual([]);
     const publishMock = vi.mocked(realtimeHub.publish);
-    expect(publishMock).toHaveBeenCalledWith(expect.objectContaining({ type: 'round.started', roomId: created.body.id, roundId: started.body.id }));
+    expect(publishMock).toHaveBeenCalledWith(expect.objectContaining({ type: 'round.started', roomId: created.body.room.id, roundId: started.body.id }));
     const eventsBeforeDecisions = publishMock.mock.calls.length;
 
     await request(app)
@@ -112,7 +112,7 @@ describe('round HTTP routes', () => {
       .send({ displayName: '房主' })
       .expect(201);
     const started = await request(app)
-      .post(`/api/rooms/${created.body.id}/rounds`)
+      .post(`/api/rooms/${created.body.room.id}/rounds`)
       .set('authorization', `Bearer ${host.token}`)
       .set('idempotency-key', 'round-start-complete')
       .send({ expectedRoomRevision: 0 })
@@ -146,7 +146,7 @@ describe('round HTTP routes', () => {
     ]);
 
     const reopened = await request(app)
-      .post(`/api/rooms/${created.body.id}/open-next-round`)
+      .post(`/api/rooms/${created.body.room.id}/open-next-round`)
       .set('authorization', `Bearer ${host.token}`)
       .send({ expectedRoomRevision: completed.body.revision + 1 })
       .expect(200);

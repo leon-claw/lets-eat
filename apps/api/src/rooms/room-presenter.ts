@@ -1,5 +1,5 @@
 import { asc, eq } from 'drizzle-orm';
-import { RoomSnapshotSchema, type RoomSnapshot } from '@lets-eat/contracts';
+import { CustomCatalogSnapshotSchema, RoomSnapshotSchema, type RoomSnapshot } from '@lets-eat/contracts';
 import type { DatabaseExecutor } from '../idempotency/idempotency-service.js';
 import { roomMembers, rooms } from '../db/schema.js';
 
@@ -19,11 +19,21 @@ export async function presentRoom(executor: DatabaseExecutor, roomId: string): P
     return left.joinedAt.getTime() - right.joinedAt.getTime() || left.id.localeCompare(right.id);
   });
 
+  const customCatalog = room.customCatalog
+    ? CustomCatalogSnapshotSchema.parse(room.customCatalog)
+    : null;
+
   return RoomSnapshotSchema.parse({
     id: room.id,
     code: room.code,
     hostUserId: room.hostUserId,
     selectedDataset: room.selectedDataset,
+    customCatalog: customCatalog ? {
+      catalogVersion: customCatalog.catalogVersion,
+      catalogHash: customCatalog.catalogHash,
+      selectionHash: customCatalog.selectionHash,
+      itemCount: customCatalog.itemIds.length,
+    } : null,
     status: room.status,
     currentRoundId: room.currentRoundId,
     revision: room.revision,

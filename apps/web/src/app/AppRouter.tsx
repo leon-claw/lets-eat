@@ -8,6 +8,7 @@ import { HomePage } from '@/pages/HomePage';
 import { ModePage } from '@/pages/ModePage';
 import { MultiplayerResultPage, ResultPage } from '@/pages/ResultPage';
 import { RoomPage } from '@/pages/RoomPage';
+import { SettingsPage } from '@/pages/SettingsPage';
 import { createBrowserRoomClient, type RoomClient } from '@/entities/room/room-client';
 import { useEffect, useRef, useState } from 'react';
 import type { RoomSnapshot } from '@lets-eat/contracts';
@@ -58,6 +59,7 @@ function RouteTree({ repository, roomClient }: { repository: FoodChoiceRepositor
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/settings" element={<SettingsPage repository={repository} />} />
       <Route path="/mode" element={<ModePage roomClient={roomClient} />} />
       <Route path="/single/dataset" element={<DatasetPage repository={repository} />} />
       <Route path="/game/single" element={<GamePage repository={repository} />} />
@@ -88,6 +90,7 @@ function RoomRoute({ roomClient, userId }: { roomClient: RoomClient; userId: str
 
   useEffect(() => {
     if (state.roomState.type === 'closed' || state.roomState.type === 'expired') {
+      roomClient.clearCustomCatalog?.(roomId);
       navigate('/mode', { replace: true, state: { notice: state.error || '房间已关闭或过期' } });
       return;
     }

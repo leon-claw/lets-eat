@@ -8,6 +8,7 @@ import {
   initialChooseFoodState,
 } from '@/features/choose-food/choose-food-state';
 import { createSingleRoundStore, type SingleRoundSession } from './single-round-store';
+import { prepareRoundChoices } from '@/features/choose-food/round-choice-order';
 
 const EMPTY_SESSION: Omit<SingleRoundSession, 'catalogVersion' | 'catalogHash' | 'datasetType' | 'itemIds'> = {
   decisions: {}, history: [], completedAt: null,
@@ -23,7 +24,8 @@ export function useSingleRound(repository: FoodChoiceRepository, datasetType: Da
     let active = true;
     dispatch({ type: 'load-start' });
     const saved = restoredSession.current;
-    const version = saved && saved.datasetType === datasetType && saved.catalogHash
+    const canResumeSaved = saved?.completedAt === null;
+    const version = canResumeSaved && saved.datasetType === datasetType && saved.catalogHash
       ? { catalogVersion: saved.catalogVersion, catalogHash: saved.catalogHash }
       : undefined;
 
@@ -42,13 +44,14 @@ export function useSingleRound(repository: FoodChoiceRepository, datasetType: Da
         catalogVersion: selection.catalogVersion,
         catalogHash: selection.catalogHash,
       };
-      const canRestore = saved
+      const canRestore = canResumeSaved
         && saved.datasetType === datasetType
         && saved.catalogVersion === selection.catalogVersion
         && saved.catalogHash === selection.catalogHash;
+      const choices = prepareRoundChoices(selection.choices, canRestore ? saved.itemIds : undefined);
       dispatch({
         type: 'load-success',
-        choices: selection.choices,
+        choices,
         decisions: canRestore ? saved.decisions : undefined,
         history: canRestore ? saved.history : undefined,
       });

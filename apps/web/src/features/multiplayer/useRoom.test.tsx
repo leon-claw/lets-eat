@@ -93,4 +93,21 @@ describe('useRoom', () => {
     expect(getRoom).toHaveBeenCalledTimes(2);
     await waitFor(() => expect(result.current.roomState).toMatchObject({ type: 'playing', roundId: playingRoom.currentRoundId }));
   });
+
+  it('hydrates the room-scoped custom catalog when entering a room', async () => {
+    const customRoom = RoomSnapshotSchema.parse({
+      ...initialRoom,
+      customCatalog: { catalogVersion: 'v1', catalogHash: 'a'.repeat(64), selectionHash: 'b'.repeat(64), itemCount: 3 },
+    });
+    const getCustomCatalog = vi.fn().mockResolvedValue({ catalogVersion: 'v1', catalogHash: 'a'.repeat(64), selectionHash: 'b'.repeat(64), itemIds: ['a', 'b', 'c'] });
+    const roomClient = {
+      getRoom: vi.fn().mockResolvedValue(customRoom),
+      getCustomCatalog,
+      getIdentity: vi.fn().mockResolvedValue({ token: 'token' }),
+    } as never;
+
+    renderHook(() => useRoom(roomClient, ROOM_ID, USER_ID));
+
+    await waitFor(() => expect(getCustomCatalog).toHaveBeenCalledWith(ROOM_ID, 'b'.repeat(64)));
+  });
 });

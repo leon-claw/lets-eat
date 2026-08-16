@@ -17,7 +17,7 @@ export async function createTestApp() {
       catalogService,
       pool: database.pool,
       tokenService: new TokenService('a'.repeat(32)),
-      roomService: new RoomService({ db: database.db, roundLifecycle: roundService }),
+      roomService: new RoomService({ db: database.db, catalogService, roundLifecycle: roundService }),
       roundService,
     }), database };
   }

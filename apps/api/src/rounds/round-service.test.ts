@@ -29,7 +29,7 @@ describe('RoundService', () => {
     await database.db.delete(idempotencyRecords);
     await database.db.delete(roomMembers);
     await database.db.delete(rooms);
-    roomService = new RoomService({ db: database.db, codeGenerator: () => '12345678' });
+    roomService = new RoomService({ db: database.db, catalogService, codeGenerator: () => '12345678' });
     roundService = new RoundService({ db: database.db, catalogService });
   });
 
@@ -141,5 +141,39 @@ describe('RoundService', () => {
     await database.db.update(roundMembers).set({ status: 'completed' }).where(eq(roundMembers.roomMemberId, member!.id));
     await expect(roundService.putDecision(hostId, round.id, 'cantonese', 'liked'))
       .rejects.toMatchObject({ code: 'ROUND_MEMBER_NOT_CHOOSING' });
+  });
+
+  it('starts a custom round from the frozen room snapshot and requires every custom item', async () => {
+    if (!database) return;
+    const hostId = randomUUID();
+    const room = await roomService.createRoom(hostId, {
+      displayName: '房主',
+      customCatalog: {
+        catalogVersion: 'v1',
+        catalogHash: catalogService.getManifest().catalogHash,
+        itemIds: ['cantonese', 'western', 'hotpot'],
+      },
+    });
+    const customRoom = await roomService.changeDataset(hostId, room.id, {
+      datasetType: 'custom',
+      expectedRevision: room.revision,
+    });
+    const round = await roundService.startRound(hostId, room.id, {
+      expectedRoomRevision: customRoom.revision,
+    }, 'custom-start-1');
+
+    expect(round.datasetType).toBe('custom');
+    expect(round.customCatalog).toMatchObject({ itemCount: 3 });
+    await roundService.putDecision(hostId, round.id, 'cantonese', 'liked');
+    await roundService.putDecision(hostId, round.id, 'western', 'liked');
+    await expect(roundService.completeRound(hostId, round.id, { expectedRoundRevision: 0 }, 'custom-complete-1'))
+      .rejects.toMatchObject({ code: 'ROUND_DECISIONS_INCOMPLETE' });
+    await roundService.putDecision(hostId, round.id, 'hotpot', 'disliked');
+    const completed = await roundService.completeRound(hostId, round.id, { expectedRoundRevision: 0 }, 'custom-complete-2');
+    expect(completed.status).toBe('completed');
+    expect((await roundService.getResult(hostId, round.id)).players[0]?.items.map((item) => item.catalogItemId))
+      .toEqual(['cantonese', 'western']);
+    await expect(roundService.putDecision(hostId, round.id, 'missing', 'liked'))
+      .rejects.toMatchObject({ code: 'ROUND_NOT_PLAYING' });
   });
 });

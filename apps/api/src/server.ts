@@ -23,7 +23,7 @@ const catalogService = await CatalogService.fromDirectory(catalogRoot, catalogVe
 const tokenService = new TokenService(env.JWT_SECRET);
 const roundService = new RoundService({ db: database.db, catalogService });
 const realtimeHub = new RealtimeHub();
-const roomService = new RoomService({ db: database.db, roundLifecycle: roundService });
+const roomService = new RoomService({ db: database.db, catalogService, roundLifecycle: roundService });
 const app = createApp({
   catalogService,
   pool: database.pool,

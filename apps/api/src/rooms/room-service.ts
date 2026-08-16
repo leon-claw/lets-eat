@@ -1,9 +1,11 @@
 import { randomInt } from 'node:crypto';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import {
+  CustomCatalogSnapshotSchema,
   type ChangeDatasetRequest,
   type CreateRoomRequest,
   type JoinRoomRequest,
+  type RoomEntryResponse,
   type RoomSnapshot,
 } from '@lets-eat/contracts';
 import { ApiError } from '../http/api-error.js';
@@ -11,12 +13,15 @@ import type { Database } from '../db/client.js';
 import { roomMembers, rooms } from '../db/schema.js';
 import { hashRequest, IdempotencyService, type DatabaseExecutor } from '../idempotency/idempotency-service.js';
 import { presentRoom } from './room-presenter.js';
+import type { CatalogService } from '../catalog/catalog-service.js';
+import { validateCustomCatalog } from '../catalog/custom-catalog.js';
 
 const ROOM_CREATE_SCOPE = 'room:create';
 const MAX_MEMBERS = 8;
 
 interface RoomServiceOptions {
   db: Database;
+  catalogService?: CatalogService;
   idempotency?: IdempotencyService;
   now?: () => Date;
   codeGenerator?: () => string;
@@ -40,6 +45,9 @@ export class RoomService {
 
   async createRoom(actorUserId: string, input: CreateRoomRequest, idempotencyKey?: string): Promise<RoomSnapshot> {
     const requestHash = hashRequest(input);
+    const customCatalog = input.customCatalog
+      ? validateCustomCatalog(this.requireCatalogService(), input.customCatalog)
+      : null;
     if (idempotencyKey) {
       const existing = await this.idempotency.find(this.options.db, actorUserId, ROOM_CREATE_SCOPE, idempotencyKey);
       if (existing) return this.replay(existing.requestHash, requestHash, existing.responseBody);
@@ -65,6 +73,7 @@ export class RoomService {
             code: this.codeGenerator(),
             hostUserId: actorUserId,
             selectedDataset: 'large',
+            customCatalog,
             status: 'waiting',
             revision: 0,
             lastActivityAt: this.now(),
@@ -118,6 +127,29 @@ export class RoomService {
       throw new ApiError(403, 'ROOM_MEMBER_REQUIRED', '只有房间成员可以查看房间');
     }
     return snapshot;
+  }
+
+  async getRoomEntry(actorUserId: string, roomId: string): Promise<RoomEntryResponse> {
+    const room = await this.getRoom(actorUserId, roomId);
+    if (!room.customCatalog) return { room, customCatalog: null };
+    const [storedRoom] = await this.options.db.select({ customCatalog: rooms.customCatalog })
+      .from(rooms)
+      .where(eq(rooms.id, roomId))
+      .limit(1);
+    const customCatalog = CustomCatalogSnapshotSchema.parse(storedRoom?.customCatalog);
+    return { room, customCatalog };
+  }
+
+  async getCustomCatalog(actorUserId: string, roomId: string) {
+    await this.getRoom(actorUserId, roomId);
+    const [storedRoom] = await this.options.db.select({ customCatalog: rooms.customCatalog })
+      .from(rooms)
+      .where(eq(rooms.id, roomId))
+      .limit(1);
+    if (!storedRoom?.customCatalog) {
+      throw new ApiError(404, 'CUSTOM_CATALOG_NOT_FOUND', '当前房间没有自定义菜品');
+    }
+    return CustomCatalogSnapshotSchema.parse(storedRoom.customCatalog);
   }
 
   async joinRoom(actorUserId: string, input: JoinRoomRequest): Promise<RoomSnapshot> {
@@ -186,6 +218,9 @@ export class RoomService {
       const member = await this.findMembership(tx, actorUserId, roomId);
       if (!member || member.role !== 'host') throw new ApiError(403, 'HOST_ONLY', '只有房主可以修改菜品数据集');
       if (room.status !== 'waiting') throw new ApiError(409, 'ROOM_NOT_WAITING', '房间已经开始游戏，无法修改菜品数据集');
+      if (input.datasetType === 'custom' && !room.customCatalog) {
+        throw new ApiError(409, 'CUSTOM_CATALOG_INVALID', '请先配置至少 3 道自定义菜品');
+      }
       if (room.revision !== input.expectedRevision) {
         const latest = await presentRoom(tx, roomId);
         throw new ApiError(409, 'ROOM_REVISION_CONFLICT', '房间信息已更新，请刷新后重试', latest);
@@ -238,6 +273,11 @@ export class RoomService {
       eq(roomMembers.roomId, roomId),
     )).limit(1);
     return member ?? null;
+  }
+
+  private requireCatalogService(): CatalogService {
+    if (!this.options.catalogService) throw new Error('RoomService requires a catalog service for custom catalogs');
+    return this.options.catalogService;
   }
 
   private async touchRoom(executor: DatabaseExecutor, roomId: string, revision: number): Promise<void> {

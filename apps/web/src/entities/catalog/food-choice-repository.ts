@@ -22,23 +22,42 @@ export class CatalogFoodChoiceRepository implements FoodChoiceRepository {
     return (await this.loadSelection(datasetType, version)).choices;
   }
 
+  async listByIds(itemIds: string[], version?: CatalogVersion): Promise<FoodChoice[]> {
+    const selection = await this.catalogRepository.loadByIds(itemIds, version);
+    return selection.items.map(toFoodChoice);
+  }
+
+  async loadCatalog(): Promise<{ catalogVersion: string; catalogHash: string; choices: FoodChoice[] }> {
+    const selection = await this.catalogRepository.loadAll();
+    return {
+      catalogVersion: selection.catalogVersion,
+      catalogHash: selection.catalogHash,
+      choices: selection.items.map(toFoodChoice),
+    };
+  }
+
   async loadSelection(datasetType = this.datasetType, version?: CatalogVersion): Promise<FoodChoiceCatalogSelection> {
     const selection = await this.catalogRepository.load(datasetType, version);
     return {
       catalogVersion: selection.catalogVersion,
       catalogHash: selection.catalogHash,
       datasetType: selection.datasetType,
-      choices: selection.items.map((item) => ({
-        id: item.id,
-        name: item.name,
-        description: item.description,
-        coverImage: item.imageUrl,
-        tags: item.tags,
-        representativeFoods: item.representativeFoods,
-        cuisineTags: item.cuisineTags,
-      })),
+      choices: selection.items.map(toFoodChoice),
     };
   }
+}
+
+function toFoodChoice(item: { id: string; name: string; description: string; imageUrl: string; tags: string[]; representativeFoods: string[]; cuisineTags?: string[]; datasetType?: DatasetType }): FoodChoice {
+  return {
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    coverImage: item.imageUrl,
+    tags: item.tags,
+    representativeFoods: item.representativeFoods,
+    cuisineTags: item.cuisineTags,
+    datasetType: item.datasetType,
+  };
 }
 
 export function createBrowserCatalogFoodChoiceRepository(): CatalogFoodChoiceRepository {

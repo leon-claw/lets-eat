@@ -1,5 +1,5 @@
 import { and, asc, eq } from 'drizzle-orm';
-import { RoundSnapshotSchema, type RoundSnapshot } from '@lets-eat/contracts';
+import { CustomCatalogSnapshotSchema, RoundSnapshotSchema, type RoundSnapshot } from '@lets-eat/contracts';
 import type { DatabaseExecutor } from '../idempotency/idempotency-service.js';
 import { decisions, roomMembers, roundMembers, rounds } from '../db/schema.js';
 
@@ -41,6 +41,10 @@ export async function presentRound(
       eq(decisions.roomMemberId, caller.memberId),
     ));
 
+  const customCatalog = round.customCatalog
+    ? CustomCatalogSnapshotSchema.parse(round.customCatalog)
+    : null;
+
   return RoundSnapshotSchema.parse({
     id: round.id,
     roomId: round.roomId,
@@ -48,6 +52,12 @@ export async function presentRound(
     catalogVersion: round.catalogVersion,
     catalogHash: round.catalogHash,
     datasetType: round.datasetType,
+    customCatalog: customCatalog ? {
+      catalogVersion: customCatalog.catalogVersion,
+      catalogHash: customCatalog.catalogHash,
+      selectionHash: customCatalog.selectionHash,
+      itemCount: customCatalog.itemIds.length,
+    } : null,
     status: round.status,
     revision: round.revision,
     members: members.map((member) => ({

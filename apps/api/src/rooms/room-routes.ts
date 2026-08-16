@@ -2,9 +2,12 @@ import { Router } from 'express';
 import {
   ChangeDatasetRequestSchema,
   CreateRoomRequestSchema,
+  CreateRoomResponseSchema,
   CurrentRoomResponseSchema,
+  CustomCatalogSnapshotSchema,
   GetRoomResponseSchema,
   JoinRoomRequestSchema,
+  JoinRoomResponseSchema,
 } from '@lets-eat/contracts';
 import { ApiError } from '../http/api-error.js';
 import { requireAuth } from '../auth/auth-middleware.js';
@@ -24,20 +27,29 @@ export function createRoomRouter(roomService: RoomService, tokenService: TokenSe
   router.post('/rooms', auth, async (request, response) => {
     const input = parseBody(CreateRoomRequestSchema, request.body);
     const key = request.header('idempotency-key');
-    const room = await roomService.createRoom(requireUserId(request), input, key || undefined);
-    hub?.publish(createRealtimeEvent({ type: 'room.updated', roomId: room.id, roomRevision: room.revision }));
-    response.status(201).json(room);
+    const actorUserId = requireUserId(request);
+    const room = await roomService.createRoom(actorUserId, input, key || undefined);
+    const entry = await roomService.getRoomEntry(actorUserId, room.id);
+    hub?.publish(createRealtimeEvent({ type: 'room.updated', roomId: entry.room.id, roomRevision: entry.room.revision }));
+    response.status(201).json(CreateRoomResponseSchema.parse(entry));
   });
 
   router.post('/rooms/join', auth, async (request, response) => {
     const input = parseBody(JoinRoomRequestSchema, request.body);
-    const room = await roomService.joinRoom(requireUserId(request), input);
-    hub?.publish(createRealtimeEvent({ type: 'room.updated', roomId: room.id, roomRevision: room.revision }));
-    response.json(room);
+    const actorUserId = requireUserId(request);
+    const room = await roomService.joinRoom(actorUserId, input);
+    const entry = await roomService.getRoomEntry(actorUserId, room.id);
+    hub?.publish(createRealtimeEvent({ type: 'room.updated', roomId: entry.room.id, roomRevision: entry.room.revision }));
+    response.json(JoinRoomResponseSchema.parse(entry));
   });
 
   router.get('/rooms/:roomId', auth, async (request, response) => {
     response.json(GetRoomResponseSchema.parse(await roomService.getRoom(requireUserId(request), getParam(request.params.roomId))));
+  });
+
+  router.get('/rooms/:roomId/custom-catalog', auth, async (request, response) => {
+    const snapshot = await roomService.getCustomCatalog(requireUserId(request), getParam(request.params.roomId));
+    response.json(CustomCatalogSnapshotSchema.parse(snapshot));
   });
 
   router.patch('/rooms/:roomId/dataset', auth, async (request, response) => {

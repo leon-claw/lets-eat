@@ -94,6 +94,19 @@ describe('CatalogRepository', () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it('loads the complete catalog for local custom selection', async () => {
+    const cache = new BrowserCatalogCache({
+      responseStore: new MemoryResponseStore(), metadataStorage: new MemoryStorage(), now: () => 1,
+    });
+    await cache.put('v1', HASH_V1, catalogV1, 1);
+    const repository = new CatalogRepository({ fetcher: vi.fn(), cache, hashDocument: async () => HASH_V1 });
+
+    const selection = await repository.loadAll({ catalogVersion: 'v1', catalogHash: HASH_V1 });
+
+    expect(selection.items.map((item) => item.id)).toEqual(['cantonese', 'hotpot', 'western']);
+    expect(selection.catalogHash).toBe(HASH_V1);
+  });
+
   it('rejects cached JSON when its content hash no longer matches the requested version', async () => {
     const cache = new BrowserCatalogCache({
       responseStore: new MemoryResponseStore(), metadataStorage: new MemoryStorage(), now: () => 1,

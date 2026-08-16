@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   CatalogDocumentSchema,
   ClientAuthMessageSchema,
+  CreateRoomRequestSchema,
   JoinRoomRequestSchema,
   PutDecisionRequestSchema,
+  RoomDatasetTypeSchema,
   RoomSnapshotSchema,
   RoundResultSchema,
   ServerEventSchema,
@@ -97,6 +99,52 @@ describe('shared contracts', () => {
         memberId: randomUUID(),
         displayName: '玩家 A',
         items: [{ catalogItemId: 'cantonese', order: 1 }, { catalogItemId: 'western', order: 2 }],
+      }],
+    }).success).toBe(true);
+  });
+
+  it('allows custom only as a room dataset and carries a room-scoped catalog summary', () => {
+    expect(RoomDatasetTypeSchema.parse('custom')).toBe('custom');
+    expect(CatalogDocumentSchema.safeParse({
+      catalogVersion: 'v1',
+      items: [{
+        id: 'invalid-custom-item',
+        name: '无效',
+        description: '无效',
+        imageUrl: '',
+        datasetType: 'custom',
+        order: 1,
+        tags: ['无效'],
+        representativeFoods: ['无效'],
+      }],
+    }).success).toBe(false);
+
+    const customCatalog = {
+      catalogVersion: 'v1',
+      catalogHash: 'a'.repeat(64),
+      itemIds: ['cantonese', 'hotpot', 'western'],
+    };
+    expect(CreateRoomRequestSchema.safeParse({ displayName: '房主', customCatalog }).success).toBe(true);
+    expect(RoomSnapshotSchema.safeParse({
+      id: randomUUID(),
+      code: '12345678',
+      status: 'waiting',
+      selectedDataset: 'custom',
+      customCatalog: {
+        catalogVersion: 'v1',
+        catalogHash: 'a'.repeat(64),
+        selectionHash: 'b'.repeat(64),
+        itemCount: 3,
+      },
+      revision: 1,
+      currentRoundId: null,
+      hostUserId: randomUUID(),
+      members: [{
+        id: randomUUID(),
+        userId: randomUUID(),
+        displayName: '房主',
+        role: 'host',
+        joinedAt: new Date(0).toISOString(),
       }],
     }).success).toBe(true);
   });

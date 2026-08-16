@@ -2,7 +2,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { Copy, LogOut, Play, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { DatasetType, RoomSnapshot } from '@lets-eat/contracts';
+import type { RoomDatasetType, RoomSnapshot } from '@lets-eat/contracts';
 import { RoomClient } from '@/entities/room/room-client';
 import { classifyMultiplayerError } from '@/features/multiplayer/error-policy';
 import { JoinRoomDialog } from './JoinRoomDialog';
@@ -27,7 +27,11 @@ export function RoomPage({ roomClient, userId, room, onRoomChange, onRefresh, no
   const prefersReducedMotion = useReducedMotion();
   const isHost = room.hostUserId === userId;
   const isResults = room.status === 'results';
-  const datasetName = room.selectedDataset === 'large' ? '大类菜品' : '小类菜品';
+  const datasetName = room.selectedDataset === 'large'
+    ? '大类菜品'
+    : room.selectedDataset === 'small'
+      ? '小类菜品'
+      : `自定义菜品${room.customCatalog ? `（${room.customCatalog.itemCount} 道）` : ''}`;
 
   useEffect(() => {
     if (notice) toast(notice);
@@ -45,7 +49,7 @@ export function RoomPage({ roomClient, userId, room, onRoomChange, onRefresh, no
     toast({ message: policy.message, tone: 'error' });
   };
 
-  const changeDataset = async (datasetType: DatasetType) => {
+  const changeDataset = async (datasetType: RoomDatasetType) => {
     setBusy(true);
     setBusyAction('dataset');
     try { onRoomChange?.(await roomClient.changeDataset(room, { datasetType })); }
@@ -129,9 +133,10 @@ export function RoomPage({ roomClient, userId, room, onRoomChange, onRefresh, no
           <>
             <div className="entry-fade-up entry-delay-40 rounded-3xl bg-white p-5 shadow-md">
               <p className="text-sm font-bold text-slate-500">菜品数据集</p>
-              <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="mt-3 grid grid-cols-3 gap-2">
                 <button type="button" disabled={busy} aria-pressed={room.selectedDataset === 'large'} onClick={() => void changeDataset('large')} className={`pressable rounded-2xl px-3 py-3 font-black ${room.selectedDataset === 'large' ? 'bg-[#FFD100]' : 'bg-slate-100'}`}>大类菜品</button>
                 <button type="button" disabled={busy} aria-pressed={room.selectedDataset === 'small'} onClick={() => void changeDataset('small')} className={`pressable rounded-2xl px-3 py-3 font-black ${room.selectedDataset === 'small' ? 'bg-[#FFD100]' : 'bg-slate-100'}`}>小类菜品</button>
+                <button type="button" disabled={busy || !room.customCatalog} aria-pressed={room.selectedDataset === 'custom'} onClick={() => void changeDataset('custom')} className={`pressable rounded-2xl px-3 py-3 font-black disabled:cursor-not-allowed disabled:opacity-40 ${room.selectedDataset === 'custom' ? 'bg-[#FFD100]' : 'bg-slate-100'}`}>自定义菜品{room.customCatalog ? `（${room.customCatalog.itemCount}）` : ''}</button>
               </div>
               <p className="mt-3 text-xs text-slate-400">周围菜品：待上线</p>
             </div>

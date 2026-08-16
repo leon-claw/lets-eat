@@ -1,3 +1,5 @@
+import type { DatasetType } from '@lets-eat/contracts';
+
 export interface FoodChoice {
   id: string;
   name: string;
@@ -6,4 +8,5 @@ export interface FoodChoice {
   tags: string[];
   representativeFoods: string[];
   cuisineTags?: string[];
+  datasetType?: DatasetType;
 }

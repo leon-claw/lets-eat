@@ -47,6 +47,19 @@ describe('AppRouter', () => {
     expect(await screen.findByText('滑动选菜器')).toBeInTheDocument();
   });
 
+  it('opens local custom food settings from the home page', async () => {
+    const user = userEvent.setup();
+    const settingsRepository: FoodChoiceRepository = {
+      ...repository,
+      loadCatalog: async () => ({ catalogVersion: 'v1', catalogHash: 'a'.repeat(64), choices }),
+    };
+    render(<AppRouter repository={settingsRepository} initialPath="/" />);
+
+    await user.click(screen.getByRole('button', { name: '设置' }));
+
+    expect(await screen.findByRole('heading', { name: '菜品设置' })).toBeInTheDocument();
+  });
+
   it('keeps the group entry staged until the multiplayer flow is implemented', async () => {
     const user = userEvent.setup();
     render(<AppRouter repository={repository} initialPath="/mode" />);

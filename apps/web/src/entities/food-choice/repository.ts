@@ -14,4 +14,10 @@ export interface FoodChoiceRepository {
     datasetType: DatasetType;
     choices: FoodChoice[];
   }>;
+  loadCatalog?(): Promise<{
+    catalogVersion: string;
+    catalogHash: string;
+    choices: FoodChoice[];
+  }>;
+  listByIds?(itemIds: string[], version?: FoodChoiceVersion): Promise<FoodChoice[]>;
 }

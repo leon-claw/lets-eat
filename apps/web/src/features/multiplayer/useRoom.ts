@@ -19,6 +19,9 @@ export function useRoom(roomClient: RoomClient, roomId: string, userId: string) 
     if (!roomRef.current) setLoading(true);
     try {
       const nextRoom = await roomClient.getRoom(roomId);
+      if (nextRoom.customCatalog) {
+        await roomClient.getCustomCatalog(nextRoom.id, nextRoom.customCatalog.selectionHash);
+      }
       roomRef.current = nextRoom;
       revisionsRef.current.roomRevision = nextRoom.revision;
       setRoom(nextRoom);

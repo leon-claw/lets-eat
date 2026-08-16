@@ -70,6 +70,44 @@ describe('useMultiplayerRound', () => {
     expect(result.current.decisions).toEqual({ 'item-1': 'liked' });
   });
 
+  it('hydrates a frozen custom catalog by IDs instead of loading a global dataset', async () => {
+    const customChoices = [...choices, { id: 'item-3', name: '寿司', description: '', coverImage: '', tags: [], representativeFoods: [] }];
+    const customSnapshot: RoundSnapshot = {
+      ...snapshot,
+      datasetType: 'custom',
+      customCatalog: { catalogVersion: 'v1', catalogHash: 'a'.repeat(64), selectionHash: 'b'.repeat(64), itemCount: 3 },
+    };
+    const client = makeClient({
+      getRound: vi.fn().mockResolvedValue(customSnapshot),
+      getCustomCatalog: vi.fn().mockResolvedValue({ catalogVersion: 'v1', catalogHash: 'a'.repeat(64), selectionHash: 'b'.repeat(64), itemIds: ['item-1', 'item-2', 'item-3'] }),
+    });
+    const customRepository: FoodChoiceRepository = {
+      list: vi.fn(),
+      listByIds: vi.fn().mockResolvedValue(customChoices),
+    };
+    const queue = makeQueue({ put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined) });
+    const { result } = renderHook(() => useMultiplayerRound(ROUND_ID, client, customRepository, { queue }));
+
+    await waitFor(() => expect(result.current.status).toBe('choosing'));
+    expect(customRepository.listByIds).toHaveBeenCalledWith(['item-1', 'item-2', 'item-3'], { catalogVersion: 'v1', catalogHash: 'a'.repeat(64) });
+    expect(customRepository.list).not.toHaveBeenCalled();
+  });
+
+  it('shuffles once per multiplayer round and keeps that local order after refresh', async () => {
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+    const client = makeClient({
+      getRound: vi.fn().mockResolvedValue(snapshot),
+    });
+    const queue = makeQueue({ put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined) });
+    const { result } = renderHook(() => useMultiplayerRound(ROUND_ID, client, repository, { queue }));
+
+    await waitFor(() => expect(result.current.status).toBe('choosing'));
+    expect(result.current.choices.map((choice) => choice.id)).toEqual(['item-2', 'item-1']);
+    await act(async () => { await result.current.refresh(); });
+    expect(result.current.choices.map((choice) => choice.id)).toEqual(['item-2', 'item-1']);
+    random.mockRestore();
+  });
+
   it('does not complete until the queue is empty and every catalog item is decided', async () => {
     const client = makeClient();
     const transport: DecisionTransport = {
@@ -80,9 +118,11 @@ describe('useMultiplayerRound', () => {
     const { result } = renderHook(() => useMultiplayerRound(ROUND_ID, client, repository, { queue }));
     await waitFor(() => expect(result.current.status).toBe('choosing'));
 
+    const firstChoiceId = result.current.currentChoice?.id;
+    const secondChoiceId = choices.find((choice) => choice.id !== firstChoiceId)?.id;
     act(() => { result.current.like(); });
     expect(client.completeRound).not.toHaveBeenCalled();
-    await waitFor(() => expect(result.current.currentChoice?.id).toBe('item-2'));
+    await waitFor(() => expect(result.current.currentChoice?.id).toBe(secondChoiceId));
     act(() => { result.current.dislike(); });
 
     await waitFor(() => expect(client.completeRound).toHaveBeenCalledOnce());
@@ -98,8 +138,10 @@ describe('useMultiplayerRound', () => {
     });
     const { result } = renderHook(() => useMultiplayerRound(ROUND_ID, client, repository, { queue }));
     await waitFor(() => expect(result.current.status).toBe('choosing'));
+    const firstChoiceId = result.current.currentChoice?.id;
+    const secondChoiceId = choices.find((choice) => choice.id !== firstChoiceId)?.id;
     act(() => { result.current.like(); });
-    await waitFor(() => expect(result.current.currentChoice?.id).toBe('item-2'));
+    await waitFor(() => expect(result.current.currentChoice?.id).toBe(secondChoiceId));
     act(() => { result.current.dislike(); });
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     expect(client.completeRound).not.toHaveBeenCalled();
@@ -116,8 +158,10 @@ describe('useMultiplayerRound', () => {
     const { result } = renderHook(() => useMultiplayerRound(ROUND_ID, client, repository, { queue }), { wrapper: StrictMode });
 
     await waitFor(() => expect(result.current.status).toBe('choosing'));
+    const firstChoiceId = result.current.currentChoice?.id;
+    const secondChoiceId = choices.find((choice) => choice.id !== firstChoiceId)?.id;
     act(() => { result.current.like(); });
-    await waitFor(() => expect(result.current.currentChoice?.id).toBe('item-2'));
+    await waitFor(() => expect(result.current.currentChoice?.id).toBe(secondChoiceId));
     act(() => { result.current.dislike(); });
 
     await waitFor(() => expect(client.completeRound).toHaveBeenCalledOnce());
@@ -145,8 +189,10 @@ describe('useMultiplayerRound', () => {
     const { result } = renderHook(() => useMultiplayerRound(ROUND_ID, client, repository, { queue }));
 
     await waitFor(() => expect(result.current.status).toBe('choosing'));
+    const firstChoiceId = result.current.currentChoice?.id;
+    const secondChoiceId = choices.find((choice) => choice.id !== firstChoiceId)?.id;
     act(() => { result.current.like(); });
-    await waitFor(() => expect(result.current.currentChoice?.id).toBe('item-2'));
+    await waitFor(() => expect(result.current.currentChoice?.id).toBe(secondChoiceId));
     act(() => { result.current.dislike(); });
     await waitFor(() => expect(result.current.status).toBe('completed'));
     expect(client.getRound).toHaveBeenCalledTimes(2);

@@ -6,6 +6,7 @@ import { ApiClientError } from '@/shared/http/api-client';
 import { DecisionQueue, type DecisionOperationStore, type DecisionTransport } from './decision-queue';
 import { createIndexedDbDecisionStore } from './indexeddb-decision-store';
 import { RealtimeClient } from './realtime-client';
+import { prepareRoundChoices } from '@/features/choose-food/round-choice-order';
 
 export interface MultiplayerRoundClient {
   getRound(roundId: string): Promise<RoundSnapshot>;
@@ -13,6 +14,7 @@ export interface MultiplayerRoundClient {
   deleteDecision(roundId: string, catalogItemId: string): Promise<void>;
   completeRound(round: RoundSnapshot, idempotencyKey?: string): Promise<RoundSnapshot>;
   getIdentity?: () => Promise<{ token: string }>;
+  getCustomCatalog?: (roomId: string, selectionHash?: string) => Promise<{ catalogVersion: string; catalogHash: string; selectionHash: string; itemIds: string[] }>;
 }
 
 export interface UseMultiplayerRoundOptions {
@@ -24,6 +26,38 @@ type MultiplayerRoundStatus = 'loading' | 'choosing' | 'syncing' | 'waiting' | '
 
 function toFoodChoices(selection: { choices: FoodChoice[] }): FoodChoice[] {
   return [...selection.choices];
+}
+
+async function loadStandardChoices(repository: FoodChoiceRepository, snapshot: RoundSnapshot): Promise<FoodChoice[]> {
+  const datasetType = snapshot.datasetType === 'custom' ? 'large' : snapshot.datasetType;
+  if (repository.loadSelection) {
+    return (await repository.loadSelection(datasetType, {
+      catalogVersion: snapshot.catalogVersion,
+      catalogHash: snapshot.catalogHash,
+    })).choices;
+  }
+  return repository.list(datasetType, {
+    catalogVersion: snapshot.catalogVersion,
+    catalogHash: snapshot.catalogHash,
+  });
+}
+
+async function thisCustomChoices(
+  client: MultiplayerRoundClient,
+  repository: FoodChoiceRepository,
+  snapshot: RoundSnapshot,
+): Promise<FoodChoice[]> {
+  if (!client.getCustomCatalog || !repository.listByIds) {
+    throw new Error('当前客户端不支持自定义菜品');
+  }
+  const customCatalog = await client.getCustomCatalog(snapshot.roomId, snapshot.customCatalog?.selectionHash);
+  if (snapshot.customCatalog && customCatalog.selectionHash !== snapshot.customCatalog.selectionHash) {
+    throw new Error('自定义菜品版本已变化，请重新进入房间');
+  }
+  return repository.listByIds(customCatalog.itemIds, {
+    catalogVersion: customCatalog.catalogVersion,
+    catalogHash: customCatalog.catalogHash,
+  });
 }
 
 function replayDecisions(
@@ -61,6 +95,7 @@ export function useMultiplayerRound(
   const [queueVersion, setQueueVersion] = useState(0);
   const [pendingEnqueues, setPendingEnqueues] = useState(0);
   const [retryVersion, setRetryVersion] = useState(0);
+  const choiceOrderRef = useRef<{ roundId: string; itemIds: string[] } | null>(null);
   const completionInFlight = useRef(false);
   const completionKey = useRef<string | null>(null);
   const mountedRef = useRef(true);
@@ -75,17 +110,15 @@ export function useMultiplayerRound(
     setErrorMessage('');
     try {
       const snapshot = await client.getRound(roundId);
-      const loadSelection = repository.loadSelection
-        ? repository.loadSelection(snapshot.datasetType, { catalogVersion: snapshot.catalogVersion, catalogHash: snapshot.catalogHash })
-        : repository.list(snapshot.datasetType, { catalogVersion: snapshot.catalogVersion, catalogHash: snapshot.catalogHash }).then((items) => ({
-            catalogVersion: snapshot.catalogVersion,
-            catalogHash: snapshot.catalogHash,
-            datasetType: snapshot.datasetType,
-            choices: items,
-          }));
-      const selection = await loadSelection;
+      const choices = snapshot.datasetType === 'custom'
+        ? await thisCustomChoices(client, repository, snapshot)
+        : await loadStandardChoices(repository, snapshot);
       const pending = await queue.pending(roundId);
-      const nextChoices = toFoodChoices(selection);
+      const previousOrder = choiceOrderRef.current?.roundId === roundId
+        ? choiceOrderRef.current.itemIds
+        : undefined;
+      const nextChoices = prepareRoundChoices(toFoodChoices({ choices }), previousOrder);
+      choiceOrderRef.current = { roundId, itemIds: nextChoices.map((choice) => choice.id) };
       const nextDecisions = replayDecisions(snapshot, pending);
       setRound(snapshot);
       setChoices(nextChoices);

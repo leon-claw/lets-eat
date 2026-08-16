@@ -60,6 +60,23 @@ export class CatalogRepository {
     };
   }
 
+  async loadAll(version?: CatalogVersion): Promise<{ catalogVersion: string; catalogHash: string; items: CatalogDocument['items'] }> {
+    const documentAndHash = version
+      ? await this.loadExactVersion(version)
+      : await this.loadCurrentVersion();
+    return {
+      catalogVersion: documentAndHash.document.catalogVersion,
+      catalogHash: documentAndHash.hash,
+      items: [...documentAndHash.document.items].sort((left, right) => left.order - right.order),
+    };
+  }
+
+  async loadByIds(itemIds: string[], version?: CatalogVersion): Promise<{ catalogVersion: string; catalogHash: string; items: CatalogDocument['items'] }> {
+    const selection = await this.loadAll(version);
+    const ids = new Set(itemIds);
+    return { ...selection, items: selection.items.filter((item) => ids.has(item.id)) };
+  }
+
   private async loadCurrentVersion(): Promise<{ document: CatalogDocument; hash: string }> {
     const cachedManifest = await this.cache.getManifest();
     const response = await this.fetcher('/api/catalog/manifest', cachedManifest

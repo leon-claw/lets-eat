@@ -5,10 +5,13 @@ import { PageShell } from '@/shared/components/PageShell';
 import type { RoomClient } from '@/entities/room/room-client';
 import { createDisplayNameStore } from '@/features/identity/display-name-store';
 import { useFeedback } from '@/shared/components/FeedbackProvider';
+import { createCustomCatalogStore, type CustomCatalogStore } from '@/features/custom-catalog/custom-catalog-store';
 
-interface ModePageProps { roomClient?: RoomClient; }
+interface ModePageProps { roomClient?: RoomClient; customCatalogStore?: CustomCatalogStore; }
 
-export function ModePage({ roomClient }: ModePageProps) {
+const browserCustomCatalogStore = createCustomCatalogStore();
+
+export function ModePage({ roomClient, customCatalogStore = browserCustomCatalogStore }: ModePageProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useFeedback();
@@ -28,7 +31,8 @@ export function ModePage({ roomClient }: ModePageProps) {
 
     setCreatingRoom(true);
     const displayName = createDisplayNameStore().loadOrCreate();
-    void roomClient.createRoom({ displayName }).then((room) => navigate(`/room/${room.id}`)).catch((cause) => {
+    const customCatalog = customCatalogStore.load();
+    void roomClient.createRoom({ displayName, ...(customCatalog ? { customCatalog } : {}) }).then((room) => navigate(`/room/${room.id}`)).catch((cause) => {
       setCreatingRoom(false);
       toast({ message: cause instanceof Error ? cause.message : '创建房间失败', tone: 'error' });
     });
