@@ -35,3 +35,26 @@ export type {
   CustomCatalogSnapshot,
   CustomCatalogValidation,
 } from './custom-catalog/custom-catalog.js';
+export {
+  classifyMultiplayerError,
+  isRoomTerminalPolicy,
+} from './multiplayer/error-policy.js';
+export type { ErrorPolicy } from './multiplayer/error-policy.js';
+export { normalizeRoomState, normalizeRoundState } from './multiplayer/state-normalizer.js';
+export type { RoomState, RoundState, SyncStateOptions } from './multiplayer/state-types.js';
+export {
+  getBackActionTarget,
+  getRoomStateTarget,
+  getRoundStateTarget,
+} from './multiplayer/navigation-policy.js';
+export type {
+  BackAction,
+  BackContext,
+  NavigationTarget,
+} from './multiplayer/navigation-policy.js';
+export { DecisionQueue } from './multiplayer/decision-queue.js';
+export type {
+  DecisionOperationStore,
+  DecisionTransport,
+  QueuedDecisionOperation,
+} from './multiplayer/decision-queue.js';
