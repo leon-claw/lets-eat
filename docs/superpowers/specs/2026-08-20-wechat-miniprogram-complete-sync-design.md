@@ -208,12 +208,12 @@ adapter 处理传输细节，core 决定业务动作：刷新快照、回到模�
 wx.connectSocket({ url: <api-origin>/ws })
 ```
 
-连接建立后发送与 Web 端一致的认证消息，并携带：
+连接建立后发送与 Web 端一致的认证消息，只携带当前后端协议要求的：
 
 - token
 - roomId
-- roomRevision
-- roundRevision（如果存在）
+
+客户端在本地保存当前 room revision 和 round revision，用它们比较后续事件；不通过认证消息扩展未被后端协议声明的字段。
 
 服务端事件只作为“需要刷新”的通知，不直接当作完整业务快照。收到通知后由页面调用 HTTP 获取最新房间或回合状态。
 
