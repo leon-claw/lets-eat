@@ -1,0 +1,134 @@
+<view class="game-page">
+  <view wx:if="{{status === 'loading'}}" class="state-panel state-panel--loading">
+    <text class="state-emoji">🍜</text>
+    <text class="state-title">正在准备今天的选项…</text>
+    <text class="state-message">马上就好，先想想今天想吃点什么</text>
+  </view>
+
+  <view wx:elif="{{status === 'error'}}" class="state-panel">
+    <text class="state-emoji">🥲</text>
+    <text class="state-title">暂时无法加载菜品</text>
+    <text class="state-message">{{errorMessage}}</text>
+    <button class="state-button state-button--primary pressable" bindtap="onRetry">重新加载</button>
+    <button class="state-button state-button--secondary pressable" bindtap="onBackToDataset">返回数据集</button>
+  </view>
+
+  <view wx:elif="{{status === 'empty'}}" class="state-panel">
+    <text class="state-emoji">🍽️</text>
+    <text class="state-title">暂时没有可选菜品</text>
+    <text class="state-message">换一个数据集试试看吧</text>
+    <button class="state-button state-button--secondary pressable" bindtap="onBackToDataset">返回数据集</button>
+  </view>
+
+  <view wx:elif="{{status === 'syncing'}}" class="state-panel">
+    <text class="state-emoji">📡</text>
+    <text class="state-title">正在同步选择…</text>
+    <text class="state-message">你的选择已经完成，正在安全保存到房间</text>
+  </view>
+
+  <view wx:elif="{{status === 'waiting'}}" class="state-panel state-panel--waiting">
+    <text class="state-emoji">⏳</text>
+    <text class="state-title">等待其他小伙伴</text>
+    <text class="state-message">{{completedCount}} / {{memberCount}} 人已完成</text>
+    <view class="member-progress-list">
+      <view wx:for="{{memberStatuses}}" wx:key="memberId" class="member-progress-item">
+        <text class="member-progress-name">{{item.displayName}}</text>
+        <text wx:if="{{item.isSelf}}" class="member-progress-self">我</text>
+        <text class="member-progress-status {{item.status === 'completed' ? 'member-progress-status--done' : ''}}">{{item.statusLabel}}</text>
+      </view>
+    </view>
+    <button class="state-button state-button--secondary pressable" bindtap="onBackToRoom">返回房间</button>
+  </view>
+
+  <view wx:elif="{{status === 'completed'}}" class="state-panel state-panel--complete">
+    <text class="state-emoji">🎉</text>
+    <text wx:if="{{mode === 'multiplayer'}}" class="state-title">这一轮结束啦</text>
+    <text wx:else class="state-title">这一轮选完啦</text>
+    <text wx:if="{{mode === 'multiplayer'}}" class="state-message">正在整理大家的选择…</text>
+    <text wx:else class="state-message">你喜欢了 {{likedCount}} 道菜</text>
+    <button wx:if="{{mode === 'multiplayer'}}" class="state-button state-button--primary pressable" bindtap="onBackToRoom">返回房间</button>
+    <block wx:else>
+      <button class="state-button state-button--primary pressable" bindtap="onRestart">再来一轮</button>
+      <button class="state-button state-button--secondary pressable" bindtap="onBackToDataset">返回数据集</button>
+    </block>
+  </view>
+
+  <view wx:else class="game-shell">
+    <view class="game-header">
+      <view>
+        <text class="game-kicker">{{datasetLabel}}</text>
+        <text class="game-title">滑动选菜器</text>
+      </view>
+      <view class="progress-pill">
+        <text>已挑</text>
+        <text class="progress-current">{{progressCurrent}}</text>
+        <text>/ {{progressTotal}}</text>
+      </view>
+    </view>
+
+    <view class="deck" catchtouchmove="onTouchMove">
+      <view wx:if="{{nextChoice}}" class="food-card food-card--preview">
+        <image class="food-image" src="{{nextChoice.imageUrl}}" mode="aspectFill" />
+        <view class="preview-shade"></view>
+        <text class="preview-label">下一个</text>
+      </view>
+
+      <view
+        class="food-card food-card--current"
+        style="transform: {{cardTransform}}; transition: {{cardTransition}}; opacity: {{cardOpacity}};"
+        catchtouchstart="onTouchStart"
+        catchtouchmove="onTouchMove"
+        catchtouchend="onTouchEnd"
+      >
+        <view class="food-hero">
+          <image class="food-image" src="{{currentChoice.imageUrl}}" mode="aspectFill" />
+          <view class="food-hero-shade"></view>
+          <text class="food-kicker food-kicker--light">⭐ 菜系灵感</text>
+          <text class="food-name">{{currentChoice.name}}</text>
+        </view>
+
+        <view class="food-body">
+          <view class="tag-row">
+            <text wx:for="{{currentChoice.tags}}" wx:key="*this" class="food-tag">{{item}}</text>
+          </view>
+          <text class="food-description">{{currentChoice.description}}</text>
+
+          <view class="representative-section">
+            <text class="section-label">代表美食</text>
+            <view class="representative-list">
+              <text wx:for="{{currentChoice.representativeFoods}}" wx:key="*this" class="representative-item">{{item}}</text>
+            </view>
+          </view>
+
+          <view class="card-footer">
+            <text>左右滑动，告诉我们你的选择</text>
+            <text class="card-footer-icon">↔</text>
+          </view>
+        </view>
+
+        <view class="swipe-overlay swipe-overlay--like" style="opacity: {{likeOverlayOpacity}};">
+          <text class="overlay-icon">♥</text>
+          <text>喜欢</text>
+        </view>
+        <view class="swipe-overlay swipe-overlay--dislike" style="opacity: {{dislikeOverlayOpacity}};">
+          <text class="overlay-icon">×</text>
+          <text>不喜欢</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="control-row">
+      <button class="control-button control-button--undo pressable" disabled="{{!canUndo || isSwiping}}" bindtap="onUndoTap">
+        <text class="control-icon">↶</text>
+      </button>
+      <button class="control-button control-button--dislike pressable" disabled="{{isSwiping}}" bindtap="onDislikeTap">
+        <text class="control-icon">×</text>
+        <text class="control-caption">不喜欢</text>
+      </button>
+      <button class="control-button control-button--like pressable" disabled="{{isSwiping}}" bindtap="onLikeTap">
+        <text class="control-icon">♥</text>
+        <text class="control-caption">喜欢</text>
+      </button>
+    </view>
+  </view>
+</view>

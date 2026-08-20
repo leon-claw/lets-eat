@@ -1,0 +1,71 @@
+<view class="result-page">
+  <view wx:if="{{status === 'loading'}}" class="state-panel">
+    <text class="state-emoji">🍽️</text>
+    <text class="state-title">正在整理大家的选择…</text>
+    <text class="state-message">马上就能看到共同喜欢的菜品</text>
+  </view>
+
+  <view wx:elif="{{status === 'error'}}" class="state-panel">
+    <text class="state-emoji">🥲</text>
+    <text class="state-title">结果暂时无法加载</text>
+    <text class="state-message">{{errorMessage}}</text>
+    <button class="state-button state-button--primary pressable" bindtap="onRetry">重新加载</button>
+    <button class="state-button state-button--secondary pressable" bindtap="onBack">返回房间</button>
+  </view>
+
+  <view wx:else class="result-content">
+    <view class="page-header">
+      <button class="back-button pressable" hover-class="back-button--pressed" bindtap="onBack">
+        <text class="back-icon">‹</text>
+        <text>返回房间</text>
+      </button>
+      <text class="page-title">本轮结果</text>
+      <view class="header-spacer"></view>
+    </view>
+
+    <view class="result-hero entry-fade-up">
+      <text class="result-emoji">🎉</text>
+      <text class="result-title">大家都选中的菜品</text>
+      <text wx:if="{{commonChoices.length > 0}}" class="result-subtitle">共有 {{commonChoices.length}} 道菜是大家共同喜欢的</text>
+      <text wx:else class="result-subtitle">这轮暂时没有共同喜欢的菜品</text>
+    </view>
+
+    <view class="section-card entry-fade-up entry-delay-40">
+      <view class="section-heading">
+        <text class="section-title">共同喜欢</text>
+        <text class="section-count">{{commonChoices.length}} 道</text>
+      </view>
+      <view wx:if="{{commonChoices.length > 0}}" class="common-list">
+        <view wx:for="{{commonChoices}}" wx:key="id" class="common-item">
+          <view class="food-thumb">
+            <image wx:if="{{item.imageUrl}}" class="food-thumb-image" src="{{item.imageUrl}}" mode="aspectFill" />
+            <text wx:else>🍽</text>
+          </view>
+          <view class="food-info">
+            <text class="food-name">{{item.name}}</text>
+            <text class="food-description">{{item.description}}</text>
+          </view>
+        </view>
+      </view>
+      <text wx:else class="empty-message">没有交集，大家可以回到房间再开一轮。</text>
+    </view>
+
+    <view class="section-card entry-fade-up entry-delay-80">
+      <view class="section-heading">
+        <text class="section-title">所有玩家选中的菜品</text>
+        <text class="section-count">{{players.length}} 人</text>
+      </view>
+      <view class="player-list">
+        <view wx:for="{{players}}" wx:key="memberId" class="player-card">
+          <text class="player-name">{{item.displayName}}</text>
+          <view wx:if="{{item.choices.length > 0}}" class="choice-chip-list">
+            <text wx:for="{{item.choices}}" wx:key="id" class="choice-chip">{{item.name}}</text>
+          </view>
+          <text wx:else class="empty-player-message">没有选中菜品</text>
+        </view>
+      </view>
+    </view>
+
+    <button class="return-button pressable entry-fade-up entry-delay-120" bindtap="onBack">返回房间</button>
+  </view>
+</view>

@@ -1,0 +1,40 @@
+<view class="page-shell">
+  <view class="page-main">
+    <view class="page-header">
+      <button class="back-button pressable" hover-class="back-button--pressed" bindtap="onBack">
+        <text class="back-icon">‹</text>
+        <text>返回</text>
+      </button>
+      <text class="page-title">选择游戏模式</text>
+      <view class="header-spacer"></view>
+    </view>
+
+    <view class="mode-content">
+      <text class="intro entry-fade-up">一个人也可以认真吃饭，和朋友一起更有趣</text>
+
+      <button
+        class="mode-button mode-button--single pressable entry-fade-up entry-delay-40"
+        hover-class="mode-button--single-hover"
+        bindtap="onSingleTap"
+      >
+        <text class="mode-icon">👤</text>
+        <view class="mode-copy">
+          <text class="mode-title">单人游戏</text>
+          <text class="mode-description">按自己的口味做决定</text>
+        </view>
+      </button>
+
+      <button
+        class="mode-button mode-button--team pressable entry-fade-up entry-delay-80"
+        hover-class="mode-button--team-hover"
+        bindtap="onTeamTap"
+      >
+        <text class="mode-icon mode-icon--team">👥</text>
+        <view class="mode-copy">
+          <text class="mode-title">组队游戏</text>
+          <text class="mode-description">和朋友一起决定今天吃什么</text>
+        </view>
+      </button>
+    </view>
+  </view>
+</view>

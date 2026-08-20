@@ -1,0 +1,140 @@
+<view class="room-page">
+  <view wx:if="{{status === 'loading'}}" class="state-panel">
+    <text class="state-emoji">🚪</text>
+    <text class="state-title">正在恢复房间…</text>
+    <text class="state-message">马上回来，看看朋友们到了吗</text>
+  </view>
+
+  <view wx:elif="{{status === 'error'}}" class="state-panel">
+    <text class="state-emoji">🥲</text>
+    <text class="state-title">房间暂时无法打开</text>
+    <text class="state-message">{{errorMessage}}</text>
+    <button class="state-button state-button--primary pressable" bindtap="restoreRoom">重新打开</button>
+    <button class="state-button state-button--secondary pressable" bindtap="onBackToMode">返回模式选择</button>
+  </view>
+
+  <view wx:elif="{{status === 'closed'}}" class="state-panel">
+    <text class="state-emoji">🚪</text>
+    <text class="state-title">房间已关闭</text>
+    <text class="state-message">{{errorMessage || '这个房间已经结束了'}}</text>
+    <button class="state-button state-button--primary pressable" bindtap="onBackToMode">返回模式选择</button>
+  </view>
+
+  <view wx:elif="{{status === 'playing'}}" class="state-panel">
+    <text class="state-emoji">🎮</text>
+    <text class="state-title">多人游戏进行中</text>
+    <text class="state-message">房间号：{{roomCode}}，可以继续本轮选菜</text>
+    <button class="state-button state-button--primary pressable" bindtap="onReturnToGame">返回游戏</button>
+    <button class="state-button state-button--secondary pressable" bindtap="onBack">{{isHost ? '关闭房间' : '退出房间'}}</button>
+  </view>
+
+  <view wx:else class="room-content">
+    <view class="page-header">
+      <button class="back-button pressable" hover-class="back-button--pressed" bindtap="onBack">
+        <text class="back-icon">‹</text>
+        <text>{{isHost ? '关闭房间' : '退出房间'}}</text>
+      </button>
+      <text class="page-title">房间匹配</text>
+      <view class="header-spacer"></view>
+    </view>
+
+    <view class="room-code-card entry-fade-up">
+      <text class="room-code-label">当前房间号</text>
+      <text class="room-code">{{roomCode}}</text>
+      <button class="copy-button pressable" bindtap="onCopyCode">复制房间号</button>
+    </view>
+
+    <view wx:if="{{status === 'results'}}" class="results-card entry-fade-up">
+      <text class="results-label">上一轮游戏已结束</text>
+      <button wx:if="{{isHost}}" class="action-button action-button--primary pressable" disabled="{{busyAction === 'next'}}" bindtap="onNextRoundTap">
+        {{busyAction === 'next' ? '正在准备下一轮…' : '开始下一轮'}}
+      </button>
+      <text wx:else class="waiting-title">等待房主开始下一轮</text>
+    </view>
+
+    <view wx:elif="{{isHost}}" class="dataset-card entry-fade-up entry-delay-40">
+      <view class="section-heading">
+        <text class="section-title">菜品数据集</text>
+        <text class="section-hint">本轮所有人使用同一份菜单</text>
+      </view>
+      <view class="dataset-switcher">
+        <button
+          class="dataset-button pressable {{room.selectedDataset === 'large' ? 'dataset-button--selected' : ''}}"
+          data-dataset="large"
+          disabled="{{busyAction === 'dataset'}}"
+          bindtap="onDatasetTap"
+        >大类菜品</button>
+        <button
+          class="dataset-button pressable {{room.selectedDataset === 'small' ? 'dataset-button--selected' : ''}}"
+          data-dataset="small"
+          disabled="{{busyAction === 'dataset'}}"
+          bindtap="onDatasetTap"
+        >小类菜品</button>
+        <button
+          class="dataset-button pressable {{room.selectedDataset === 'custom' ? 'dataset-button--selected' : ''}} {{!room.customCatalog ? 'dataset-button--disabled' : ''}}"
+          data-dataset="custom"
+          disabled="{{busyAction === 'dataset' || !room.customCatalog}}"
+          bindtap="onDatasetTap"
+        >自定义菜品</button>
+      </view>
+      <text class="dataset-current">当前选择：{{datasetLabel}}</text>
+      <text wx:if="{{!room.customCatalog}}" class="dataset-hint">先在设置页保存至少 3 道菜品后即可使用</text>
+    </view>
+
+    <view wx:elif="{{status === 'waiting'}}" class="guest-status-card entry-fade-up entry-delay-40">
+      <text class="guest-kicker">当前数据集</text>
+      <text class="guest-dataset">{{datasetLabel}}</text>
+      <text class="waiting-title">待房主开始</text>
+      <text class="waiting-message">房主开始后，所有人会进入同一轮游戏</text>
+    </view>
+
+    <button wx:if="{{isHost && status === 'waiting'}}" class="action-button action-button--secondary pressable entry-fade-up entry-delay-80" disabled="{{busyAction !== null}}" bindtap="onJoinTap">＋ 加入房间</button>
+    <button wx:if="{{isHost && status === 'waiting'}}" class="action-button action-button--primary pressable entry-fade-up entry-delay-120" disabled="{{busyAction !== null}}" bindtap="onStartTap">
+      {{busyAction === 'start' ? '正在开始游戏…' : '开始游戏'}}
+    </button>
+
+    <view class="members-card entry-fade-up entry-delay-80">
+      <view class="members-heading">
+        <text class="section-title">客人列表</text>
+        <text class="member-count">{{room.members.length}} / 8</text>
+      </view>
+      <view class="member-list">
+        <view wx:for="{{room.members}}" wx:key="id" class="member-item">
+          <view class="member-avatar">🍴</view>
+          <text class="member-name">{{item.displayName}}</text>
+          <text wx:if="{{item.role === 'host'}}" class="member-role member-role--host">房主</text>
+          <text wx:elif="{{item.userId === userId}}" class="member-role">我</text>
+          <text wx:else class="member-role">客人</text>
+        </view>
+      </view>
+    </view>
+
+    <button class="leave-button pressable entry-fade-up entry-delay-120" disabled="{{busyAction !== null}}" bindtap="onBack">{{busyAction === 'leave' ? '正在退出…' : isHost ? '关闭房间' : '退出房间'}}</button>
+  </view>
+
+  <view wx:if="{{joinVisible}}" class="modal-mask" catchtap="onCloseJoin">
+    <view class="modal-card" catchtap="noop">
+      <view class="modal-header">
+        <text class="modal-title">加入房间</text>
+        <button class="modal-close" bindtap="onCloseJoin">×</button>
+      </view>
+      <text class="modal-message">输入朋友分享的 8 位房间号</text>
+      <input class="room-input" type="number" maxlength="8" focus value="{{joinCode}}" placeholder="例如 12345678" bindinput="onJoinCodeInput" />
+      <text wx:if="{{joinError}}" class="input-error">{{joinError}}</text>
+      <button class="modal-submit pressable" disabled="{{busyAction === 'join'}}" bindtap="onJoinSubmit">{{busyAction === 'join' ? '正在加入…' : '加入'}}</button>
+    </view>
+  </view>
+
+  <view wx:if="{{confirmVisible}}" class="modal-mask" catchtap="onCancelConfirm">
+    <view class="modal-card modal-card--confirm" catchtap="noop">
+      <text class="modal-title">{{confirmTitle}}</text>
+      <text class="modal-message">{{confirmMessage}}</text>
+      <view class="confirm-actions">
+        <button class="confirm-button confirm-button--cancel pressable" bindtap="onCancelConfirm">取消</button>
+        <button class="confirm-button confirm-button--danger pressable" bindtap="onLeaveConfirm">{{isHost ? '关闭房间' : '退出房间'}}</button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{toastVisible}}" class="toast">{{toastMessage}}</view>
+</view>

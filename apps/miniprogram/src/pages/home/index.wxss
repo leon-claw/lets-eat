@@ -1,0 +1,227 @@
+.page-shell {
+  min-height: 100vh;
+  padding: 20px 16px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  position: relative;
+}
+
+.home-card {
+  width: 100%;
+  max-width: 430px;
+  min-height: calc(100vh - 40px);
+  padding: 48px 24px 40px;
+  box-sizing: border-box;
+  border-radius: 32px;
+  background: #ffffff;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  position: relative;
+  animation: page-shell-enter 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.settings-button {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box;
+  border-radius: 999px;
+  color: #64748b;
+  background: transparent;
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  line-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease;
+}
+
+.settings-button--pressed,
+.settings-button:active {
+  transform: scale(0.96);
+  background: #f1f5f9;
+}
+
+.settings-icon {
+  font-size: 21px;
+}
+
+.logo {
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  background: #ffd100;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+}
+
+.hero-copy,
+.name-field {
+  width: 100%;
+  text-align: center;
+}
+
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.title {
+  font-size: 34px;
+  line-height: 1.2;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+
+.subtitle {
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.name-field {
+  text-align: left;
+}
+
+.field-label {
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 800;
+}
+
+.name-input {
+  width: 100%;
+  height: 48px;
+  margin-top: 8px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 16px;
+  line-height: 48px;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), border-color 180ms ease, background-color 180ms ease;
+}
+
+.name-input:focus {
+  border-color: #f5c400;
+  background: #ffffff;
+}
+
+.start-button {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 20px;
+  border-radius: 16px;
+  background: #ffd100;
+  color: #0f172a;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.14);
+  font-size: 18px;
+  line-height: 52px;
+  font-weight: 900;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.start-button--hover {
+  background: #ffc800;
+}
+
+.start-button:active {
+  transform: scale(0.98);
+  box-shadow: 0 6px 12px rgba(15, 23, 42, 0.12);
+}
+
+.toast {
+  position: fixed;
+  top: 38%;
+  left: 50%;
+  max-width: calc(100vw - 48px);
+  padding: 12px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #ffffff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2);
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 700;
+  text-align: center;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+}
+
+.pressable {
+  transition-property: transform, background-color, border-color, box-shadow;
+  transition-duration: 140ms;
+  transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.entry-fade-up {
+  animation: entry-fade-up 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.entry-pop {
+  animation: entry-pop 240ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.entry-delay-40 {
+  animation-delay: 40ms;
+}
+
+.entry-delay-80 {
+  animation-delay: 80ms;
+}
+
+.entry-delay-120 {
+  animation-delay: 120ms;
+}
+
+@keyframes page-shell-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes entry-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes entry-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

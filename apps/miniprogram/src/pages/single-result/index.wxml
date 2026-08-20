@@ -1,0 +1,57 @@
+<view class="single-result-page">
+  <view wx:if="{{status === 'loading'}}" class="state-panel">
+    <text class="state-emoji">🍽️</text>
+    <text class="state-title">正在整理结果…</text>
+    <text class="state-message">把你喜欢的菜品列出来</text>
+  </view>
+
+  <view wx:elif="{{status === 'error'}}" class="state-panel">
+    <text class="state-emoji">🥲</text>
+    <text class="state-title">结果暂时无法加载</text>
+    <text class="state-message">{{errorMessage}}</text>
+    <button class="state-button pressable" bindtap="onRetry">重试</button>
+    <button class="state-button state-button--secondary pressable" bindtap="onBack">返回模式选择</button>
+  </view>
+
+  <view wx:elif="{{status === 'empty'}}" class="state-panel">
+    <text class="state-emoji">🍜</text>
+    <text class="state-title">还没有本轮结果</text>
+    <text class="state-message">重新开始一轮，挑选今天想吃的菜吧</text>
+    <button class="state-button pressable" bindtap="onRestart">开始选菜</button>
+    <button class="state-button state-button--secondary pressable" bindtap="onBack">返回模式选择</button>
+  </view>
+
+  <view wx:else class="result-content">
+    <view class="page-header">
+      <button class="back-button pressable" hover-class="back-button--pressed" bindtap="onBack">
+        <text class="back-icon">‹</text>
+        <text>返回</text>
+      </button>
+      <text class="page-title">本轮结果</text>
+      <view class="header-spacer"></view>
+    </view>
+
+    <view class="result-hero entry-fade-up">
+      <text class="result-emoji">🎉</text>
+      <text class="result-title">看完全部菜品啦</text>
+      <text class="result-subtitle">{{selectedCount > 0 ? '你选中了 ' + selectedCount + ' 道心仪菜品' : '你还没有选中菜品'}}</text>
+    </view>
+
+    <view wx:if="{{selectedCount > 0}}" class="choice-card entry-fade-up entry-delay-40">
+      <button class="list-toggle pressable" bindtap="onToggleList">{{listVisible ? '收起备选清单' : '查看备选清单'}} ({{selectedCount}})</button>
+      <view wx:if="{{listVisible}}" class="choice-list">
+        <view wx:for="{{choices}}" wx:key="id" class="choice-item">
+          <image wx:if="{{item.imageUrl}}" class="choice-image" src="{{item.imageUrl}}" mode="aspectFill" />
+          <view wx:else class="choice-image choice-image--fallback">🍜</view>
+          <view class="choice-copy">
+            <text class="choice-name">{{item.name}}</text>
+            <text class="choice-description">{{item.description}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <button class="primary-button pressable entry-fade-up entry-delay-80" bindtap="onRestart">再来一轮</button>
+    <button class="secondary-button pressable entry-fade-up entry-delay-120" bindtap="onBack">返回模式选择</button>
+  </view>
+</view>

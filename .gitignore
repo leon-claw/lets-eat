@@ -11,3 +11,5 @@ node_modules/
 graphify-out/
 output/
 .worktrees/
+apps/miniprogram/dist/
+apps/miniprogram/project.private.config.json

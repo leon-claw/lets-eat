@@ -1,0 +1,39 @@
+<view class="page-shell">
+  <view class="home-card">
+    <button
+      class="settings-button pressable"
+      hover-class="settings-button--pressed"
+      aria-label="设置"
+      bindtap="onSettingsTap"
+    >
+      <text class="settings-icon">⚙</text>
+    </button>
+
+    <view class="logo entry-pop">🍜</view>
+
+    <view class="hero-copy entry-fade-up entry-delay-40">
+      <text class="title">今天吃什么</text>
+      <text class="subtitle">让每一次选择，都变得轻松一点</text>
+    </view>
+
+    <view class="name-field entry-fade-up entry-delay-80">
+      <text class="field-label">你的名字</text>
+      <input
+        class="name-input pressable"
+        value="{{displayName}}"
+        maxlength="20"
+        confirm-type="done"
+        bindinput="onDisplayNameInput"
+        placeholder="请输入用户名"
+      />
+    </view>
+
+    <button
+      class="start-button pressable entry-fade-up entry-delay-120"
+      hover-class="start-button--hover"
+      bindtap="onStartTap"
+    >开始游戏</button>
+  </view>
+
+  <view wx:if="{{toastVisible}}" class="toast">{{toastMessage}}</view>
+</view>

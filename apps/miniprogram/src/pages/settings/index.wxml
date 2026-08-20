@@ -1,0 +1,83 @@
+<view class="settings-page">
+  <view class="settings-shell">
+    <view class="page-header">
+      <button class="back-button pressable" hover-class="back-button--pressed" bindtap="onBack">
+        <text class="back-icon">‹</text>
+        <text>返回</text>
+      </button>
+      <text class="page-title">菜品设置</text>
+      <view class="header-spacer"></view>
+    </view>
+
+    <view class="summary-card entry-fade-up">
+      <text class="summary-kicker">自定义菜品</text>
+      <text class="summary-count">已选 {{draftSelectedCount}} 道</text>
+      <text class="summary-message">选择至少 {{minItems}} 道菜品，保存后只保存在当前设备。</text>
+    </view>
+
+    <view class="filter-tabs entry-fade-up entry-delay-40">
+      <button class="filter-button pressable {{filter === 'all' ? 'filter-button--selected' : ''}}" data-filter="all" bindtap="onFilterTap">全部</button>
+      <button class="filter-button pressable {{filter === 'large' ? 'filter-button--selected' : ''}}" data-filter="large" bindtap="onFilterTap">大类</button>
+      <button class="filter-button pressable {{filter === 'small' ? 'filter-button--selected' : ''}}" data-filter="small" bindtap="onFilterTap">小类</button>
+    </view>
+
+    <view wx:if="{{status === 'loading'}}" class="state-panel entry-fade-up">
+      <text class="state-emoji">🍽️</text>
+      <text class="state-title">正在加载菜单…</text>
+      <text class="state-message">马上就能开始挑选</text>
+    </view>
+
+    <view wx:elif="{{status === 'error'}}" class="state-panel entry-fade-up">
+      <text class="state-emoji">🥲</text>
+      <text class="state-title">菜单加载失败</text>
+      <text class="state-message">{{errorMessage}}</text>
+      <button class="state-button state-button--primary pressable" bindtap="onRetry">重新加载</button>
+    </view>
+
+    <scroll-view wx:elif="{{status === 'ready'}}" class="food-list" scroll-y enable-flex>
+      <view wx:if="{{visibleItems.length === 0}}" class="empty-list">
+        <text class="empty-list-icon">🍜</text>
+        <text class="empty-list-message">这个分类暂时没有菜品</text>
+      </view>
+      <button
+        wx:for="{{visibleItems}}"
+        wx:key="id"
+        class="food-option pressable {{item.selected ? 'food-option--selected' : ''}}"
+        hover-class="food-option--pressed"
+        data-id="{{item.id}}"
+        bindtap="onToggleItem"
+      >
+        <image wx:if="{{item.imageUrl}}" class="food-image" src="{{item.imageUrl}}" mode="aspectFill" />
+        <view wx:else class="food-image food-image--fallback">🍜</view>
+        <view class="check-mark {{item.selected ? 'check-mark--selected' : ''}}">
+          <text wx:if="{{item.selected}}">✓</text>
+        </view>
+        <view class="food-copy">
+          <text class="food-name">{{item.name}}</text>
+          <text class="food-description">{{item.description}}</text>
+        </view>
+        <text class="dataset-badge">{{item.datasetType === 'small' ? '小类' : '大类'}}</text>
+      </button>
+    </scroll-view>
+
+    <button
+      wx:if="{{status === 'ready'}}"
+      class="save-button pressable {{draftSelectedCount < minItems ? 'save-button--disabled' : ''}}"
+      disabled="{{draftSelectedCount < minItems}}"
+      bindtap="onSave"
+    >保存自定义菜品</button>
+  </view>
+
+  <view wx:if="{{confirmVisible}}" class="modal-mask" catchtap="onCancelConfirm">
+    <view class="confirm-dialog" catchtap="noop">
+      <text class="confirm-title">放弃未保存的选择？</text>
+      <text class="confirm-message">返回后本次修改不会保留。</text>
+      <view class="confirm-actions">
+        <button class="confirm-button confirm-button--cancel pressable" bindtap="onCancelConfirm">继续编辑</button>
+        <button class="confirm-button confirm-button--danger pressable" bindtap="onConfirmDiscard">放弃修改</button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{toastVisible}}" class="toast">{{toastMessage}}</view>
+</view>

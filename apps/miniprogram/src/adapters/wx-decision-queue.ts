@@ -5,6 +5,11 @@ import type {
 
 export const DECISION_QUEUE_STORAGE_KEY = 'lets-eat.miniprogram.decision-queue.v1';
 
+export function clearWxDecisionQueue(roundId: string): void {
+  if (!roundId) return;
+  writeOperations(readOperations().filter((operation) => operation.roundId !== roundId));
+}
+
 export function createWxDecisionOperationStore(): DecisionOperationStore {
   return {
     async add(operation) {

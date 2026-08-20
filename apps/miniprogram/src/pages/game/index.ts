@@ -37,6 +37,7 @@ import {
   saveStoredSingleRound,
   type StoredSingleRound,
 } from './single-round-storage';
+import { MULTIPLAYER_ROUND_STORAGE_KEY_PREFIX } from './multiplayer-round-storage';
 
 type PageStatus = 'loading' | 'choosing' | 'syncing' | 'waiting' | 'empty' | 'error' | 'completed';
 type GameMode = 'single' | 'multiplayer';
@@ -104,7 +105,6 @@ interface TouchEventLike {
   changedTouches: TouchPoint[];
 }
 
-const MULTIPLAYER_STORAGE_KEY_PREFIX = 'lets-eat.miniprogram.multiplayer-round.v1:';
 const SWIPE_ACTION_DURATION = 220;
 const CARD_ENTRY_DELAY = 16;
 const CARD_TRANSITION = 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1), opacity 180ms ease-out';
@@ -649,7 +649,7 @@ function persistMultiplayerRound(state: GameState, selection: CatalogSelection, 
     history: state.history,
   };
   try {
-    wx.setStorageSync(`${MULTIPLAYER_STORAGE_KEY_PREFIX}${currentRoundId}`, JSON.stringify(stored));
+    wx.setStorageSync(`${MULTIPLAYER_ROUND_STORAGE_KEY_PREFIX}${currentRoundId}`, JSON.stringify(stored));
   } catch (cause) {
     console.warn('保存多人游戏进度失败', cause);
   }
@@ -657,7 +657,7 @@ function persistMultiplayerRound(state: GameState, selection: CatalogSelection, 
 
 function readStoredMultiplayerRound(currentRoundId: string): StoredMultiplayerRound | null {
   try {
-    const raw = wx.getStorageSync(`${MULTIPLAYER_STORAGE_KEY_PREFIX}${currentRoundId}`);
+    const raw = wx.getStorageSync(`${MULTIPLAYER_ROUND_STORAGE_KEY_PREFIX}${currentRoundId}`);
     if (!raw) return null;
     const value = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (!value || typeof value !== 'object') return null;

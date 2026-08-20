@@ -1,0 +1,58 @@
+<view class="page-shell">
+  <view class="page-main">
+    <view class="page-header">
+      <button class="back-button pressable" hover-class="back-button--pressed" bindtap="onBack">
+        <text class="back-icon">‹</text>
+        <text>返回</text>
+      </button>
+      <text class="page-title">确认菜品数据集</text>
+      <view class="header-spacer"></view>
+    </view>
+
+    <view class="dataset-content">
+      <text class="intro entry-fade-up">今天想从哪一类菜品开始？</text>
+
+      <button
+        class="dataset-option dataset-option--large pressable entry-fade-up entry-delay-40"
+        hover-class="dataset-option--large-hover"
+        bindtap="onLargeTap"
+      >
+        <view class="dataset-row">
+          <text class="dataset-icon dataset-icon--large">🍽</text>
+          <text class="dataset-title">大类菜品</text>
+          <text wx:if="{{countsLoading}}" class="dataset-count">加载中…</text>
+          <text wx:else class="dataset-count">{{largeCount}} 条</text>
+        </view>
+        <text class="dataset-description">西餐、中餐、日料等大分类</text>
+      </button>
+
+      <button
+        class="dataset-option dataset-option--small pressable entry-fade-up entry-delay-80"
+        hover-class="dataset-option--small-hover"
+        bindtap="onSmallTap"
+      >
+        <view class="dataset-row">
+          <text class="dataset-icon dataset-icon--small">🍽</text>
+          <text class="dataset-title">小类菜品</text>
+          <text wx:if="{{countsLoading}}" class="dataset-count">加载中…</text>
+          <text wx:else class="dataset-count">{{smallCount}} 条</text>
+        </view>
+        <text class="dataset-description">螺蛳粉、火锅、披萨等小分类</text>
+      </button>
+
+      <button
+        class="dataset-option dataset-option--nearby pressable entry-fade-up entry-delay-120"
+        hover-class="dataset-option--nearby-hover"
+        bindtap="onNearbyTap"
+      >
+        <view class="dataset-row">
+          <text class="dataset-icon dataset-icon--nearby">⌖</text>
+          <text class="dataset-title">周围菜品</text>
+        </view>
+        <text class="dataset-description">待上线，点击催开发进度</text>
+      </button>
+    </view>
+  </view>
+
+  <view wx:if="{{toastVisible}}" class="toast">{{toastMessage}}</view>
+</view>

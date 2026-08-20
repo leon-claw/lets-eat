@@ -1,0 +1,495 @@
+.game-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 20px 16px 28px;
+  color: #0f172a;
+}
+
+.game-shell {
+  width: 100%;
+  max-width: 430px;
+  min-height: calc(100vh - 48px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  animation: game-enter 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.game-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 4px 4px 18px;
+}
+
+.game-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: #f59e0b;
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.game-title {
+  display: block;
+  color: #0f172a;
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 950;
+}
+
+.progress-pill {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #94a3b8;
+  box-shadow: 0 7px 18px rgba(15, 23, 42, 0.08);
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 800;
+}
+
+.progress-current {
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.deck {
+  position: relative;
+  flex: 1;
+  min-height: 500px;
+  margin: 0 4px;
+}
+
+.food-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  min-height: 500px;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.15);
+}
+
+.food-card--preview {
+  transform: translate3d(0, 12px, 0) scale(0.965);
+  opacity: 0.65;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.food-card--current {
+  z-index: 2;
+}
+
+.food-hero {
+  position: relative;
+  height: 224px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #fed7aa, #fca5a5);
+}
+
+.food-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.food-hero-shade {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 68%;
+  background: linear-gradient(to bottom, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.78));
+}
+
+.food-kicker {
+  display: block;
+  color: #f59e0b;
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.food-kicker--light {
+  position: absolute;
+  left: 20px;
+  bottom: 54px;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.food-name {
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  left: 20px;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.food-body {
+  padding: 18px 20px 16px;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.food-tag {
+  margin: 0 6px 6px 0;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.food-description {
+  display: block;
+  min-height: 44px;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.representative-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.section-label {
+  display: block;
+  margin-bottom: 7px;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.representative-list {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.representative-item {
+  margin: 0 12px 4px 0;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 800;
+}
+
+.representative-item::before {
+  content: '· ';
+  color: #f59e0b;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  color: #cbd5e1;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.card-footer-icon {
+  color: #f59e0b;
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.preview-shade {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.26);
+}
+
+.preview-label {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #475569;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.swipe-overlay {
+  position: absolute;
+  top: 26px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  border: 2px solid currentColor;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.1;
+  font-weight: 950;
+  transform: rotate(-8deg);
+}
+
+.swipe-overlay--like {
+  right: 20px;
+  color: #16a34a;
+  transform: rotate(8deg);
+}
+
+.swipe-overlay--dislike {
+  left: 20px;
+  color: #ef4444;
+}
+
+.overlay-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 0;
+  padding: 24px 36px 4px;
+}
+
+.control-button {
+  width: 56px !important;
+  min-width: 56px !important;
+  height: 56px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.control-button::after {
+  border: 0;
+}
+
+.control-button:disabled {
+  opacity: 0.4;
+}
+
+.control-button:active {
+  transform: scale(0.9);
+}
+
+.control-button--undo {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  border: 1px solid #fcd34d;
+  background: #ffffff;
+  color: #d97706;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
+.control-button--undo:disabled {
+  border-color: #f1f5f9;
+  background: #f1f5f9;
+  color: #cbd5e1;
+  opacity: 1;
+}
+
+.control-button--dislike {
+  background: #fff1f2;
+  color: #e11d48;
+}
+
+.control-button--like {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.control-icon {
+  font-size: 25px;
+  line-height: 0.9;
+  font-weight: 400;
+}
+
+.control-button--undo .control-icon {
+  font-size: 21px;
+}
+
+.control-caption {
+  margin-top: 4px;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.state-panel {
+  width: 100%;
+  max-width: 430px;
+  min-height: calc(100vh - 48px);
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 48px 24px;
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  animation: game-enter 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.state-emoji {
+  display: block;
+  margin-bottom: 20px;
+  font-size: 52px;
+  line-height: 1;
+}
+
+.state-title {
+  display: block;
+  color: #0f172a;
+  font-size: 23px;
+  line-height: 1.3;
+  font-weight: 950;
+}
+
+.state-message {
+  display: block;
+  max-width: 280px;
+  margin-top: 10px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.member-progress-list {
+  width: 100%;
+  margin-top: 22px;
+}
+
+.member-progress-item {
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  text-align: left;
+}
+
+.member-progress-item:first-child {
+  margin-top: 0;
+}
+
+.member-progress-name {
+  flex: 1;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-progress-self {
+  margin-right: 8px;
+  color: #d97706;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 900;
+}
+
+.member-progress-status {
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 800;
+}
+
+.member-progress-status--done {
+  color: #16a34a;
+}
+
+.state-button {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 48px !important;
+  margin: 22px 0 0 !important;
+  padding: 0 16px !important;
+  border: 0;
+  border-radius: 16px;
+  font-size: 15px;
+  line-height: 48px;
+  font-weight: 900;
+}
+
+.state-button::after {
+  border: 0;
+}
+
+.state-button--primary {
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18);
+}
+
+.state-button--secondary {
+  margin-top: 10px !important;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.pressable {
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 140ms ease, opacity 140ms ease;
+}
+
+@keyframes game-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
