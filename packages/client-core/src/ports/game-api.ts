@@ -1,7 +1,6 @@
 import type {
   CatalogDocument,
   CatalogManifest,
-  CatalogItem,
   Decision,
   CurrentRoomResponse,
   CustomCatalogSnapshot,
@@ -13,7 +12,6 @@ import type {
   RoundResult,
   RoundSnapshot,
 } from '@lets-eat/contracts';
-
 export interface GameApi {
   getManifest(): Promise<CatalogManifest>;
   getCatalog(): Promise<CatalogDocument>;
@@ -34,9 +32,4 @@ export interface GameApi {
   getRoundResult(roundId: string): Promise<RoundResult>;
 }
 
-export interface CatalogSelection {
-  catalogVersion: string;
-  catalogHash: string;
-  datasetType: RoomDatasetType;
-  items: CatalogItem[];
-}
+export type { CatalogSelection } from '../catalog/types.js';
