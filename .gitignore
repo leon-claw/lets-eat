@@ -4,6 +4,7 @@ node_modules/
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Local agent and browser tooling outputs
 .codex/
@@ -13,3 +14,5 @@ output/
 .worktrees/
 apps/miniprogram/dist/
 apps/miniprogram/project.private.config.json
+.env.production
+backup-*.sql

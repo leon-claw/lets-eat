@@ -10,7 +10,9 @@
 
 部署、Cloudflare Tunnel、生产式构建、反向代理、数据库备份和其他 Agent 的执行清单，请先阅读：[部署指南](docs/DEPLOYMENT.md)。
 
-本文档描述当前仓库真实支持的部署方式，并明确区分了技术规格中的目标架构与尚未实现的完整容器化能力。
+生产环境需要一键启动 PostgreSQL、API 和 Web 时，请使用：[Agent 后端部署手册](docs/AGENT-BACKEND-DEPLOYMENT.md)。
+
+本文档描述当前仓库真实支持的本地开发和生产部署方式。
 
 ## 环境要求
 
@@ -124,6 +126,7 @@ apps/web/              React + Vite Web 前端
 apps/api/              Express API、WebSocket、Drizzle 数据库迁移
 packages/contracts/    Web/API 共用的 Zod contracts
 compose.yaml           本地 PostgreSQL 与测试 PostgreSQL
+compose.prod.yaml      生产 PostgreSQL、API 与 Web/Nginx
 scripts/dev-stack.sh   一键启动开发环境
 docs/superpowers/      已确认的产品与技术规格
 ```

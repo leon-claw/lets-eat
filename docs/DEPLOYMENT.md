@@ -11,34 +11,33 @@ apps/web/              React + Vite 前端
 apps/api/              Express + WebSocket API
 packages/contracts/    Web/API 共用的 Zod contracts
 apps/api/catalog/      版本化固定菜品库和图片
-compose.yaml           当前只包含 PostgreSQL 服务
+compose.yaml           本地开发 PostgreSQL 与测试 PostgreSQL
+compose.prod.yaml      生产 PostgreSQL、API 与 Web/Nginx
 scripts/dev-stack.sh   一键开发启动脚本
 ```
 
 当前仓库已经支持：
 
-- 宿主机运行 Web 和 API，Docker 运行 PostgreSQL；
+- 本地开发时宿主机运行 Web 和 API，Docker 运行 PostgreSQL；
+- 生产式部署时 Docker Compose 运行 PostgreSQL、API 和 Web/Nginx；
 - 单人游戏和多人房间；
 - HTTP API、WebSocket、数据库迁移和健康检查；
 - 通过 Cloudflare Tunnel 把本机 Web 开发服务映射到公网进行多设备测试；
 - 构建 API、Web 和 contracts 产物。
 
-当前仓库尚未提供：
+当前仓库暂不内置：
 
-- API Dockerfile；
-- Web/Nginx Dockerfile；
-- 包含 `web`、`api`、`backup`、`cloudflared` 的完整生产 Compose；
 - 内置定时备份服务；
 - 内置 24 小时房间清理任务；
 - PM2、systemd 或其他进程管理器配置。
 
-因此，当前不能把下面的命令理解为“启动完整应用”：
+本地开发时，下面的命令仍然只会启动 `postgres`：
 
 ```bash
 docker compose up -d
 ```
 
-它目前只会启动 `postgres`。完整生产式部署需要单独运行 API、静态 Web 服务和反向代理，或者后续补充完整容器化基础设施。
+它不会启动 API 或 Web。生产式部署请使用：[Agent 后端部署手册](AGENT-BACKEND-DEPLOYMENT.md)。
 
 ## 2. 部署架构
 
@@ -237,7 +236,9 @@ ingress:
 
 ## 8. 生产式构建
 
-当前仓库没有生产 Docker 镜像，因此生产式验证采用“构建产物 + 外部进程管理器”的方式。
+生产 Docker 一键部署请优先阅读：[Agent 后端部署手册](AGENT-BACKEND-DEPLOYMENT.md)。该手册覆盖 `compose.prod.yaml`、API/Web 镜像、Nginx、健康检查、备份、升级和回滚。
+
+如果需要手动构建产物或使用外部进程管理器，仍可执行以下命令。
 
 ### 8.1 安装和构建
 

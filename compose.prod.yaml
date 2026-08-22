@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lets_eat}
+      POSTGRES_USER: ${POSTGRES_USER:-lets_eat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env.production}
+    volumes:
+      - lets-eat-prod-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lets_eat} -d ${POSTGRES_DB:-lets_eat}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: production
+      API_PORT: ${API_PORT:-3001}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set in .env.production}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env.production}
+      WEB_ORIGINS: ${WEB_ORIGINS:?WEB_ORIGINS must be set in .env.production}
+      TRUST_PROXY: ${TRUST_PROXY:-loopback}
+      CATALOG_VERSION: ${CATALOG_VERSION:-v2}
+      CATALOG_ROOT: /app/catalog
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/health/live').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    expose:
+      - "3001"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/health/live >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+
+volumes:
+  lets-eat-prod-postgres-data:

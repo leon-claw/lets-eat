@@ -46,7 +46,7 @@ API 容器内部同时提供 HTTP API、WebSocket、健康检查和固定菜品�
 
 1. 使用 Node.js 22 LTS 和仓库锁定的 pnpm 版本安装 workspace 依赖；
 2. 构建 `@lets-eat/contracts` 和 `@lets-eat/api`；
-3. 使用 `pnpm deploy --prod` 生成 API 运行时依赖；
+3. 使用 `pnpm deploy --prod --legacy` 生成 API 运行时依赖；当前 workspace 未启用 `inject-workspace-packages`，因此必须显式使用 legacy deploy；
 4. 将 API `dist`、`drizzle` 和 `catalog` 复制到运行镜像；
 5. 运行 `node dist/server.js`。
 
