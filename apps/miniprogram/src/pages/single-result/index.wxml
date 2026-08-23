@@ -22,15 +22,6 @@
   </view>
 
   <view wx:else class="result-content">
-    <view class="page-header">
-      <button class="back-button pressable" hover-class="back-button--pressed" bindtap="onBack">
-        <text class="back-icon">‹</text>
-        <text>返回</text>
-      </button>
-      <text class="page-title">本轮结果</text>
-      <view class="header-spacer"></view>
-    </view>
-
     <view class="result-hero entry-fade-up">
       <text class="result-emoji">🎉</text>
       <text class="result-title">看完全部菜品啦</text>

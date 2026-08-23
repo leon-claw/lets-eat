@@ -5,12 +5,16 @@ import { resolve } from 'node:path';
 const pagePath = resolve(process.cwd(), 'src/pages/room/index.wxml');
 const stylePath = resolve(process.cwd(), 'src/pages/room/index.wxss');
 const scriptPath = resolve(process.cwd(), 'src/pages/room/index.ts');
+const configPath = resolve(process.cwd(), 'src/pages/room/index.json');
 
 describe('room page', () => {
   it('contains host and guest room actions', async () => {
     const markup = await readFile(pagePath, 'utf8');
+    const config = JSON.parse(await readFile(configPath, 'utf8')) as {
+      navigationBarTitleText?: string;
+    };
 
-    expect(markup).toContain('房间匹配');
+    expect(config.navigationBarTitleText).toBe('房间匹配');
     expect(markup).toContain('加入房间');
     expect(markup).toContain('开始游戏');
     expect(markup).toContain('退出房间');

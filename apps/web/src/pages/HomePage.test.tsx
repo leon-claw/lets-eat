@@ -11,7 +11,10 @@ describe('HomePage motion hooks', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText('🍜')).toHaveClass('entry-pop');
+    const logo = screen.getByRole('img', { name: '今天吃什么 Logo' });
+
+    expect(logo).toHaveAttribute('src', '/brand-logo.png');
+    expect(logo).toHaveClass('entry-pop');
     expect(screen.getByRole('heading', { name: '今天吃什么' }).parentElement).toHaveClass('entry-fade-up');
     expect(screen.getByRole('button', { name: '开始游戏' })).toHaveClass('pressable');
   });

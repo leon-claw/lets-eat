@@ -13,57 +13,6 @@
   animation: page-shell-enter 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
-.page-header {
-  min-height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.page-title {
-  flex: 1;
-  color: #0f172a;
-  font-size: 18px;
-  line-height: 40px;
-  font-weight: 900;
-  text-align: center;
-}
-
-.header-spacer {
-  width: 64px;
-  flex: 0 0 64px;
-}
-
-.back-button {
-  width: 64px !important;
-  min-width: 64px !important;
-  height: 40px !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border-radius: 12px;
-  background: transparent;
-  color: #475569;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 3px;
-  font-size: 14px;
-  line-height: 40px;
-  font-weight: 800;
-}
-
-.back-button--pressed {
-  background: #e2e8f0;
-  transform: scale(0.98);
-}
-
-.back-icon {
-  margin-top: -2px;
-  font-size: 28px;
-  line-height: 1;
-  font-weight: 400;
-}
-
 .dataset-content {
   padding-top: 28px;
 }

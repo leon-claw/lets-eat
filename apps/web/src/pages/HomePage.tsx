@@ -27,7 +27,11 @@ export function HomePage() {
         <button type="button" aria-label="设置" onClick={() => navigate('/settings')} className="pressable absolute right-7 top-7 rounded-full p-2 text-slate-500 hover:bg-slate-100">
           <Settings className="h-5 w-5" />
         </button>
-        <div className="entry-pop flex h-24 w-24 items-center justify-center rounded-full bg-[#FFD100] text-5xl shadow-lg">🍜</div>
+        <img
+          className="entry-pop h-24 w-24 rounded-full object-cover shadow-lg"
+          src="/brand-logo.png"
+          alt="今天吃什么 Logo"
+        />
         <div className="entry-fade-up entry-delay-40 text-center">
           <h1 className="text-4xl font-black tracking-tight">今天吃什么</h1>
           <p className="mt-2 text-sm text-slate-500">让每一次选择，都变得轻松一点</p>

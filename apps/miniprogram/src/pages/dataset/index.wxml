@@ -1,14 +1,5 @@
 <view class="page-shell">
   <view class="page-main">
-    <view class="page-header">
-      <button class="back-button pressable" hover-class="back-button--pressed" bindtap="onBack">
-        <text class="back-icon">‹</text>
-        <text>返回</text>
-      </button>
-      <text class="page-title">确认菜品数据集</text>
-      <view class="header-spacer"></view>
-    </view>
-
     <view class="dataset-content">
       <text class="intro entry-fade-up">今天想从哪一类菜品开始？</text>
 

@@ -29,15 +29,6 @@
   </view>
 
   <view wx:else class="room-content">
-    <view class="page-header">
-      <button class="back-button pressable" hover-class="back-button--pressed" bindtap="onBack">
-        <text class="back-icon">‹</text>
-        <text>{{isHost ? '关闭房间' : '退出房间'}}</text>
-      </button>
-      <text class="page-title">房间匹配</text>
-      <view class="header-spacer"></view>
-    </view>
-
     <view class="room-code-card entry-fade-up">
       <text class="room-code-label">当前房间号</text>
       <text class="room-code">{{roomCode}}</text>

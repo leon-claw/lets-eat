@@ -9,7 +9,12 @@
       <text class="settings-icon">⚙</text>
     </button>
 
-    <view class="logo entry-pop">🍜</view>
+    <image
+      class="logo entry-pop"
+      src="/assets/brand-logo.png"
+      mode="aspectFill"
+      aria-label="今天吃什么 Logo"
+    />
 
     <view class="hero-copy entry-fade-up entry-delay-40">
       <text class="title">今天吃什么</text>

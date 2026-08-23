@@ -1,14 +1,5 @@
 <view class="settings-page">
   <view class="settings-shell">
-    <view class="page-header">
-      <button class="back-button pressable" hover-class="back-button--pressed" bindtap="onBack">
-        <text class="back-icon">‹</text>
-        <text>返回</text>
-      </button>
-      <text class="page-title">菜品设置</text>
-      <view class="header-spacer"></view>
-    </view>
-
     <view class="summary-card entry-fade-up">
       <text class="summary-kicker">自定义菜品</text>
       <text class="summary-count">已选 {{draftSelectedCount}} 道</text>

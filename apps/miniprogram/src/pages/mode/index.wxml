@@ -1,14 +1,5 @@
 <view class="page-shell">
   <view class="page-main">
-    <view class="page-header">
-      <button class="back-button pressable" hover-class="back-button--pressed" bindtap="onBack">
-        <text class="back-icon">‹</text>
-        <text>返回</text>
-      </button>
-      <text class="page-title">选择游戏模式</text>
-      <view class="header-spacer"></view>
-    </view>
-
     <view class="mode-content">
       <text class="intro entry-fade-up">一个人也可以认真吃饭，和朋友一起更有趣</text>
 

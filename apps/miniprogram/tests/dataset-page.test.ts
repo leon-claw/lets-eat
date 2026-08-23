@@ -6,10 +6,13 @@ const datasetMarkup = readFileSync(
   resolve(__dirname, '../src/pages/dataset/index.wxml'),
   'utf8',
 );
+const datasetConfig = JSON.parse(
+  readFileSync(resolve(__dirname, '../src/pages/dataset/index.json'), 'utf8'),
+) as { navigationBarTitleText?: string };
 
 describe('dataset page', () => {
   it('contains the three dataset choices and the single-player handoff', () => {
-    expect(datasetMarkup).toContain('确认菜品数据集');
+    expect(datasetConfig.navigationBarTitleText).toBe('确认菜品数据集');
     expect(datasetMarkup).toContain('今天想从哪一类菜品开始？');
     expect(datasetMarkup).toContain('大类菜品');
     expect(datasetMarkup).toContain('西餐、中餐、日料等大分类');
