@@ -107,6 +107,7 @@ interface TouchEventLike {
 
 const SWIPE_ACTION_DURATION = 220;
 const CARD_ENTRY_DELAY = 16;
+const CARD_ENTRY_REVEAL_DELAY = 200;
 const CARD_TRANSITION = 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1), opacity 180ms ease-out';
 const CARD_CENTER_TRANSFORM = 'translate3d(0, 0, 0) rotate(0deg)';
 const CARD_ENTRY_TRANSFORM = 'translate3d(0, 12px, 0) scale(0.97) rotate(0deg)';
@@ -493,10 +494,13 @@ Page<GamePageData, GamePageMethods>({
       }
 
       const progress = getProgress(gameState);
+      const enteringChoice = getCurrentChoice(gameState) ?? null;
+      const nextPreview = getNextChoice(gameState) ?? null;
+      const previousPreview = this.data.nextChoice ?? enteringChoice;
       this.setData({
         status: 'choosing',
-        currentChoice: getCurrentChoice(gameState) ?? null,
-        nextChoice: getNextChoice(gameState) ?? null,
+        currentChoice: enteringChoice,
+        nextChoice: previousPreview,
         progressCurrent: progress.current,
         progressTotal: progress.total,
         likedCount: gameState.likedIds.length,
@@ -514,9 +518,11 @@ Page<GamePageData, GamePageMethods>({
           cardTransition: CARD_TRANSITION,
           cardTransform: CARD_CENTER_TRANSFORM,
           cardOpacity: 1,
-          isSwiping: false,
         });
-        entryTimer = null;
+        entryTimer = setTimeout(() => {
+          this.setData({ nextChoice: nextPreview, isSwiping: false });
+          entryTimer = null;
+        }, CARD_ENTRY_REVEAL_DELAY);
       }, CARD_ENTRY_DELAY);
     }, SWIPE_ACTION_DURATION);
   },

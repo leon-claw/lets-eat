@@ -68,9 +68,31 @@
 
     <view class="deck" catchtouchmove="onTouchMove">
       <view wx:if="{{nextChoice}}" class="food-card food-card--preview">
-        <image class="food-image" src="{{nextChoice.imageUrl}}" mode="aspectFill" />
-        <view class="preview-shade"></view>
-        <text class="preview-label">下一个</text>
+        <view class="food-hero">
+          <image class="food-image" src="{{nextChoice.imageUrl}}" mode="aspectFill" />
+          <view class="food-hero-shade"></view>
+          <text class="preview-label">下一道</text>
+          <text class="food-name">{{nextChoice.name}}</text>
+        </view>
+
+        <view class="food-body">
+          <view class="tag-row">
+            <text wx:for="{{nextChoice.tags}}" wx:key="*this" class="food-tag">{{item}}</text>
+          </view>
+          <text class="food-description">{{nextChoice.description}}</text>
+
+          <view class="representative-section">
+            <text class="section-label">代表美食</text>
+            <view class="representative-list">
+              <text wx:for="{{nextChoice.representativeFoods}}" wx:key="*this" class="representative-item">{{item}}</text>
+            </view>
+          </view>
+
+          <view class="card-footer">
+            <text>下一道菜品</text>
+            <text class="card-footer-icon">↗</text>
+          </view>
+        </view>
       </view>
 
       <view
@@ -83,7 +105,6 @@
         <view class="food-hero">
           <image class="food-image" src="{{currentChoice.imageUrl}}" mode="aspectFill" />
           <view class="food-hero-shade"></view>
-          <text class="food-kicker food-kicker--light">⭐ 菜系灵感</text>
           <text class="food-name">{{currentChoice.name}}</text>
         </view>
 

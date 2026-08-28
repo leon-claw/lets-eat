@@ -22,6 +22,13 @@ describe('game page', () => {
     expect(markup).not.toContain('强推');
     expect(markup).not.toContain('摇号');
     expect(markup).not.toContain('2人想吃');
+    expect(markup).not.toContain('菜系灵感');
+    expect(markup).toContain('class="food-card food-card--preview"');
+    expect(markup).toContain('{{nextChoice.name}}');
+    expect(markup).toContain('{{nextChoice.description}}');
+    expect(markup).toContain('{{nextChoice.tags}}');
+    expect(markup).toContain('{{nextChoice.representativeFoods}}');
+    expect(markup).not.toContain('next-choice-peek');
   });
 
   it('keeps undo control compact and aligned with the web treatment', async () => {
@@ -51,5 +58,9 @@ describe('game page', () => {
     expect(script).toContain('/pages/result/index?roundId=');
     expect(markup).not.toContain('结果页将在下一步接入');
     expect(roomScript).toContain('roundId=${roundId}');
+    expect(script).toContain('const previousPreview = this.data.nextChoice ?? enteringChoice;');
+    expect(script).toContain('nextChoice: previousPreview');
+    expect(script).toContain('nextChoice: nextPreview');
+    expect(script).toContain('CARD_ENTRY_REVEAL_DELAY');
   });
 });
