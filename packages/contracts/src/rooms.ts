@@ -55,7 +55,6 @@ export const CreateRoomRequestSchema = z.object({
 export const JoinRoomRequestSchema = z.object({
   code: z.string().regex(/^\d{8}$/),
   displayName: z.string().trim().min(1).max(24),
-  replaceCurrentRoom: z.boolean().default(false),
 }).strict();
 
 export const ChangeDatasetRequestSchema = z.object({

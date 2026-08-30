@@ -27,6 +27,7 @@ import {
   type RoomDatasetType,
   type RoomSnapshot,
 } from './room-model';
+import { createShareConfig } from '../../shared/share-config';
 
 type RoomPageStatus = 'loading' | 'waiting' | 'playing' | 'results' | 'error' | 'closed';
 type BusyAction = 'create' | 'join' | 'dataset' | 'leave' | 'start' | 'next' | null;
@@ -101,6 +102,8 @@ let toastTimer: ReturnType<typeof setTimeout> | null = null;
 let navigatedRoundId = '';
 
 Page<RoomPageData, RoomPageMethods>({
+  ...createShareConfig(),
+
   data: {
     status: 'loading',
     room: null,
@@ -258,7 +261,7 @@ Page<RoomPageData, RoomPageMethods>({
       return;
     }
     this.setData({ busyAction: 'join', joinError: '' });
-    void joinRoom(API_BASE_URL, code, this.data.displayName, this.data.isHost)
+    void joinRoom(API_BASE_URL, code, this.data.displayName)
       .then((room) => {
         saveRoomReference(room.id);
         this.setData({ joinVisible: false });

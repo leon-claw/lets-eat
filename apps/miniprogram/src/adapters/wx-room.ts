@@ -44,12 +44,11 @@ export async function joinRoom(
   baseUrl: string,
   code: string,
   displayName: string,
-  replaceCurrentRoom: boolean,
 ): Promise<RoomSnapshot> {
   const entry = await withIdentity(baseUrl, (identity) => requestRoomEntry(baseUrl, '/api/rooms/join', {
     method: 'POST',
     token: identity.token,
-    body: { code, displayName, replaceCurrentRoom },
+    body: { code, displayName },
   }));
   cacheRoomEntry(entry);
   return entry.room;

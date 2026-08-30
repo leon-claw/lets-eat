@@ -21,6 +21,14 @@ describe('shared contracts', () => {
     expect(PutDecisionRequestSchema.safeParse({ decision: 'superlike' }).success).toBe(false);
   });
 
+  it('does not accept a legacy room replacement flag', () => {
+    expect(JoinRoomRequestSchema.safeParse({
+      code: '12345678',
+      displayName: '测试用户',
+      replaceCurrentRoom: true,
+    }).success).toBe(false);
+  });
+
   it('rejects a room snapshot that exposes member decisions', () => {
     const hostUserId = randomUUID();
     const parsed = RoomSnapshotSchema.safeParse({

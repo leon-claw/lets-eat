@@ -37,7 +37,7 @@ describe('RoundService completion lifecycle', () => {
     const hostId = randomUUID();
     const guestId = randomUUID();
     const room = await roomService.createRoom(hostId, { displayName: '房主' });
-    const joined = await roomService.joinRoom(guestId, { code: room.code, displayName: '客人', replaceCurrentRoom: false });
+    const joined = await roomService.joinRoom(guestId, { code: room.code, displayName: '客人' });
     const round = await roundService.startRound(hostId, room.id, { expectedRoomRevision: joined.revision }, 'start-1');
     return { hostId, guestId, room, round };
   }
@@ -183,11 +183,11 @@ describe('RoundService completion lifecycle', () => {
     const partial = await roundService.completeRound(hostId, round.id, { expectedRoundRevision: 0 }, 'complete-host');
     await decideAll(guestId, round.id, true);
     await roundService.completeRound(guestId, round.id, { expectedRoundRevision: partial.revision }, 'complete-guest');
-    await expect(roomService.joinRoom(randomUUID(), { code: room.code, displayName: '新客人', replaceCurrentRoom: false }))
+    await expect(roomService.joinRoom(randomUUID(), { code: room.code, displayName: '新客人' }))
       .rejects.toMatchObject({ code: 'ROOM_NOT_JOINABLE' });
     const resultRoom = await roomService.getRoom(hostId, room.id);
     const reopened = await roundService.openNextRound(hostId, room.id, { expectedRoomRevision: resultRoom.revision });
     expect(reopened).toMatchObject({ status: 'waiting', currentRoundId: null, revision: resultRoom.revision + 1 });
-    await expect(roomService.joinRoom(randomUUID(), { code: room.code, displayName: '新客人', replaceCurrentRoom: false })).resolves.toMatchObject({ id: room.id });
+    await expect(roomService.joinRoom(randomUUID(), { code: room.code, displayName: '新客人' })).resolves.toMatchObject({ id: room.id });
   });
 });

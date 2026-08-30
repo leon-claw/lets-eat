@@ -38,6 +38,7 @@ import {
   type StoredSingleRound,
 } from './single-round-storage';
 import { MULTIPLAYER_ROUND_STORAGE_KEY_PREFIX } from './multiplayer-round-storage';
+import { createShareConfig } from '../../shared/share-config';
 
 type PageStatus = 'loading' | 'choosing' | 'syncing' | 'waiting' | 'empty' | 'error' | 'completed';
 type GameMode = 'single' | 'multiplayer';
@@ -141,6 +142,8 @@ let entryTimer: ReturnType<typeof setTimeout> | null = null;
 let loadToken = 0;
 
 Page<GamePageData, GamePageMethods>({
+  ...createShareConfig(),
+
   data: {
     mode: 'single',
     roundId: '',

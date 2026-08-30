@@ -82,7 +82,7 @@ export function RoomPage({ roomClient, userId, room, onRoomChange, onRefresh, no
 
   const join = async (code: string) => {
     try {
-      const joined = await roomClient.joinRoom({ code, displayName: room.members.find((member) => member.userId === userId)?.displayName ?? '食客', replaceCurrentRoom: isHost });
+      const joined = await roomClient.joinRoom({ code, displayName: room.members.find((member) => member.userId === userId)?.displayName ?? '食客' });
       setJoinOpen(false);
       navigate(`/room/${joined.id}`, { replace: true });
     } catch (cause) {

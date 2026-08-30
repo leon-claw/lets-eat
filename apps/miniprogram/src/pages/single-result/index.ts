@@ -6,6 +6,7 @@ import {
   readStoredSingleRound,
   type StoredSingleRound,
 } from '../game/single-round-storage';
+import { createShareConfig } from '../../shared/share-config';
 
 type SingleResultStatus = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -30,6 +31,8 @@ let storedRound: StoredSingleRound | null = null;
 let loadToken = 0;
 
 Page<SingleResultPageData, SingleResultPageMethods>({
+  ...createShareConfig(),
+
   data: {
     status: 'loading',
     choices: [],

@@ -4,6 +4,7 @@ import {
   loadOrCreateDisplayName,
   saveDisplayName,
 } from './home-model';
+import { createShareConfig } from '../../shared/share-config';
 
 interface HomePageData {
   displayName: string;
@@ -27,6 +28,8 @@ interface HomePageMethods {
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
 Page<HomePageData, HomePageMethods>({
+  ...createShareConfig(),
+
   data: {
     displayName: '',
     toastMessage: '',

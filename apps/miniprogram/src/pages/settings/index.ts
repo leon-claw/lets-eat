@@ -9,6 +9,7 @@ import {
   saveCustomCatalog,
 } from '../../adapters/wx-custom-catalog';
 import { API_BASE_URL } from '../../config/runtime';
+import { createShareConfig } from '../../shared/share-config';
 
 type SettingsPageStatus = 'loading' | 'ready' | 'error';
 type CatalogFilter = 'all' | 'large' | 'small';
@@ -60,6 +61,8 @@ let toastTimer: ReturnType<typeof setTimeout> | null = null;
 let loadToken = 0;
 
 Page<SettingsPageData, SettingsPageMethods>({
+  ...createShareConfig(),
+
   data: {
     status: 'loading',
     filter: 'all',

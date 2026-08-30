@@ -40,7 +40,7 @@ describe('RoundService', () => {
     const hostId = randomUUID();
     const guestId = randomUUID();
     const room = await roomService.createRoom(hostId, { displayName: '房主' });
-    const joined = await roomService.joinRoom(guestId, { code: room.code, displayName: '客人', replaceCurrentRoom: false });
+    const joined = await roomService.joinRoom(guestId, { code: room.code, displayName: '客人' });
     const round = await roundService.startRound(hostId, room.id, { expectedRoomRevision: joined.revision }, 'start-1');
 
     expect(round).toMatchObject({
@@ -103,7 +103,7 @@ describe('RoundService', () => {
     const hostId = randomUUID();
     const guestId = randomUUID();
     const room = await roomService.createRoom(hostId, { displayName: '房主' });
-    const joined = await roomService.joinRoom(guestId, { code: room.code, displayName: '客人', replaceCurrentRoom: false });
+    const joined = await roomService.joinRoom(guestId, { code: room.code, displayName: '客人' });
     const round = await roundService.startRound(hostId, room.id, { expectedRoomRevision: joined.revision }, 'start-1');
     await roundService.putDecision(hostId, round.id, 'cantonese', 'liked');
     await roundService.putDecision(guestId, round.id, 'cantonese', 'liked');
