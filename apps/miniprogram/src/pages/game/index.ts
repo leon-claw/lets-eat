@@ -39,6 +39,7 @@ import {
 } from './single-round-storage';
 import { MULTIPLAYER_ROUND_STORAGE_KEY_PREFIX } from './multiplayer-round-storage';
 import { createShareConfig } from '../../shared/share-config';
+import { writeRealtimeLog } from '../../shared/realtime-logger';
 
 type PageStatus = 'loading' | 'choosing' | 'syncing' | 'waiting' | 'empty' | 'error' | 'completed';
 type GameMode = 'single' | 'multiplayer';
@@ -170,6 +171,7 @@ Page<GamePageData, GamePageMethods>({
   onLoad(options) {
     gameMode = options?.roundId ? 'multiplayer' : 'single';
     roundId = options?.roundId ?? '';
+    writeRealtimeLog('info', 'game.load', { mode: gameMode, roundId: roundId || undefined });
     multiplayerRound = null;
     multiplayerSelection = null;
     pendingDecisionWrites = [];
@@ -236,6 +238,7 @@ Page<GamePageData, GamePageMethods>({
 
   loadMultiplayerRound() {
     const currentLoadToken = ++multiplayerLoadToken;
+    writeRealtimeLog('info', 'game.round.load.started', { roundId, loadToken: currentLoadToken });
     this.setData({
       status: 'loading',
       errorMessage: '',
@@ -246,6 +249,12 @@ Page<GamePageData, GamePageMethods>({
     void getRound(API_BASE_URL, roundId)
       .then(async (snapshot) => {
         if (currentLoadToken !== multiplayerLoadToken) return;
+        writeRealtimeLog('info', 'game.round.load.snapshot', {
+          roundId,
+          roomId: snapshot.roomId,
+          roundRevision: snapshot.revision,
+          status: snapshot.status,
+        });
         const selection = snapshot.datasetType === 'custom'
           ? await loadCustomCatalogSelection(API_BASE_URL, snapshot.roomId)
           : await loadCatalogSelection(API_BASE_URL, snapshot.datasetType);
@@ -286,6 +295,7 @@ Page<GamePageData, GamePageMethods>({
       })
       .catch((cause: unknown) => {
         if (currentLoadToken !== multiplayerLoadToken) return;
+        writeRealtimeLog('error', 'game.round.load.failed', { roundId, message: cause instanceof Error ? cause.message : 'unknown error' });
         console.error('加载多人轮次失败', cause);
         multiplayerRound = null;
         multiplayerSelection = null;
@@ -303,9 +313,27 @@ Page<GamePageData, GamePageMethods>({
   },
 
   refreshMultiplayerRound() {
-    if (gameMode !== 'multiplayer' || !roundId || !multiplayerRound) return;
+    if (gameMode !== 'multiplayer' || !roundId || !multiplayerRound) {
+      writeRealtimeLog('warn', 'game.round.refresh.skipped', {
+        reason: 'round-not-ready',
+        mode: gameMode,
+        roundId: roundId || undefined,
+        hasRound: multiplayerRound !== null,
+      });
+      return;
+    }
+    writeRealtimeLog('info', 'game.round.refresh.started', {
+      roundId,
+      roomId: multiplayerRound.roomId,
+      roundRevision: multiplayerRound.revision,
+    });
     void getRound(API_BASE_URL, roundId)
       .then((snapshot) => {
+        writeRealtimeLog('info', 'game.round.refresh.succeeded', {
+          roundId,
+          roundRevision: snapshot.revision,
+          status: snapshot.status,
+        });
         multiplayerRound = snapshot;
         this.syncMultiplayerMembers(snapshot);
         if (snapshot.status === 'completed') {
@@ -325,32 +353,65 @@ Page<GamePageData, GamePageMethods>({
         this.loadMultiplayerRound();
       })
       .catch((cause: unknown) => {
+        writeRealtimeLog('error', 'game.round.refresh.failed', { roundId, message: cause instanceof Error ? cause.message : 'unknown error' });
         console.warn('刷新多人轮次失败', cause);
       });
   },
 
   connectMultiplayerRealtime() {
-    if (!multiplayerRound || multiplayerRealtimeStop || multiplayerRealtimeConnectInFlight) return;
+    if (!multiplayerRound) {
+      writeRealtimeLog('warn', 'game.realtime.connect.skipped', { reason: 'round-not-loaded', roundId });
+      return;
+    }
+    if (multiplayerRealtimeStop) {
+      writeRealtimeLog('info', 'game.realtime.connect.skipped', { reason: 'already-connected', roundId });
+      return;
+    }
+    if (multiplayerRealtimeConnectInFlight) {
+      writeRealtimeLog('info', 'game.realtime.connect.skipped', { reason: 'connect-in-flight', roundId });
+      return;
+    }
+    writeRealtimeLog('info', 'game.realtime.connect.started', {
+      roundId,
+      roomId: multiplayerRound.roomId,
+      roundRevision: multiplayerRound.revision,
+    });
     multiplayerRealtimeConnectInFlight = true;
     void getRoomIdentity(API_BASE_URL)
       .then((identity) => {
-        if (!multiplayerRound) return;
+        if (!multiplayerRound) {
+          writeRealtimeLog('warn', 'game.realtime.connect.aborted', { reason: 'round-cleared-before-identity', roundId });
+          return;
+        }
+        writeRealtimeLog('info', 'game.realtime.identity.loaded', { roomId: multiplayerRound.roomId, userId: identity.userId });
         multiplayerRealtimeStop = createWxRealtimeTransport(API_BASE_URL).connect({
           token: identity.token,
           roomId: multiplayerRound.roomId,
           revisions: { roomRevision: 0, roundRevision: multiplayerRound.revision },
           onStale: (state) => {
+            writeRealtimeLog('info', 'game.realtime.stale', {
+              roundId,
+              room: state.room,
+              round: state.round,
+              reconnected: state.reconnected,
+            });
             if (state.room || state.round || state.reconnected) this.refreshMultiplayerRound();
           },
         });
+        writeRealtimeLog('info', 'game.realtime.connect.started-transport', { roundId, roomId: multiplayerRound.roomId });
       })
-      .catch((cause) => console.warn('多人游戏实时连接失败', cause))
+      .catch((cause) => {
+        writeRealtimeLog('error', 'game.realtime.connect.failed', { roundId, message: cause instanceof Error ? cause.message : 'unknown error' });
+        console.warn('多人游戏实时连接失败', cause);
+      })
       .finally(() => {
         multiplayerRealtimeConnectInFlight = false;
+        writeRealtimeLog('info', 'game.realtime.connect.finished', { roundId, connected: multiplayerRealtimeStop !== null });
       });
   },
 
   disconnectMultiplayerRealtime() {
+    if (multiplayerRealtimeStop) writeRealtimeLog('info', 'game.realtime.disconnect.started', { roundId });
     multiplayerRealtimeStop?.();
     multiplayerRealtimeStop = null;
   },

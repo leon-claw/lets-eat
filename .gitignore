@@ -16,3 +16,4 @@ apps/miniprogram/dist/
 apps/miniprogram/project.private.config.json
 .env.production
 backup-*.sql
+logs/

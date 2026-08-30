@@ -1,5 +1,6 @@
 import type { ServerEvent } from '@lets-eat/contracts';
 import type { WebSocket } from 'ws';
+import { realtimeLogger } from './realtime-logger.js';
 
 export interface RealtimeConnection {
   socket: WebSocket;
@@ -24,10 +25,26 @@ export class RealtimeHub {
   }
 
   publish(event: ServerEvent): void {
-    for (const connection of this.connections.get(event.roomId) ?? []) {
-      if (connection.socket.readyState !== 1) continue;
+    const connections = this.connections.get(event.roomId) ?? new Set<RealtimeConnection>();
+    let sent = 0;
+    let skipped = 0;
+    for (const connection of connections) {
+      if (connection.socket.readyState !== 1) {
+        skipped += 1;
+        continue;
+      }
       connection.socket.send(JSON.stringify(event));
+      sent += 1;
     }
+    realtimeLogger.info('event.broadcast', {
+      type: event.type,
+      roomId: event.roomId,
+      roomRevision: event.roomRevision,
+      roundRevision: event.roundRevision,
+      connected: connections.size,
+      sent,
+      skipped,
+    });
   }
 
   size(roomId?: string): number {
