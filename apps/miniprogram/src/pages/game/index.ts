@@ -171,7 +171,6 @@ Page<GamePageData, GamePageMethods>({
   onLoad(options) {
     gameMode = options?.roundId ? 'multiplayer' : 'single';
     roundId = options?.roundId ?? '';
-    writeRealtimeLog('info', 'game.load', { mode: gameMode, roundId: roundId || undefined });
     multiplayerRound = null;
     multiplayerSelection = null;
     pendingDecisionWrites = [];
@@ -238,7 +237,6 @@ Page<GamePageData, GamePageMethods>({
 
   loadMultiplayerRound() {
     const currentLoadToken = ++multiplayerLoadToken;
-    writeRealtimeLog('info', 'game.round.load.started', { roundId, loadToken: currentLoadToken });
     this.setData({
       status: 'loading',
       errorMessage: '',
@@ -249,12 +247,6 @@ Page<GamePageData, GamePageMethods>({
     void getRound(API_BASE_URL, roundId)
       .then(async (snapshot) => {
         if (currentLoadToken !== multiplayerLoadToken) return;
-        writeRealtimeLog('info', 'game.round.load.snapshot', {
-          roundId,
-          roomId: snapshot.roomId,
-          roundRevision: snapshot.revision,
-          status: snapshot.status,
-        });
         const selection = snapshot.datasetType === 'custom'
           ? await loadCustomCatalogSelection(API_BASE_URL, snapshot.roomId)
           : await loadCatalogSelection(API_BASE_URL, snapshot.datasetType);
@@ -313,27 +305,9 @@ Page<GamePageData, GamePageMethods>({
   },
 
   refreshMultiplayerRound() {
-    if (gameMode !== 'multiplayer' || !roundId || !multiplayerRound) {
-      writeRealtimeLog('warn', 'game.round.refresh.skipped', {
-        reason: 'round-not-ready',
-        mode: gameMode,
-        roundId: roundId || undefined,
-        hasRound: multiplayerRound !== null,
-      });
-      return;
-    }
-    writeRealtimeLog('info', 'game.round.refresh.started', {
-      roundId,
-      roomId: multiplayerRound.roomId,
-      roundRevision: multiplayerRound.revision,
-    });
+    if (gameMode !== 'multiplayer' || !roundId || !multiplayerRound) return;
     void getRound(API_BASE_URL, roundId)
       .then((snapshot) => {
-        writeRealtimeLog('info', 'game.round.refresh.succeeded', {
-          roundId,
-          roundRevision: snapshot.revision,
-          status: snapshot.status,
-        });
         multiplayerRound = snapshot;
         this.syncMultiplayerMembers(snapshot);
         if (snapshot.status === 'completed') {
@@ -359,23 +333,7 @@ Page<GamePageData, GamePageMethods>({
   },
 
   connectMultiplayerRealtime() {
-    if (!multiplayerRound) {
-      writeRealtimeLog('warn', 'game.realtime.connect.skipped', { reason: 'round-not-loaded', roundId });
-      return;
-    }
-    if (multiplayerRealtimeStop) {
-      writeRealtimeLog('info', 'game.realtime.connect.skipped', { reason: 'already-connected', roundId });
-      return;
-    }
-    if (multiplayerRealtimeConnectInFlight) {
-      writeRealtimeLog('info', 'game.realtime.connect.skipped', { reason: 'connect-in-flight', roundId });
-      return;
-    }
-    writeRealtimeLog('info', 'game.realtime.connect.started', {
-      roundId,
-      roomId: multiplayerRound.roomId,
-      roundRevision: multiplayerRound.revision,
-    });
+    if (!multiplayerRound || multiplayerRealtimeStop || multiplayerRealtimeConnectInFlight) return;
     multiplayerRealtimeConnectInFlight = true;
     void getRoomIdentity(API_BASE_URL)
       .then((identity) => {
@@ -383,7 +341,6 @@ Page<GamePageData, GamePageMethods>({
           writeRealtimeLog('warn', 'game.realtime.connect.aborted', { reason: 'round-cleared-before-identity', roundId });
           return;
         }
-        writeRealtimeLog('info', 'game.realtime.identity.loaded', { roomId: multiplayerRound.roomId, userId: identity.userId });
         multiplayerRealtimeStop = createWxRealtimeTransport(API_BASE_URL).connect({
           token: identity.token,
           roomId: multiplayerRound.roomId,
@@ -398,7 +355,6 @@ Page<GamePageData, GamePageMethods>({
             if (state.room || state.round || state.reconnected) this.refreshMultiplayerRound();
           },
         });
-        writeRealtimeLog('info', 'game.realtime.connect.started-transport', { roundId, roomId: multiplayerRound.roomId });
       })
       .catch((cause) => {
         writeRealtimeLog('error', 'game.realtime.connect.failed', { roundId, message: cause instanceof Error ? cause.message : 'unknown error' });
@@ -406,7 +362,6 @@ Page<GamePageData, GamePageMethods>({
       })
       .finally(() => {
         multiplayerRealtimeConnectInFlight = false;
-        writeRealtimeLog('info', 'game.realtime.connect.finished', { roundId, connected: multiplayerRealtimeStop !== null });
       });
   },
 
