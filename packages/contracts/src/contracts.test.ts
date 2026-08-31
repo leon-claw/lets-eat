@@ -13,6 +13,17 @@ import {
 } from './index.js';
 
 describe('shared contracts', () => {
+  it('accepts four-digit room codes and rejects the old eight-digit format', () => {
+    expect(JoinRoomRequestSchema.safeParse({
+      code: '1234',
+      displayName: '测试用户',
+    }).success).toBe(true);
+    expect(JoinRoomRequestSchema.safeParse({
+      code: '12345678',
+      displayName: '测试用户',
+    }).success).toBe(false);
+  });
+
   it('rejects a non-numeric room code and unsupported decision', () => {
     expect(JoinRoomRequestSchema.safeParse({
       code: '12AB5678',
@@ -23,7 +34,7 @@ describe('shared contracts', () => {
 
   it('does not accept a legacy room replacement flag', () => {
     expect(JoinRoomRequestSchema.safeParse({
-      code: '12345678',
+      code: '1234',
       displayName: '测试用户',
       replaceCurrentRoom: true,
     }).success).toBe(false);
@@ -33,7 +44,7 @@ describe('shared contracts', () => {
     const hostUserId = randomUUID();
     const parsed = RoomSnapshotSchema.safeParse({
       id: randomUUID(),
-      code: '12345678',
+      code: '1234',
       status: 'waiting',
       selectedDataset: 'large',
       revision: 1,
@@ -135,7 +146,7 @@ describe('shared contracts', () => {
     expect(CreateRoomRequestSchema.safeParse({ displayName: '房主', customCatalog }).success).toBe(true);
     expect(RoomSnapshotSchema.safeParse({
       id: randomUUID(),
-      code: '12345678',
+      code: '1234',
       status: 'waiting',
       selectedDataset: 'custom',
       customCatalog: {

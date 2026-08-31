@@ -8,7 +8,7 @@ import {
 
 const room: RoomSnapshot = {
   id: 'room-1',
-  code: '12345678',
+  code: '1234',
   hostUserId: 'host-1',
   selectedDataset: 'large',
   customCatalog: null,

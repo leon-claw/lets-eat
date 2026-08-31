@@ -107,4 +107,23 @@ describe('wx realtime adapter', () => {
     stop();
     vi.restoreAllMocks();
   });
+
+  it('logs every raw inbound websocket message before parsing it', () => {
+    const socket = installSocket();
+    const stop = createWxRealtimeTransport('http://localhost:3001').connect({
+      token: 'token-1',
+      roomId: 'room-1',
+      revisions: { roomRevision: 0 },
+      onStale: vi.fn(),
+    });
+
+    socket.open();
+    socket.message({ type: 'unclassified.server.message', payload: 'debug-me' });
+
+    const fileContent = socket.logWrites.get('/user-data/lets-eat-realtime.log') ?? '';
+    expect(fileContent).toContain('socket.message.raw');
+    expect(fileContent).toContain('unclassified.server.message');
+    expect(fileContent).toContain('debug-me');
+    stop();
+  });
 });

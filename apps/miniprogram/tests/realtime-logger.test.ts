@@ -21,7 +21,12 @@ describe('mini program realtime logger', () => {
 
     const fileLine = writes.get('/user-data/lets-eat-realtime.log')?.trim() ?? '';
     const record = JSON.parse(fileLine) as Record<string, unknown>;
-    expect(record).toMatchObject({ scope: 'miniprogram-realtime', event: 'socket.authenticated', roomId: 'room-1' });
+    expect(record).toMatchObject({
+      scope: 'miniprogram-realtime',
+      event: 'socket.authenticated',
+      label: 'WebSocket 认证成功',
+      roomId: 'room-1',
+    });
     expect(record.token).toBe('[REDACTED]');
     expect(fileLine).not.toContain('secret-token');
     expect(consoleSpy).toHaveBeenCalledOnce();

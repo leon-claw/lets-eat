@@ -246,7 +246,7 @@ describe('shared contracts', () => {
   it('rejects a room snapshot that exposes member decisions', () => {
     const hostUserId = crypto.randomUUID();
     const parsed = RoomSnapshotSchema.safeParse({
-      id: crypto.randomUUID(), code: '12345678', status: 'waiting',
+      id: crypto.randomUUID(), code: '1234', status: 'waiting',
       selectedDataset: 'large', revision: 1, currentRoundId: null,
       hostUserId,
       members: [{
@@ -913,7 +913,7 @@ Expected: FAIL because routes/services do not exist.
 
 - [ ] **Step 2: Implement room creation and eight-digit collision retry**
 
-Generate a cryptographically random integer from `10000000` through `99999999`, try insertion up to 10 times on unique conflict, then return `ROOM_CODE_EXHAUSTED` with 409. In one transaction create the room and host member; before creation, reject users already present in any room with `ALREADY_IN_ROOM`.
+Generate a cryptographically random integer from `1000` through `9999`, try insertion up to 10 times on unique conflict, then return `ROOM_CODE_EXHAUSTED` with 409. In one transaction create the room and host member; before creation, automatically switch users already present in another room.
 
 - [ ] **Step 3: Implement join, replace-current, and membership limits transactionally**
 

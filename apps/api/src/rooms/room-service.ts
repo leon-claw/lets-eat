@@ -40,7 +40,7 @@ export class RoomService {
   constructor(private readonly options: RoomServiceOptions) {
     this.idempotency = options.idempotency ?? new IdempotencyService(options.db, options.now);
     this.now = options.now ?? (() => new Date());
-    this.codeGenerator = options.codeGenerator ?? (() => String(randomInt(10_000_000, 100_000_000)));
+    this.codeGenerator = options.codeGenerator ?? generateRoomCode;
   }
 
   async createRoom(actorUserId: string, input: CreateRoomRequest, idempotencyKey?: string): Promise<RoomSnapshot> {
@@ -308,6 +308,10 @@ export class RoomService {
     if (existingHash !== requestHash) throw new ApiError(409, 'IDEMPOTENCY_KEY_REUSED', '同一个幂等键不能用于不同请求');
     return responseBody as RoomSnapshot;
   }
+}
+
+export function generateRoomCode(): string {
+  return String(randomInt(1_000, 10_000));
 }
 
 function isUniqueViolation(error: unknown, constraint: string): boolean {

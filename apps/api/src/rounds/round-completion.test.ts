@@ -28,7 +28,7 @@ describe('RoundService completion lifecycle', () => {
     await database.db.delete(idempotencyRecords);
     await database.db.delete(roomMembers);
     await database.db.delete(rooms);
-    roomService = new RoomService({ db: database.db, codeGenerator: () => '12345678', roundLifecycle: roundService });
+    roomService = new RoomService({ db: database.db, codeGenerator: () => '1234', roundLifecycle: roundService });
   });
 
   afterAll(async () => closeTestDatabase(database?.pool));
@@ -68,6 +68,19 @@ describe('RoundService completion lifecycle', () => {
     ]));
     const guestView = await roundService.getRound(guestId, round.id);
     expect(guestView.status).toBe('playing');
+  });
+
+  it('refreshes room activity when one member completes while others are still choosing', async () => {
+    if (!database) return;
+    const { hostId, round, room } = await startTwoMembers();
+    await decideAll(hostId, round.id);
+    const staleActivity = new Date('2000-01-01T00:00:00.000Z');
+    await database.db.update(rooms).set({ lastActivityAt: staleActivity }).where(eq(rooms.id, room.id));
+
+    await roundService.completeRound(hostId, round.id, { expectedRoundRevision: 0 }, 'complete-host');
+
+    const [storedRoom] = await database.db.select().from(rooms).where(eq(rooms.id, room.id));
+    expect(storedRoom!.lastActivityAt.getTime()).toBeGreaterThan(staleActivity.getTime());
   });
 
   it('freezes the liked intersection and each completed player list', async () => {
@@ -124,6 +137,19 @@ describe('RoundService completion lifecycle', () => {
     const removed = await roundService.removeMember(hostId, round.id, guestMember.memberId, { expectedRoundRevision: 0 });
     expect(removed.members).toEqual(expect.arrayContaining([expect.objectContaining({ memberId: guestMember.memberId, status: 'removed' })]));
     expect(await database.db.select().from(decisions)).toHaveLength(0);
+  });
+
+  it('refreshes room activity when an unfinished member is removed', async () => {
+    if (!database) return;
+    const { hostId, round, room } = await startTwoMembers();
+    const staleActivity = new Date('2000-01-01T00:00:00.000Z');
+    await database.db.update(rooms).set({ lastActivityAt: staleActivity }).where(eq(rooms.id, room.id));
+    const guestMember = round.members.find((member) => !member.isSelf)!;
+
+    await roundService.removeMember(hostId, round.id, guestMember.memberId, { expectedRoundRevision: 0 });
+
+    const [storedRoom] = await database.db.select().from(rooms).where(eq(rooms.id, room.id));
+    expect(storedRoom!.lastActivityAt.getTime()).toBeGreaterThan(staleActivity.getTime());
   });
 
   it('forbids the host from removing self and auto-completes after removing the last choosing guest', async () => {

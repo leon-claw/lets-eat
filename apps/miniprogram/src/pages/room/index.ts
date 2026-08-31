@@ -151,13 +151,11 @@ Page<RoomPageData, RoomPageMethods>({
   },
 
   restoreRoom() {
-    writeRealtimeLog('info', 'room.restore.start');
     this.setData({ status: 'loading', errorMessage: '' });
     void (async () => {
       try {
         const identity = await getRoomIdentity(API_BASE_URL);
         identityUserId = identity.userId;
-        writeRealtimeLog('info', 'room.identity.loaded', { userId: identity.userId });
         this.setData({ userId: identity.userId });
         const storedRoomId = readRoomReference();
         if (storedRoomId) {
@@ -176,9 +174,7 @@ Page<RoomPageData, RoomPageMethods>({
         }
 
         this.setData({ busyAction: 'create' });
-        writeRealtimeLog('info', 'room.create.sending');
         const room = await createRoom(API_BASE_URL, this.data.displayName);
-        writeRealtimeLog('info', 'room.create.succeeded', { roomId: room.id, roomRevision: room.revision });
         saveRoomReference(room.id);
         this.applyRoom(room);
         this.connectRealtime();
@@ -192,31 +188,10 @@ Page<RoomPageData, RoomPageMethods>({
   },
 
   refreshRoom() {
-    if (!currentRoom) {
-      writeRealtimeLog('warn', 'room.refresh.skipped', { reason: 'no-current-room' });
-      return;
-    }
-    if (pollInFlight || this.data.busyAction) {
-      writeRealtimeLog('warn', 'room.refresh.skipped', {
-        roomId: currentRoom.id,
-        reason: pollInFlight ? 'poll-in-flight' : 'busy-action',
-        busyAction: this.data.busyAction,
-      });
-      return;
-    }
-    writeRealtimeLog('info', 'room.refresh.started', {
-      roomId: currentRoom.id,
-      roomRevision: currentRoom.revision,
-      status: currentRoom.status,
-    });
+    if (!currentRoom || pollInFlight || this.data.busyAction) return;
     pollInFlight = true;
     void getRoom(API_BASE_URL, currentRoom.id)
       .then((room) => {
-        writeRealtimeLog('info', 'room.refresh.succeeded', {
-          roomId: room.id,
-          roomRevision: room.revision,
-          status: room.status,
-        });
         if (!currentRoom || room.revision !== currentRoom.revision || room.status !== currentRoom.status) {
           this.applyRoom(room);
         }
@@ -230,24 +205,11 @@ Page<RoomPageData, RoomPageMethods>({
       })
       .finally(() => {
         pollInFlight = false;
-        writeRealtimeLog('info', 'room.refresh.finished', { roomId: currentRoom?.id });
       });
   },
 
   connectRealtime() {
-    if (!currentRoom) {
-      writeRealtimeLog('warn', 'realtime.connect.skipped', { reason: 'no-current-room' });
-      return;
-    }
-    if (realtimeStop) {
-      writeRealtimeLog('info', 'realtime.connect.skipped', { roomId: currentRoom.id, reason: 'already-connected' });
-      return;
-    }
-    if (realtimeConnectInFlight) {
-      writeRealtimeLog('info', 'realtime.connect.skipped', { roomId: currentRoom.id, reason: 'connect-in-flight' });
-      return;
-    }
-    writeRealtimeLog('info', 'realtime.connect.started', { roomId: currentRoom.id, roomRevision: currentRoom.revision });
+    if (!currentRoom || realtimeStop || realtimeConnectInFlight) return;
     realtimeConnectInFlight = true;
     void getRoomIdentity(API_BASE_URL)
       .then((identity) => {
@@ -255,7 +217,6 @@ Page<RoomPageData, RoomPageMethods>({
           writeRealtimeLog('warn', 'realtime.connect.aborted', { reason: 'room-cleared-before-identity' });
           return;
         }
-        writeRealtimeLog('info', 'realtime.identity.loaded', { roomId: currentRoom.id, userId: identity.userId });
         realtimeStop = createWxRealtimeTransport(API_BASE_URL).connect({
           token: identity.token,
           roomId: currentRoom.id,
@@ -270,7 +231,6 @@ Page<RoomPageData, RoomPageMethods>({
             if (state.room || state.round || state.reconnected) this.refreshRoom();
           },
         });
-        writeRealtimeLog('info', 'realtime.connect.started-transport', { roomId: currentRoom.id });
       })
       .catch((cause) => {
         writeRealtimeLog('error', 'realtime.connect.failed', { roomId: currentRoom?.id, message: cause instanceof Error ? cause.message : 'unknown error' });
@@ -278,7 +238,6 @@ Page<RoomPageData, RoomPageMethods>({
       })
       .finally(() => {
         realtimeConnectInFlight = false;
-        writeRealtimeLog('info', 'realtime.connect.finished', { roomId: currentRoom?.id, connected: realtimeStop !== null });
       });
   },
 
@@ -319,8 +278,8 @@ Page<RoomPageData, RoomPageMethods>({
 
   onJoinSubmit() {
     const code = this.data.joinCode.trim();
-    if (!/^\d{8}$/.test(code)) {
-      this.setData({ joinError: '请输入 8 位数字房间号' });
+    if (!/^\d{4}$/.test(code)) {
+      this.setData({ joinError: '请输入 4 位数字房间号' });
       return;
     }
     this.setData({ busyAction: 'join', joinError: '' });
@@ -328,6 +287,7 @@ Page<RoomPageData, RoomPageMethods>({
       .then((room) => {
         saveRoomReference(room.id);
         this.setData({ joinVisible: false });
+        this.disconnectRealtime();
         this.applyRoom(room);
         this.connectRealtime();
       })
@@ -450,12 +410,6 @@ Page<RoomPageData, RoomPageMethods>({
   },
 
   applyRoom(room: RoomSnapshot) {
-    writeRealtimeLog('info', 'room.applied', {
-      roomId: room.id,
-      roomRevision: room.revision,
-      status: room.status,
-      memberCount: room.members.length,
-    });
     currentRoom = room;
     saveRoomReference(room.id);
     const isHost = identityUserId !== '' && getRoomRole(room, identityUserId) === 'host';
@@ -499,7 +453,6 @@ Page<RoomPageData, RoomPageMethods>({
 
 function navigateToMultiplayerRound(roundId: string, force = false): void {
   if (!roundId || (!force && navigatedRoundId === roundId)) return;
-  writeRealtimeLog('info', 'room.navigate-to-round', { roundId, force });
   navigatedRoundId = roundId;
   wx.navigateTo({ url: `/pages/game/index?roundId=${roundId}` });
 }

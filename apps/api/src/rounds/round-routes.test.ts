@@ -30,7 +30,7 @@ describe('round HTTP routes', () => {
       catalogService,
       pool: database.pool,
       tokenService: tokens,
-      roomService: new RoomService({ db: database.db, codeGenerator: () => '12345678', roundLifecycle: roundService }),
+      roomService: new RoomService({ db: database.db, codeGenerator: () => '1234', roundLifecycle: roundService }),
       roundService,
       realtimeHub,
     });

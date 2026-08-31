@@ -11,7 +11,7 @@ const MEMBER_ID = '55555555-5555-4555-8555-555555555555';
 function makeRoom(overrides: Record<string, unknown> = {}) {
   return RoomSnapshotSchema.parse({
     id: ROOM_ID,
-    code: '12345678',
+    code: '1234',
     hostUserId: USER_ID,
     selectedDataset: 'large',
     status: 'waiting',

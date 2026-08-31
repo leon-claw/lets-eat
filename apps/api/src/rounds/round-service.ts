@@ -211,7 +211,8 @@ export class RoundService {
       ));
       const nextRevision = round.revision + 1;
       await tx.update(rounds).set({ revision: nextRevision }).where(eq(rounds.id, roundId));
-      await this.finalizeIfReady(tx, round, nextRevision);
+      const finalized = await this.finalizeIfReady(tx, round, nextRevision);
+      if (!finalized) await this.touchRoom(tx, round.roomId);
       const snapshot = await presentRound(tx, roundId, actorUserId);
       if (!snapshot) throw new Error('Completed round could not be read');
       if (idempotencyKey) {
@@ -267,7 +268,8 @@ export class RoundService {
       ));
       const nextRevision = round.revision + 1;
       await tx.update(rounds).set({ revision: nextRevision }).where(eq(rounds.id, roundId));
-      await this.finalizeIfReady(tx, round, nextRevision);
+      const finalized = await this.finalizeIfReady(tx, round, nextRevision);
+      if (!finalized) await this.touchRoom(tx, round.roomId);
       const snapshot = await presentRound(tx, roundId, actorUserId);
       if (!snapshot) throw new Error('Updated round could not be read');
       return snapshot;
