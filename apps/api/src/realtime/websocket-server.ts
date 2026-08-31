@@ -79,6 +79,11 @@ export function attachWebSocketServer(options: WebSocketServerOptions): WebSocke
     }, authTimeoutMs);
 
     socket.on('message', async (data) => {
+      realtimeLogger.info('socket.message.raw', {
+        authenticated,
+        bytes: data.toString().length,
+        note: authenticated ? '认证后的消息不会处理' : '认证消息内容已隐藏，避免记录 JWT',
+      });
       if (authenticated) return;
       await authenticate(socket, data.toString());
       authenticated = connections.has(socket);

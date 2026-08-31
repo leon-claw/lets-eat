@@ -319,8 +319,8 @@ Page<RoomPageData, RoomPageMethods>({
 
   onJoinSubmit() {
     const code = this.data.joinCode.trim();
-    if (!/^\d{8}$/.test(code)) {
-      this.setData({ joinError: '请输入 8 位数字房间号' });
+    if (!/^\d{4}$/.test(code)) {
+      this.setData({ joinError: '请输入 4 位数字房间号' });
       return;
     }
     this.setData({ busyAction: 'join', joinError: '' });

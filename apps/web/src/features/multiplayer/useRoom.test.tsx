@@ -10,7 +10,7 @@ const USER_ID = '22222222-2222-4222-8222-222222222222';
 
 const initialRoom = RoomSnapshotSchema.parse({
   id: ROOM_ID,
-  code: '12345678',
+  code: '1234',
   hostUserId: USER_ID,
   selectedDataset: 'large',
   status: 'waiting',

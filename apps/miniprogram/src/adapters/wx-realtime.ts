@@ -125,7 +125,13 @@ export function createWxRealtimeTransport(
       });
       nextSocket.send({ data: JSON.stringify({ type: 'auth', token: options.token, roomId: options.roomId }) });
     });
-    nextSocket.onMessage((message) => handleMessage(message.data));
+    nextSocket.onMessage((message) => {
+      writeRealtimeLog('info', 'socket.message.raw', {
+        roomId: options?.roomId,
+        raw: formatRawMessage(message.data),
+      });
+      handleMessage(message.data);
+    });
     nextSocket.onClose((event) => {
       writeRealtimeLog('warn', 'socket.closed', {
         roomId: options?.roomId,
@@ -200,4 +206,13 @@ function parseServerMessage(raw: unknown): ServerMessageLike | null {
     };
   }
   return null;
+}
+
+function formatRawMessage(raw: unknown): string {
+  if (typeof raw === 'string') return raw;
+  try {
+    return JSON.stringify(raw);
+  } catch {
+    return String(raw);
+  }
 }

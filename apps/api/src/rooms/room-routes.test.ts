@@ -26,7 +26,7 @@ describe('room HTTP routes', () => {
       catalogService,
       pool: database.pool,
       tokenService: tokens,
-      roomService: new RoomService({ db: database.db, catalogService, codeGenerator: () => '12345678' }),
+      roomService: new RoomService({ db: database.db, catalogService, codeGenerator: () => '1234' }),
     });
   });
 
@@ -130,7 +130,7 @@ describe('room HTTP routes', () => {
       roomService: new RoomService({
         db: database.db,
         catalogService,
-        codeGenerator: () => `2000000${++nextCode}`,
+        codeGenerator: () => `200${++nextCode}`,
       }),
     });
     const host = await tokens.issue();
@@ -176,7 +176,7 @@ describe('room HTTP routes', () => {
       roomService: new RoomService({
         db: database.db,
         catalogService,
-        codeGenerator: () => `2100000${++nextCode}`,
+        codeGenerator: () => `210${++nextCode}`,
       }),
     });
     const host = await tokens.issue();

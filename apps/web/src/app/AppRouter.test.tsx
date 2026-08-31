@@ -90,7 +90,7 @@ describe('AppRouter', () => {
     const guestUserId = '55555555-5555-4555-8555-555555555555';
     const room = RoomSnapshotSchema.parse({
       id: roomId,
-      code: '12345678',
+      code: '1234',
       hostUserId,
       selectedDataset: 'large',
       status: 'playing',
@@ -134,7 +134,7 @@ describe('AppRouter', () => {
     const hostUserId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
     const room = RoomSnapshotSchema.parse({
       id: roomId,
-      code: '87654321',
+      code: '5678',
       hostUserId,
       selectedDataset: 'large',
       status: 'results',
@@ -175,7 +175,7 @@ describe('AppRouter', () => {
     render(<AppRouter repository={repository} initialPath={`/result/round/${roundId}`} roomClient={roomClient} />);
 
     await user.click(await screen.findByRole('button', { name: '返回房间' }));
-    expect(await screen.findByText('房间号 87654321')).toBeInTheDocument();
+    expect(await screen.findByText('房间号 5678')).toBeInTheDocument();
   });
 
   it('does not restore a stale room after the host closes it and returns to mode', async () => {
@@ -184,7 +184,7 @@ describe('AppRouter', () => {
     const hostUserId = '13131313-1313-4131-8131-131313131313';
     const room = RoomSnapshotSchema.parse({
       id: roomId,
-      code: '11223344',
+      code: '1122',
       hostUserId,
       selectedDataset: 'large',
       status: 'waiting',
@@ -210,7 +210,7 @@ describe('AppRouter', () => {
     await user.click(within(screen.getByRole('dialog', { name: '关闭房间？' })).getByRole('button', { name: '关闭房间' }));
 
     expect(await screen.findByRole('button', { name: '组队游戏' })).toBeInTheDocument();
-    expect(screen.queryByText('房间号 11223344')).not.toBeInTheDocument();
+    expect(screen.queryByText('房间号 1122')).not.toBeInTheDocument();
   });
 
   it('routes a closed room URL to mode with a safe notice', async () => {
@@ -236,7 +236,7 @@ describe('AppRouter', () => {
     const userId = '19191919-1919-4191-8191-191919191919';
     const room = RoomSnapshotSchema.parse({
       id: roomId,
-      code: '44332211',
+      code: '4433',
       hostUserId: userId,
       selectedDataset: 'large',
       status: 'playing',

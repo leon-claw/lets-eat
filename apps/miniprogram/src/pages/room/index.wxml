@@ -109,8 +109,8 @@
         <text class="modal-title">加入房间</text>
         <button class="modal-close" bindtap="onCloseJoin">×</button>
       </view>
-      <text class="modal-message">输入朋友分享的 8 位房间号</text>
-      <input class="room-input" type="number" maxlength="8" focus value="{{joinCode}}" placeholder="例如 12345678" bindinput="onJoinCodeInput" />
+      <text class="modal-message">输入朋友分享的 4 位房间号</text>
+      <input class="room-input" type="number" maxlength="4" focus value="{{joinCode}}" placeholder="例如 1234" bindinput="onJoinCodeInput" />
       <text wx:if="{{joinError}}" class="input-error">{{joinError}}</text>
       <button class="modal-submit pressable" disabled="{{busyAction === 'join'}}" bindtap="onJoinSubmit">{{busyAction === 'join' ? '正在加入…' : '加入'}}</button>
     </view>

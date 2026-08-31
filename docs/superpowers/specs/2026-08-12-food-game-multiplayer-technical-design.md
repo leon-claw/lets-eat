@@ -122,7 +122,7 @@ type CustomCatalogSnapshot = {
 
 `rooms`
 
-- `id`、唯一 8 位数字 `code`、`host_user_id`。
+- `id`、唯一 4 位数字 `code`、`host_user_id`。
 - `selected_dataset`，默认 `large`，允许 `large | small | custom`。
 - `custom_catalog`，可空 JSONB，保存创建房间时冻结的 `CustomCatalogSnapshot`。
 - `status`: `waiting | playing | results`。
@@ -164,7 +164,7 @@ type CustomCatalogSnapshot = {
 
 ### 6.2 房间生命周期
 
-- 创建房间时生成 8 位数字房间号，冲突则重试。
+- 创建房间时生成 4 位数字房间号，冲突则重试。
 - 创建房间时读取并校验房主本地自定义配置；配置通过后冻结到房间。没有合法配置不影响创建房间，但 `custom` 选项不可用。
 - 房间最多 8 人（含房主），满员后拒绝加入。
 - 房主断线不转让房主身份。

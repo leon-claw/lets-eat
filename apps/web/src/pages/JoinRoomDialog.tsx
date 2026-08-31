@@ -16,8 +16,8 @@ export function JoinRoomDialog({ open, displayName, onJoin, onClose }: JoinRoomD
   if (!open) return null;
 
   const submit = async () => {
-    if (!/^\d{8}$/.test(code)) {
-      toast({ message: '请输入 8 位数字房间号', tone: 'error' });
+    if (!/^\d{4}$/.test(code)) {
+      toast({ message: '请输入 4 位数字房间号', tone: 'error' });
       return;
     }
     setSubmitting(true);
@@ -32,7 +32,7 @@ export function JoinRoomDialog({ open, displayName, onJoin, onClose }: JoinRoomD
         <p className="mt-2 text-sm text-slate-500">将以“{displayName}”加入</p>
         <label className="mt-5 block text-sm font-bold text-slate-700">
           房间号
-          <input aria-label="房间号" inputMode="numeric" maxLength={8} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 8))} className="pressable mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-lg tracking-[0.3em] outline-none focus:border-amber-400" />
+          <input aria-label="房间号" inputMode="numeric" maxLength={4} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 4))} className="pressable mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-lg tracking-[0.3em] outline-none focus:border-amber-400" />
         </label>
         <div className="mt-6 flex gap-3">
           <button type="button" onClick={onClose} className="pressable flex-1 rounded-2xl bg-slate-100 px-4 py-3 font-bold text-slate-700">取消</button>
