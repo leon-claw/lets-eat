@@ -9,6 +9,7 @@ import { ModePage } from '@/pages/ModePage';
 import { MultiplayerResultPage, ResultPage } from '@/pages/ResultPage';
 import { RoomPage } from '@/pages/RoomPage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { NearbyFoodPage } from '@/pages/NearbyFoodPage';
 import { NearbyLocationPage } from '@/pages/NearbyLocationPage';
 import { createBrowserRoomClient, type RoomClient } from '@/entities/room/room-client';
 import { useEffect, useRef, useState } from 'react';
@@ -63,6 +64,7 @@ function RouteTree({ repository, roomClient }: { repository: FoodChoiceRepositor
       <Route path="/settings" element={<SettingsPage repository={repository} />} />
       <Route path="/mode" element={<ModePage roomClient={roomClient} />} />
       <Route path="/single/dataset" element={<DatasetPage repository={repository} />} />
+      <Route path="/nearby" element={<NearbyFoodPage />} />
       <Route path="/nearby/location" element={<NearbyLocationPage />} />
       <Route path="/game/single" element={<GamePage repository={repository} />} />
       <Route path="/result/single" element={<ResultPage repository={repository} />} />

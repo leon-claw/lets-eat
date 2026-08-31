@@ -66,6 +66,17 @@ describe('useNearbyFoodSearch', () => {
     expect(deps.searchRestaurants).toHaveBeenCalledWith({ config, center: position, radiusMeters: 2000 });
   });
 
+  it('有地图返回的初始位置时直接搜索，不重复请求浏览器定位', async () => {
+    const selectedPosition = { longitude: 113.264, latitude: 23.129 };
+    const deps = dependencies({ initialLocation: selectedPosition });
+    const { result } = renderHook(() => useNearbyFoodSearch(deps));
+
+    await waitFor(() => expect(result.current.state.status).toBe('ready'));
+
+    expect(deps.getLocation).not.toHaveBeenCalled();
+    expect(deps.searchRestaurants).toHaveBeenCalledWith({ config, center: selectedPosition, radiusMeters: 2000 });
+  });
+
   it('浏览器定位失败且有上次位置时使用缓存位置并自动搜索', async () => {
     const cachedPosition = { longitude: 121.473, latitude: 31.23 };
     const deps = dependencies({

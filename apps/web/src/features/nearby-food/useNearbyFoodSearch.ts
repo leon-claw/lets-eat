@@ -50,6 +50,7 @@ export interface NearbyFoodSearchDependencies {
   configStore?: Store<AmapConfig>;
   locationStore?: Store<GeoPoint>;
   searchSessionStore?: Store<NearbySearchSession>;
+  initialLocation?: GeoPoint;
   getLocation?: () => Promise<GeoPoint>;
   searchRestaurants?: (input: { config: AmapConfig; center: GeoPoint; radiusMeters: number }) => Promise<NearbyRestaurant[]>;
 }
@@ -197,12 +198,16 @@ export function useNearbyFoodSearch(dependencies: NearbyFoodSearchDependencies =
         }
         return;
       }
+      if (dependencies.initialLocation) {
+        await performSearch(dependencies.initialLocation, radiusRef.current);
+        return;
+      }
       if (active) setState((current) => ({ ...current, status: 'locating' }));
       await locate();
     };
     void restore();
     return () => { active = false; };
-  }, [configStore, locate, searchSessionStore]);
+  }, [configStore, dependencies.initialLocation, locate, performSearch, searchSessionStore]);
 
   const setRadius = useCallback((radiusMeters: number) => {
     radiusRef.current = radiusMeters;
