@@ -63,6 +63,10 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
     toast({ message: search.state.errorMessage, tone: 'error' });
   }, [search.state.errorMessage, search.state.status, toast]);
 
+  useEffect(() => {
+    if (search.state.status === 'location-fallback') navigate('/nearby/location', { replace: true });
+  }, [navigate, search.state.status]);
+
   const startGame = () => {
     if (search.state.restaurants.length < 3 || search.state.hasPendingRadiusChange || search.state.status === 'searching') return;
     const itemIds = prepareRoundChoices(nearbyRestaurantsToFoodChoices(search.state.restaurants)).map((choice) => choice.id);

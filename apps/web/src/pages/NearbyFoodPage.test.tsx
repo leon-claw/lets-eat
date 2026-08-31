@@ -102,6 +102,14 @@ describe('NearbyFoodPage', () => {
     expect(screen.getByRole('button', { name: '重新搜索' })).toBeEnabled();
   });
 
+  it('浏览器定位和缓存都失败时自动进入地图选点页', async () => {
+    const deps = dependencies();
+    deps.getLocation.mockRejectedValueOnce(new Error('定位权限被拒绝'));
+    renderNearby(deps);
+
+    expect(await screen.findByTestId('location')).toHaveTextContent('/nearby/location');
+  });
+
   it('Key 错误显示错误提示和前往设置按钮', async () => {
     const deps = dependencies();
     deps.searchRestaurants.mockRejectedValueOnce(new AmapSearchError('INVALID_CONFIG', 'Key 无效'));
