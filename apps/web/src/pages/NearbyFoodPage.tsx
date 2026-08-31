@@ -2,6 +2,8 @@ import { MapPin, RefreshCw, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { useLocation as useRouterLocation, useNavigate } from 'react-router-dom';
 import { createNearbyRoundStore } from '@/features/nearby-food/nearby-storage';
+import { nearbyRestaurantsToFoodChoices } from '@/features/nearby-food/nearby-food-adapter';
+import { prepareRoundChoices } from '@/features/choose-food/round-choice-order';
 import type { GeoPoint, NearbyRoundSession } from '@/features/nearby-food/types';
 import {
   DEFAULT_NEARBY_RADIUS_METERS,
@@ -63,9 +65,10 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
 
   const startGame = () => {
     if (search.state.restaurants.length < 3 || search.state.hasPendingRadiusChange || search.state.status === 'searching') return;
+    const itemIds = prepareRoundChoices(nearbyRestaurantsToFoodChoices(search.state.restaurants)).map((choice) => choice.id);
     roundStore.save({
       restaurants: search.state.restaurants,
-      itemIds: search.state.restaurants.map((restaurant) => `amap:${restaurant.id}`),
+      itemIds,
       decisions: {},
       history: [],
       completedAt: null,

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BrowserRouter, MemoryRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter, MemoryRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { createBrowserCatalogFoodChoiceRepository } from '@/entities/catalog/food-choice-repository';
 import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
 import { DatasetPage } from '@/pages/DatasetPage';
@@ -11,6 +11,7 @@ import { RoomPage } from '@/pages/RoomPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { NearbyFoodPage } from '@/pages/NearbyFoodPage';
 import { NearbyLocationPage } from '@/pages/NearbyLocationPage';
+import { NearbyResultPage } from '@/pages/NearbyResultPage';
 import { createBrowserRoomClient, type RoomClient } from '@/entities/room/room-client';
 import { useEffect, useRef, useState } from 'react';
 import type { RoomSnapshot } from '@lets-eat/contracts';
@@ -67,13 +68,20 @@ function RouteTree({ repository, roomClient }: { repository: FoodChoiceRepositor
       <Route path="/nearby" element={<NearbyFoodPage />} />
       <Route path="/nearby/location" element={<NearbyLocationPage />} />
       <Route path="/game/single" element={<GamePage repository={repository} />} />
-      <Route path="/result/single" element={<ResultPage repository={repository} />} />
+      <Route path="/result/single" element={<SingleResultRoute repository={repository} />} />
       <Route path="/room/:roomId" element={roomClient && identity ? <RoomRoute roomClient={roomClient} userId={identity.userId} /> : <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] text-sm font-bold text-slate-500">正在恢复房间…</div>} />
       <Route path="/game/round/:roundId" element={<MultiplayerGameRoute repository={repository} roundClient={roomClient} />} />
       <Route path="/result/round/:roundId" element={<MultiplayerResultRoute repository={repository} roundClient={roomClient} />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
+}
+
+function SingleResultRoute({ repository }: { repository: FoodChoiceRepository }) {
+  const [params] = useSearchParams();
+  return params.get('mode') === 'nearby'
+    ? <NearbyResultPage />
+    : <ResultPage repository={repository} />;
 }
 
 function MultiplayerPlaceholder({ title, message }: { title: string; message: string }) {

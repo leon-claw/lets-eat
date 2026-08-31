@@ -5,6 +5,7 @@ import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
 import type { MultiplayerRoundClient } from '@/features/multiplayer/useMultiplayerRound';
 import { SwipeDeck } from '@/features/choose-food/components/SwipeDeck';
 import { useSingleRound } from '@/features/single-round/useSingleRound';
+import { useNearbyRound, type NearbyRoundStore } from '@/features/nearby-food/nearby-round';
 import { useMultiplayerRound } from '@/features/multiplayer/useMultiplayerRound';
 import { useFeedback } from '@/shared/components/FeedbackProvider';
 
@@ -13,20 +14,27 @@ interface GamePageProps {
   mode?: 'single' | 'multiplayer';
   roundId?: string;
   roundClient?: MultiplayerRoundClient;
+  nearbyRoundStore?: NearbyRoundStore;
 }
 
-export function GamePage({ repository, mode = 'single', roundId, roundClient }: GamePageProps) {
+export function GamePage({ repository, mode = 'single', roundId, roundClient, nearbyRoundStore }: GamePageProps) {
   if (mode === 'multiplayer' && roundId && roundClient) {
     return <MultiplayerGamePage repository={repository} roundId={roundId} roundClient={roundClient} />;
   }
 
-  return <SingleGamePage repository={repository} />;
+  return <SingleGamePage repository={repository} nearbyRoundStore={nearbyRoundStore} />;
 }
 
-function SingleGamePage({ repository }: { repository: FoodChoiceRepository }) {
-  const navigate = useNavigate();
+function SingleGamePage({ repository, nearbyRoundStore }: { repository: FoodChoiceRepository; nearbyRoundStore?: NearbyRoundStore }) {
   const [params] = useSearchParams();
+  if (params.get('dataset') === 'nearby') return <NearbySingleGamePage nearbyRoundStore={nearbyRoundStore} />;
+
   const datasetType: DatasetType = params.get('dataset') === 'small' ? 'small' : 'large';
+  return <CatalogSingleGamePage repository={repository} datasetType={datasetType} />;
+}
+
+function CatalogSingleGamePage({ repository, datasetType }: { repository: FoodChoiceRepository; datasetType: DatasetType }) {
+  const navigate = useNavigate();
   const game = useSingleRound(repository, datasetType);
   const { toast } = useFeedback();
 
@@ -54,6 +62,40 @@ function SingleGamePage({ repository }: { repository: FoodChoiceRepository }) {
           current={game.progress.current}
           total={game.progress.total}
           canUndo={game.state.history.length > 0}
+          onDislike={game.dislike}
+          onLike={game.like}
+          onUndo={game.undo}
+          onInteractionLockChange={game.setInteractionLocked}
+        />
+      </main>
+    </div>
+  );
+}
+
+function NearbySingleGamePage({ nearbyRoundStore }: { nearbyRoundStore?: NearbyRoundStore }) {
+  const navigate = useNavigate();
+  const game = useNearbyRound(nearbyRoundStore);
+
+  useEffect(() => {
+    if (game.state.status !== 'exhausted') return;
+    const timer = window.setTimeout(() => navigate('/result/single?mode=nearby', { replace: true }), 0);
+    return () => window.clearTimeout(timer);
+  }, [game.state.status, navigate]);
+
+  if (game.state.status === 'loading') return <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] text-sm font-bold text-slate-500">正在准备附近餐厅…</div>;
+  if (game.state.status === 'empty') return <StatusPage message="附近回合没有可选餐厅" detail="请返回附近菜品重新搜索。" onRetry={() => navigate('/nearby')} />;
+  if (!game.currentChoice) return null;
+
+  return (
+    <div className="min-h-screen bg-[#F5F5F7] text-slate-950">
+      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center">
+        <SwipeDeck
+          choice={game.currentChoice}
+          nextChoice={game.nextChoice}
+          current={game.progress.current}
+          total={game.progress.total}
+          canUndo={game.state.history.length > 0}
+          variant="nearby"
           onDislike={game.dislike}
           onLike={game.like}
           onUndo={game.undo}

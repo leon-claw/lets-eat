@@ -1,0 +1,25 @@
+import type { FoodChoice } from '@/entities/food-choice/types';
+import type { NearbyRestaurant } from './types';
+
+const BRAND_PLACEHOLDER = '/brand-logo.png';
+
+export function nearbyRestaurantToFoodChoice(restaurant: NearbyRestaurant): FoodChoice {
+  return {
+    id: `amap:${restaurant.id}`,
+    name: restaurant.name,
+    description: '',
+    coverImage: BRAND_PLACEHOLDER,
+    tags: restaurant.type ? [restaurant.type] : [],
+    representativeFoods: [],
+  };
+}
+
+export function nearbyRestaurantsToFoodChoices(restaurants: readonly NearbyRestaurant[]): FoodChoice[] {
+  const seen = new Set<string>();
+  return restaurants.flatMap((restaurant) => {
+    const id = `amap:${restaurant.id}`;
+    if (seen.has(id)) return [];
+    seen.add(id);
+    return [nearbyRestaurantToFoodChoice(restaurant)];
+  });
+}

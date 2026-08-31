@@ -32,4 +32,28 @@ describe('SwipeDeck', () => {
     await user.click(screen.getByTitle('撤销上一划'));
     expect(onUndo).toHaveBeenCalledOnce();
   });
+
+  it('附近卡片展示名称和类型，不展示虚构菜品描述', () => {
+    render(
+      <SwipeDeck
+        choice={{ ...choice, id: 'amap:restaurant-1', name: '附近餐厅', description: '不应该展示的虚构描述', coverImage: '/brand-logo.png', tags: ['餐饮服务;中餐厅'], representativeFoods: [] }}
+        current={1}
+        total={1}
+        canUndo={false}
+        variant="nearby"
+        onDislike={vi.fn()}
+        onLike={vi.fn()}
+        onUndo={vi.fn()}
+        onInteractionLockChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('附近餐厅')).toBeInTheDocument();
+    expect(screen.getAllByText('餐饮服务;中餐厅')).toHaveLength(1);
+    expect(screen.getByRole('img', { name: '附近餐厅' })).toHaveAttribute('src', '/brand-logo.png');
+    expect(screen.queryByText('不应该展示的虚构描述')).not.toBeInTheDocument();
+    expect(screen.queryByText('代表食物')).not.toBeInTheDocument();
+    expect(screen.queryByText('菜系详情')).not.toBeInTheDocument();
+    expect(screen.queryByText('菜系灵感')).not.toBeInTheDocument();
+  });
 });

@@ -1,9 +1,11 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
 import { FeedbackProvider } from '@/shared/components/FeedbackProvider';
 import { GamePage } from './GamePage';
+import type { NearbyRoundSession } from '@/features/nearby-food/types';
 
 describe('GamePage feedback', () => {
   it('shows a toast when the single-player catalog cannot load', async () => {
@@ -22,4 +24,59 @@ describe('GamePage feedback', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('加载失败，请重试');
     expect(screen.getByRole('alert')).toHaveClass('feedback-toast');
   });
+
+  it('nearby dataset 路由不调用固定菜单 repository', async () => {
+    const repository: FoodChoiceRepository = { list: vi.fn().mockResolvedValue([]) };
+    const nearbyRoundStore = {
+      load: vi.fn((): NearbyRoundSession => ({
+        restaurants: [1, 2, 3].map((index) => ({ source: 'amap' as const, id: `poi-${index}`, name: `餐厅 ${index}`, type: '餐饮服务;中餐厅', fetchedAt: '2026-08-31T00:00:00.000Z' })),
+        itemIds: ['amap:poi-1', 'amap:poi-2', 'amap:poi-3'],
+        decisions: {}, history: [], completedAt: null,
+      })),
+      save: vi.fn(),
+      clear: vi.fn(),
+    };
+
+    render(
+      <FeedbackProvider>
+        <MemoryRouter initialEntries={['/game/single?dataset=nearby']}>
+          <GamePage repository={repository} nearbyRoundStore={nearbyRoundStore} />
+        </MemoryRouter>
+      </FeedbackProvider>,
+    );
+
+    expect(await screen.findByText('滑动选菜器')).toBeInTheDocument();
+    expect(repository.list).not.toHaveBeenCalled();
+  });
+
+  it('附近游戏完成后进入 /result/single?mode=nearby', async () => {
+    const user = userEvent.setup();
+    const repository: FoodChoiceRepository = { list: vi.fn().mockResolvedValue([]) };
+    const nearbyRoundStore = {
+      load: vi.fn((): NearbyRoundSession => ({
+        restaurants: [{ source: 'amap' as const, id: 'poi-1', name: '餐厅 1', type: '餐饮服务;中餐厅', fetchedAt: '2026-08-31T00:00:00.000Z' }],
+        itemIds: ['amap:poi-1'], decisions: {}, history: [], completedAt: null,
+      })),
+      save: vi.fn(),
+      clear: vi.fn(),
+    };
+
+    render(
+      <FeedbackProvider>
+        <MemoryRouter initialEntries={['/game/single?dataset=nearby']}>
+          <Routes>
+            <Route path="/game/single" element={<GamePage repository={repository} nearbyRoundStore={nearbyRoundStore} />} />
+            <Route path="/result/single" element={<ResultLocationProbe />} />
+          </Routes>
+        </MemoryRouter>
+      </FeedbackProvider>,
+    );
+
+    await user.click(await screen.findByTitle('喜欢'));
+    expect(await screen.findByTestId('result-location')).toHaveTextContent('?mode=nearby');
+  });
 });
+
+function ResultLocationProbe() {
+  return <output data-testid="result-location">{useLocation().search}</output>;
+}

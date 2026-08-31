@@ -10,6 +10,7 @@ interface SwipeDeckProps {
   current: number;
   total: number;
   canUndo: boolean;
+  variant?: 'catalog' | 'nearby';
   onDislike(): void;
   onLike(): void;
   onUndo(): void;
@@ -21,7 +22,11 @@ const SWIPE_OFFSET = 80;
 const SWIPE_VELOCITY = 250;
 const SWIPE_DURATION = 220;
 
-function ChoicePreview({ choice }: { choice: FoodChoice }) {
+function ChoicePreview({ choice, variant }: { choice: FoodChoice; variant: 'catalog' | 'nearby' }) {
+  if (variant === 'nearby') {
+    return <NearbyChoiceCard choice={choice} />;
+  }
+
   return (
     <div className="h-full overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
       <div className="relative h-60 w-full overflow-hidden bg-gray-100">
@@ -41,6 +46,21 @@ function ChoicePreview({ choice }: { choice: FoodChoice }) {
           ))}
         </div>
         <p className="line-clamp-2 text-xs text-gray-400">{choice.description}</p>
+      </div>
+    </div>
+  );
+}
+
+function NearbyChoiceCard({ choice }: { choice: FoodChoice }) {
+  return (
+    <div className="h-full overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+      <div className="relative h-full w-full overflow-hidden bg-gray-100">
+        <ImageWithFallback src="/brand-logo.png" alt={choice.name} className="h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+        <div className="absolute bottom-3 left-3 right-3 text-white">
+          <h2 className="truncate text-lg font-extrabold leading-tight">{choice.name}</h2>
+          <p className="mt-1 truncate text-xs font-semibold text-sky-100">{choice.tags[0] ?? '餐饮服务'}</p>
+        </div>
       </div>
     </div>
   );
@@ -98,6 +118,7 @@ export function SwipeDeck({
   onLike,
   onUndo,
   onInteractionLockChange,
+  variant = 'catalog',
 }: SwipeDeckProps) {
   const [isSwiping, setIsSwiping] = useState(false);
   const x = useMotionValue(0);
@@ -155,7 +176,7 @@ export function SwipeDeck({
       <div className="relative flex h-[480px] w-full max-w-sm items-center justify-center">
         {nextChoice && (
           <motion.div animate={{ scale: isSwiping ? 1 : 0.95, y: isSwiping ? 0 : 12, opacity: isSwiping ? 1 : 0.7 }} transition={{ duration: 0.2 }} className="pointer-events-none absolute h-full w-full">
-            <ChoicePreview choice={nextChoice} />
+            <ChoicePreview choice={nextChoice} variant={variant} />
           </motion.div>
         )}
         <motion.article
@@ -169,7 +190,7 @@ export function SwipeDeck({
         >
           <motion.div style={{ opacity: likeOpacity }} className="pointer-events-none absolute right-6 top-6 z-20 flex rotate-12 items-center gap-1 rounded-2xl border-2 border-white bg-emerald-500 px-3.5 py-1 text-lg font-black text-white shadow-lg"><Heart className="h-5 w-5 fill-white" />喜欢</motion.div>
           <motion.div style={{ opacity: dislikeOpacity }} className="pointer-events-none absolute left-6 top-6 z-20 flex -rotate-12 items-center gap-1 rounded-2xl border-2 border-white bg-rose-500 px-3.5 py-1 text-lg font-black text-white shadow-lg"><X className="h-5 w-5 stroke-[3]" />不喜欢</motion.div>
-          <ChoiceCard choice={choice} />
+          {variant === 'nearby' ? <NearbyChoiceCard choice={choice} /> : <ChoiceCard choice={choice} />}
         </motion.article>
       </div>
 
