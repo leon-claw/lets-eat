@@ -9,6 +9,7 @@ import { ModePage } from '@/pages/ModePage';
 import { MultiplayerResultPage, ResultPage } from '@/pages/ResultPage';
 import { RoomPage } from '@/pages/RoomPage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { NearbyLocationPage } from '@/pages/NearbyLocationPage';
 import { createBrowserRoomClient, type RoomClient } from '@/entities/room/room-client';
 import { useEffect, useRef, useState } from 'react';
 import type { RoomSnapshot } from '@lets-eat/contracts';
@@ -62,6 +63,7 @@ function RouteTree({ repository, roomClient }: { repository: FoodChoiceRepositor
       <Route path="/settings" element={<SettingsPage repository={repository} />} />
       <Route path="/mode" element={<ModePage roomClient={roomClient} />} />
       <Route path="/single/dataset" element={<DatasetPage repository={repository} />} />
+      <Route path="/nearby/location" element={<NearbyLocationPage />} />
       <Route path="/game/single" element={<GamePage repository={repository} />} />
       <Route path="/result/single" element={<ResultPage repository={repository} />} />
       <Route path="/room/:roomId" element={roomClient && identity ? <RoomRoute roomClient={roomClient} userId={identity.userId} /> : <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] text-sm font-bold text-slate-500">正在恢复房间…</div>} />

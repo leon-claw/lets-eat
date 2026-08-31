@@ -60,6 +60,12 @@ describe('AppRouter', () => {
     expect(await screen.findByRole('heading', { name: '菜品设置' })).toBeInTheDocument();
   });
 
+  it('registers the nearby location picker route', async () => {
+    render(<AppRouter repository={repository} initialPath="/nearby/location" />);
+
+    expect(await screen.findByRole('heading', { name: '选择位置' })).toBeInTheDocument();
+  });
+
   it('keeps the group entry staged until the multiplayer flow is implemented', async () => {
     const user = userEvent.setup();
     render(<AppRouter repository={repository} initialPath="/mode" />);
