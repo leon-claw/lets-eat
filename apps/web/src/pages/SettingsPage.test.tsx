@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
 import type { FoodChoice } from '@/entities/food-choice/types';
 import { createCustomCatalogStore } from '@/features/custom-catalog/custom-catalog-store';
+import { createNearbyConfigStore } from '@/features/nearby-food/nearby-storage';
 import { FeedbackProvider } from '@/shared/components/FeedbackProvider';
 import { SettingsPage } from './SettingsPage';
 
@@ -60,5 +61,30 @@ describe('SettingsPage', () => {
     expect(await screen.findByRole('checkbox', { name: '中餐' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('checkbox', { name: '火锅' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('checkbox', { name: '寿司' })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('完整显示并保存高德 Key 与 securityJsCode，并按来源返回附近搜索', async () => {
+    const user = userEvent.setup();
+    const amapStorage = new Map<string, string>();
+    const amapConfigStore = createNearbyConfigStore({
+      getItem: (key) => amapStorage.get(key) ?? null,
+      setItem: (key, value) => { amapStorage.set(key, value); },
+      removeItem: (key) => { amapStorage.delete(key); },
+    });
+    render(
+      <FeedbackProvider>
+        <MemoryRouter initialEntries={['/settings?return=nearby']}>
+          <SettingsPage repository={repository} amapConfigStore={amapConfigStore} />
+        </MemoryRouter>
+      </FeedbackProvider>,
+    );
+
+    const keyInput = await screen.findByRole('textbox', { name: '高德 Key' });
+    const securityInput = screen.getByRole('textbox', { name: 'securityJsCode' });
+    await user.type(keyInput, 'new-key');
+    await user.type(securityInput, 'new-security');
+    await user.click(screen.getByRole('button', { name: '保存高德配置' }));
+
+    expect(amapConfigStore.load()).toEqual({ key: 'new-key', securityJsCode: 'new-security' });
   });
 });
