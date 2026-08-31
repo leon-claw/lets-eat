@@ -7,6 +7,7 @@ import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
 import { AppRouter } from './AppRouter';
 import { RealtimeClient } from '@/features/multiplayer/realtime-client';
 import { ApiClientError } from '@/shared/http/api-client';
+import { createNearbyRoundStore } from '@/features/nearby-food/nearby-storage';
 
 vi.mock('@/features/multiplayer/indexeddb-decision-store', () => ({
   createIndexedDbDecisionStore: () => ({
@@ -32,7 +33,10 @@ const repository: FoodChoiceRepository = {
 };
 
 describe('AppRouter', () => {
-  beforeEach(() => window.localStorage.clear());
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
 
   it('runs home to mode to dataset to the single-player game', async () => {
     const user = userEvent.setup();
@@ -70,6 +74,21 @@ describe('AppRouter', () => {
     render(<AppRouter repository={repository} initialPath="/nearby" />);
 
     expect(await screen.findByRole('heading', { name: '周围菜品' })).toBeInTheDocument();
+  });
+
+  it('routes nearby results without loading the fixed menu repository', async () => {
+    createNearbyRoundStore().save({
+      restaurants: [{ source: 'amap', id: 'poi-1', name: '附近餐厅', type: '餐饮服务;中餐厅', fetchedAt: '2026-08-31T00:00:00.000Z' }],
+      itemIds: ['amap:poi-1'],
+      decisions: { 'amap:poi-1': 'liked' },
+      history: ['amap:poi-1'],
+      completedAt: '2026-08-31T00:00:00.000Z',
+    });
+    const list = vi.fn().mockResolvedValue([]);
+    render(<AppRouter repository={{ list }} initialPath="/result/single?mode=nearby" />);
+
+    expect(await screen.findByText('附近餐厅')).toBeInTheDocument();
+    expect(list).not.toHaveBeenCalled();
   });
 
   it('keeps the group entry staged until the multiplayer flow is implemented', async () => {

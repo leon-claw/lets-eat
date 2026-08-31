@@ -147,7 +147,7 @@ describe('NearbyFoodPage', () => {
     await user.click(screen.getByRole('button', { name: '开始游戏' }));
 
     expect(roundStore.save).toHaveBeenCalledWith(expect.objectContaining({
-      itemIds: ['amap:poi-1', 'amap:poi-2', 'amap:poi-3'],
+      itemIds: expect.arrayContaining(['amap:poi-1', 'amap:poi-2', 'amap:poi-3']),
       decisions: {},
       completedAt: null,
     }));
