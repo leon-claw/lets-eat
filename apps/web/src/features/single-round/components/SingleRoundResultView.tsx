@@ -14,7 +14,7 @@ export function SingleRoundResultView({ choices, loaded, onLeave, leaveLabel }: 
   const [isListOpen, setIsListOpen] = useState(false);
 
   return (
-    <PageShell title="本轮结果">
+    <PageShell title="本轮结果" onBack={onLeave}>
       <section className="rounded-[2rem] bg-white p-6 text-center shadow-lg">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFD100] text-3xl">🎉</div>
         <h2 className="text-2xl font-black">看完全部菜品啦！</h2>
