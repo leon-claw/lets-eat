@@ -73,7 +73,26 @@ describe('wx realtime adapter', () => {
       roundRevision: 4,
       occurredAt: new Date().toISOString(),
     });
+    expect(onStale).toHaveBeenCalledTimes(1);
     expect(onStale).toHaveBeenCalledWith({ room: true, round: true, reconnected: false });
+    stop();
+  });
+
+  it('reconciles snapshots immediately after the first successful authentication', () => {
+    const socket = installSocket();
+    const onStale = vi.fn();
+    const stop = createWxRealtimeTransport('http://localhost:3001').connect({
+      token: 'token-1',
+      roomId: 'room-1',
+      revisions: { roomRevision: 2 },
+      onStale,
+    });
+
+    socket.open();
+    socket.message({ type: 'auth.ok', roomId: 'room-1' });
+
+    expect(onStale).toHaveBeenCalledTimes(1);
+    expect(onStale).toHaveBeenCalledWith({ room: true, round: false, reconnected: false });
     stop();
   });
 

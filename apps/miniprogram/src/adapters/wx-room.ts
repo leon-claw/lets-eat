@@ -181,7 +181,7 @@ async function requestRoomSnapshot(
   return parseRoomSnapshot(response);
 }
 
-function parseRoomSnapshot(value: unknown): RoomSnapshot {
+export function parseRoomSnapshot(value: unknown): RoomSnapshot {
   if (!value || typeof value !== 'object') throw new Error('房间数据响应无效');
   const record = value as Record<string, unknown>;
   const selectedDataset = record.selectedDataset;

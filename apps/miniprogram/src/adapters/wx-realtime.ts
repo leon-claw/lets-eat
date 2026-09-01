@@ -98,7 +98,11 @@ export function createWxRealtimeTransport(
       hasConnected = true;
       reconnectAttempt = 0;
       writeRealtimeLog('info', 'socket.authenticated', { roomId: options.roomId, reconnected });
-      if (reconnected) options.onStale({ room: true, round: true, reconnected: true });
+      if (reconnected) {
+        options.onStale({ room: true, round: true, reconnected: true });
+      } else if (options.revisions.roundRevision === undefined) {
+        options.onStale({ room: true, round: false, reconnected: false });
+      }
       return;
     }
     if (!authenticated) {
