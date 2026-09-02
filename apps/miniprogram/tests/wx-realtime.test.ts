@@ -64,6 +64,9 @@ describe('wx realtime adapter', () => {
     socket.open();
     expect(JSON.parse(socket.sent[0] ?? '')).toEqual({ type: 'auth', token: 'token-1', roomId: 'room-1' });
     socket.message({ type: 'auth.ok', roomId: 'room-1' });
+    expect(onStale).toHaveBeenCalledTimes(1);
+    expect(onStale).toHaveBeenCalledWith({ room: true, round: true, reconnected: false });
+    onStale.mockClear();
     socket.message({
       type: 'member.progressed',
       eventId: 'event-1',

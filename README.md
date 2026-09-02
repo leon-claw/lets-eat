@@ -107,6 +107,44 @@ pnpm test
 pnpm build
 ```
 
+## 小程序长延迟调试
+
+本地复现远程网络延迟时，可以让小程序的 HTTP 和 WebSocket 同时经过 Toxiproxy。代理使用独立端口，不修改 API、Web 或 PostgreSQL 的网络行为。
+
+先正常启动本地服务：
+
+```bash
+pnpm dev:stack
+```
+
+然后在另一个终端开启延迟代理：
+
+```bash
+pnpm latency:on
+```
+
+首次使用会通过 Docker Compose 下载并启动 Toxiproxy。默认同时添加上行和下行 `1200ms ± 300ms` 延迟。需要自定义延迟和抖动时，把毫秒值作为参数传入：
+
+```bash
+pnpm latency:on -- 2000 500
+```
+
+小程序本地调试地址需要配置为当前电脑的局域网 IP 和代理端口，例如：
+
+```ts
+export const API_BASE_URL = 'http://192.168.0.115:3002';
+```
+
+修改小程序地址后需要重新构建一次；之后开启或关闭延迟不需要再次构建：
+
+```bash
+pnpm latency:on       # 开启双向延迟
+pnpm latency:off      # 删除延迟，3002 继续透明转发到 3001
+pnpm latency:status   # 查看当前代理和延迟状态
+```
+
+只有访问 `3002` 的客户端会经过代理。直接访问 API `3001`、Web `3000` 和 PostgreSQL `5432` 都不受影响。Toxiproxy 的管理端口 `8474` 只绑定在本机，局域网设备不能修改延迟规则。
+
 ## 配置文件
 
 本地开发配置位于 `.env`，模板是 `.env.example`。不要把真实密钥提交到 Git。
