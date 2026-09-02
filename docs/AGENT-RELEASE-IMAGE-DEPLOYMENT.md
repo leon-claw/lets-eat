@@ -2,6 +2,8 @@
 
 > 本文档指导 Agent 将 GitHub Release 中的预构建 API 镜像部署到现有生产环境。执行前必须先阅读根目录 `AGENTS.md`、[Agent 后端部署手册](AGENT-BACKEND-DEPLOYMENT.md)和[部署总览](DEPLOYMENT.md)。
 
+> 当前 Mac mini M5 生产机是 `arm64`，并使用 Homebrew PostgreSQL 与 LaunchAgent。该机器不要使用下方 `linux/amd64` 全栈流程，应改用 [Agent Mac mini API 部署手册](AGENT-MAC-MINI-API-DEPLOYMENT.md)和 `api-v0.2.0-test.2` 镜像。
+
 ## 1. 适用范围
 
 当前测试 Release：

@@ -14,6 +14,8 @@
 
 使用 GitHub Release 中的预构建 API 镜像部署或回滚时，请使用：[Agent Release 镜像部署手册](docs/AGENT-RELEASE-IMAGE-DEPLOYMENT.md)。
 
+在 Apple Silicon Mac mini 上保留现有 Homebrew PostgreSQL、仅将 API 改为 Docker 容器时，请使用：[Agent Mac mini API 部署手册](docs/AGENT-MAC-MINI-API-DEPLOYMENT.md)。
+
 本文档描述当前仓库真实支持的本地开发和生产部署方式。
 
 ## 环境要求
