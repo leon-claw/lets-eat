@@ -12,6 +12,8 @@
 
 生产环境需要一键启动 PostgreSQL、API 和 Web 时，请使用：[Agent 后端部署手册](docs/AGENT-BACKEND-DEPLOYMENT.md)。
 
+使用 GitHub Release 中的预构建 API 镜像部署或回滚时，请使用：[Agent Release 镜像部署手册](docs/AGENT-RELEASE-IMAGE-DEPLOYMENT.md)。
+
 本文档描述当前仓库真实支持的本地开发和生产部署方式。
 
 ## 环境要求

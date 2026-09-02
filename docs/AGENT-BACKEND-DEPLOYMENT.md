@@ -2,6 +2,8 @@
 
 > 本文档是生产 Docker 部署的执行入口。其他 Agent 部署、升级或排查后端前，必须先阅读根目录 `AGENTS.md`、本文档和 [部署总览](DEPLOYMENT.md)。
 
+如果部署的是 GitHub Release 中已经构建好的 API 镜像，不要在服务器重复构建 API；改用 [Agent Release 镜像部署手册](AGENT-RELEASE-IMAGE-DEPLOYMENT.md)。
+
 ## 1. 部署结果
 
 本项目的生产 Compose 会启动三个服务：
