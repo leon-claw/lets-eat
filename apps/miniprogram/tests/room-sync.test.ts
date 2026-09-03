@@ -173,22 +173,29 @@ describe('room page synchronization', () => {
     await vi.waitFor(() => expect(page.data.room).toMatchObject({ id: newRoom.id, revision: 1 }));
   });
 
-  it('refreshes the room automatically after a revision conflict', async () => {
+  it('loads the latest room and retries the dataset change after a revision conflict without a snapshot', async () => {
     const latestRoom = createRoom(1, ['房主', '客人 B']);
+    const changedRoom = { ...latestRoom, selectedDataset: 'small' as const, revision: 2 };
     const getRoom = vi.fn().mockResolvedValue(latestRoom);
-    const changeRoomDataset = vi.fn();
+    const changeRoomDataset = vi.fn()
+      .mockRejectedValueOnce(
+        new (await import('../src/adapters/wx-http')).WxApiError(
+          409,
+          'ROOM_REVISION_CONFLICT',
+          '房间信息已更新，请刷新后重试',
+          'req-1',
+        ),
+      )
+      .mockResolvedValueOnce(changedRoom);
     const { page } = await registerRoomPage({ getRoom, changeRoomDataset });
-    const { WxApiError } = await import('../src/adapters/wx-http');
-    changeRoomDataset.mockRejectedValue(
-      new WxApiError(409, 'ROOM_REVISION_CONFLICT', '房间信息已更新，请刷新后重试', 'req-1'),
-    );
     page.applyRoom(createRoom(0));
     page.setData({ isHost: true });
 
     page.onDatasetTap({ currentTarget: { dataset: { dataset: 'small' } } });
 
     await vi.waitFor(() => expect(getRoom).toHaveBeenCalledTimes(1));
-    await vi.waitFor(() => expect(page.data.room).toMatchObject({ revision: 1 }));
+    await vi.waitFor(() => expect(page.data.room).toMatchObject({ selectedDataset: 'small', revision: 2 }));
+    expect(changeRoomDataset).toHaveBeenNthCalledWith(2, expect.any(String), expect.objectContaining({ revision: 1 }), 'small');
   });
 
   it('applies the latest conflict snapshot without waiting for another request', async () => {
@@ -213,5 +220,39 @@ describe('room page synchronization', () => {
 
     await vi.waitFor(() => expect(page.data.room).toMatchObject({ revision: 1 }));
     expect(getRoom).not.toHaveBeenCalled();
+  });
+
+  it('retries a dataset change once with the latest room revision after a guest joins', async () => {
+    const roomAfterGuestJoined = createRoom(1, ['房主', '客人 B']);
+    const roomAfterDatasetChanged = {
+      ...roomAfterGuestJoined,
+      selectedDataset: 'small' as const,
+      revision: 2,
+    };
+    const changeRoomDataset = vi.fn()
+      .mockRejectedValueOnce(
+        new (await import('../src/adapters/wx-http')).WxApiError(
+          409,
+          'ROOM_REVISION_CONFLICT',
+          '房间信息已更新，请刷新后重试',
+          'req-3',
+          roomAfterGuestJoined,
+        ),
+      )
+      .mockResolvedValueOnce(roomAfterDatasetChanged);
+    const { page } = await registerRoomPage({ changeRoomDataset });
+    page.applyRoom(createRoom(0));
+    page.setData({ isHost: true });
+
+    page.onDatasetTap({ currentTarget: { dataset: { dataset: 'small' } } });
+
+    await vi.waitFor(() => {
+      expect(page.data.room).toMatchObject({
+        selectedDataset: 'small',
+        revision: 2,
+      });
+    });
+    expect(changeRoomDataset).toHaveBeenNthCalledWith(1, expect.any(String), expect.objectContaining({ revision: 0 }), 'small');
+    expect(changeRoomDataset).toHaveBeenNthCalledWith(2, expect.any(String), expect.objectContaining({ revision: 1 }), 'small');
   });
 });

@@ -373,8 +373,9 @@ Page<RoomPageData, RoomPageMethods>({
       this.showToast('请先在设置页保存至少 3 道自定义菜品');
       return;
     }
+    const roomAtTap = currentRoom;
     this.setData({ busyAction: 'dataset' });
-    void changeRoomDataset(API_BASE_URL, currentRoom, selected)
+    void changeDatasetWithRevisionRetry(roomAtTap, selected)
       .then((room) => this.applyRoom(room))
       .catch((cause: unknown) => this.handleError(cause))
       .finally(() => this.setData({ busyAction: null }));
@@ -555,4 +556,46 @@ function navigateToMultiplayerRound(roundId: string, force = false): void {
   if (!roundId || (!force && navigatedRoundId === roundId)) return;
   navigatedRoundId = roundId;
   wx.navigateTo({ url: `/pages/game/index?roundId=${roundId}` });
+}
+
+async function changeDatasetWithRevisionRetry(
+  room: RoomSnapshot,
+  datasetType: RoomDatasetType,
+): Promise<RoomSnapshot> {
+  try {
+    return await changeRoomDataset(API_BASE_URL, room, datasetType);
+  } catch (cause) {
+    if (!(cause instanceof WxApiError) || cause.code !== 'ROOM_REVISION_CONFLICT') throw cause;
+
+    const latestRoom = await loadLatestRoomAfterConflict(cause, room.id);
+    if (
+      latestRoom.status !== 'waiting' ||
+      latestRoom.selectedDataset === datasetType
+    ) {
+      return latestRoom;
+    }
+
+    writeRealtimeLog('info', 'room.dataset.conflict.retrying', {
+      roomId: room.id,
+      previousRevision: room.revision,
+      latestRevision: latestRoom.revision,
+      datasetType,
+    });
+    return changeRoomDataset(API_BASE_URL, latestRoom, datasetType);
+  }
+}
+
+async function loadLatestRoomAfterConflict(cause: WxApiError, roomId: string): Promise<RoomSnapshot> {
+  if (cause.latest !== undefined) {
+    try {
+      const latestRoom = parseRoomSnapshot(cause.latest);
+      if (latestRoom.id === roomId) return latestRoom;
+    } catch (parseError) {
+      writeRealtimeLog('warn', 'room.dataset.conflict.latest.invalid', {
+        roomId,
+        message: parseError instanceof Error ? parseError.message : 'unknown error',
+      });
+    }
+  }
+  return getRoom(API_BASE_URL, roomId);
 }
