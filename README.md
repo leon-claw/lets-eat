@@ -16,6 +16,27 @@
 
 在 Apple Silicon Mac mini 上保留现有 Homebrew PostgreSQL、仅将 API 改为 Docker 容器时，请使用：[Agent Mac mini API 部署手册](docs/AGENT-MAC-MINI-API-DEPLOYMENT.md)。
 
+### 当前生产方案摘要
+
+当前 Mac mini M5 使用 `arm64` 架构，生产环境保留 Homebrew PostgreSQL、Cloudflare/反向代理和宿主机 `3002` 端口，只将 API 进程替换为 Docker 容器。当前可部署镜像为：
+
+```text
+Release：api-v0.2.0-test.2
+镜像：lets-eat-api:0.2.0-test.2
+平台：linux/arm64
+```
+
+部署顺序如下，完整命令和回滚步骤见 [Agent Mac mini API 部署手册](docs/AGENT-MAC-MINI-API-DEPLOYMENT.md)：
+
+1. 在服务器确认 `uname -m` 为 `arm64`，Docker Desktop 正常运行，并记录现有 API 的 LaunchAgent Label 和 plist 路径。
+2. 下载 Release 的 ARM64 镜像及 `.sha256` 文件，执行 `shasum -a 256 -c` 校验，再用 `docker load` 导入；必须确认镜像平台为 `linux/arm64`。
+3. 使用现有 `apps/api/.env` 执行 `pg_dump` 备份 Homebrew PostgreSQL；不要启动 `compose.prod.yaml`，也不要创建新的 PostgreSQL volume。
+4. 将容器内的数据库地址从 `localhost` 转换为 `host.docker.internal`，先把镜像映射到 `33002`，完成 migration、`health/live`、`health/ready` 和菜单接口验证。
+5. 验证通过后停止旧 LaunchAgent，使用 `--restart unless-stopped` 启动 `lets-eat-api:0.2.0-test.2`，将容器 `3001` 映射到宿主机 `127.0.0.1:3002`。
+6. 检查本机和公网接口，并用两个真实客户端验证 WebSocket 多人流程。失败时停止容器，使用原 plist 重新 `launchctl bootstrap` 恢复旧 API。
+
+旧的 `api-v0.2.0-test.1` 已废弃，禁止部署或用于回滚。当前没有可部署的 `linux/amd64` Release；其他架构应按 [Agent 后端部署手册](docs/AGENT-BACKEND-DEPLOYMENT.md)从源码构建。
+
 本文档描述当前仓库真实支持的本地开发和生产部署方式。
 
 ## 环境要求
