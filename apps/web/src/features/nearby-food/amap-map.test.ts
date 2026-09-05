@@ -56,4 +56,31 @@ describe('Amap map adapter', () => {
     expect(map.off).toHaveBeenCalledWith('moveend', expect.any(Function));
     expect(map.destroy).toHaveBeenCalled();
   });
+
+  it('初始化高德地图前固定容器的绝对定位优先级', () => {
+    const map = {
+      on: vi.fn(),
+      off: vi.fn(),
+      getCenter: () => ({ lng: 116.397, lat: 39.908 }),
+      destroy: vi.fn(),
+    };
+    let positionAtCreation: { value: string; priority: string } | null = null;
+    const amap = {
+      Map: vi.fn(function Map(container: HTMLElement) {
+        positionAtCreation = {
+          value: container.style.getPropertyValue('position'),
+          priority: container.style.getPropertyPriority('position'),
+        };
+        return map;
+      }),
+    } as unknown as AmapNamespace;
+
+    createMapPicker({
+      container: document.createElement('div'),
+      initialCenter: { longitude: 116.397, latitude: 39.908 },
+      amap,
+    });
+
+    expect(positionAtCreation).toEqual({ value: 'absolute', priority: 'important' });
+  });
 });

@@ -15,14 +15,23 @@ interface SettingsPageProps {
   repository: FoodChoiceRepository;
   store?: CustomCatalogStore;
   amapConfigStore?: ReturnType<typeof createNearbyConfigStore>;
+  defaultAmapConfig?: AmapConfig | null;
 }
 
 type Filter = 'all' | DatasetType;
 
 const browserCustomCatalogStore = createCustomCatalogStore();
 const browserAmapConfigStore = createNearbyConfigStore();
+const localAmapConfig = (import.meta.env as ImportMetaEnv & {
+  readonly LETS_EAT_LOCAL_AMAP_CONFIG?: AmapConfig | null;
+}).LETS_EAT_LOCAL_AMAP_CONFIG ?? null;
 
-export function SettingsPage({ repository, store = browserCustomCatalogStore, amapConfigStore = browserAmapConfigStore }: SettingsPageProps) {
+export function SettingsPage({
+  repository,
+  store = browserCustomCatalogStore,
+  amapConfigStore = browserAmapConfigStore,
+  defaultAmapConfig = localAmapConfig,
+}: SettingsPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { confirm, toast } = useFeedback();
@@ -31,8 +40,9 @@ export function SettingsPage({ repository, store = browserCustomCatalogStore, am
   const [selectedIds, setSelectedIds] = useState<string[]>(() => store.load()?.itemIds ?? []);
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
-  const [amapKey, setAmapKey] = useState(() => amapConfigStore.load()?.key ?? '');
-  const [securityJsCode, setSecurityJsCode] = useState(() => amapConfigStore.load()?.securityJsCode ?? '');
+  const initialAmapConfig = amapConfigStore.load() ?? defaultAmapConfig;
+  const [amapKey, setAmapKey] = useState(() => initialAmapConfig?.key ?? '');
+  const [securityJsCode, setSecurityJsCode] = useState(() => initialAmapConfig?.securityJsCode ?? '');
 
   useEffect(() => {
     if (!repository.loadCatalog) {

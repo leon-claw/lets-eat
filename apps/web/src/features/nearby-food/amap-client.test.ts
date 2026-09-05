@@ -1,39 +1,51 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { AmapNamespace } from './amap-types';
 import type { AmapConfig, GeoPoint } from './types';
 import { AmapSearchError, normalizeAmapPoi, searchNearbyRestaurants } from './amap-client';
 
 const config: AmapConfig = { key: 'amap-key', securityJsCode: 'security-code' };
 const center: GeoPoint = { longitude: 116.397, latitude: 39.908 };
 
-function response(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+function placeSearchSdk(status: string, result: unknown) {
+  const options: unknown[] = [];
+  const searchNearBy = vi.fn((
+    _keyword: string,
+    _center: [number, number],
+    _radiusMeters: number,
+    callback: (searchStatus: string, searchResult: unknown) => void,
+  ) => callback(status, result));
+  class PlaceSearch {
+    constructor(value: unknown) {
+      options.push(value);
+    }
+
+    searchNearBy = searchNearBy;
+  }
+  const plugin = vi.fn((_name: string, callback: () => void) => callback());
+  const amap = { PlaceSearch, plugin } as unknown as AmapNamespace;
+  return { amap, options, plugin, searchNearBy };
 }
 
 describe('Amap nearby search client', () => {
-  it('请求餐饮类型、指定半径和综合排序的第一页 20 条结果', async () => {
-    let requestedUrl = '';
+  it('通过 JS API PlaceSearch 请求餐饮类型、指定半径和第一页 20 条结果', async () => {
+    const sdk = placeSearchSdk('complete', { poiList: { pois: [] } });
+    const loadAmap = vi.fn().mockResolvedValue(sdk.amap);
     const restaurants = await searchNearbyRestaurants({
       config,
       center,
       radiusMeters: 2000,
-      fetcher: async (input) => {
-        requestedUrl = String(input);
-        return response({ status: '1', pois: [] });
-      },
+      loadAmap,
     });
 
-    const url = new URL(requestedUrl);
-    expect(url.origin + url.pathname).toBe('https://restapi.amap.com/v3/place/around');
-    expect(Object.fromEntries(url.searchParams)).toEqual({
-      key: 'amap-key',
-      location: '116.397,39.908',
-      types: '050000',
-      radius: '2000',
-      sortrule: 'weight',
-      offset: '20',
-      page: '1',
+    expect(loadAmap).toHaveBeenCalledWith(config);
+    expect(sdk.plugin).toHaveBeenCalledWith('AMap.PlaceSearch', expect.any(Function));
+    expect(sdk.options).toEqual([{
+      type: '050000',
+      pageSize: 20,
+      pageIndex: 1,
       extensions: 'all',
-    });
+    }]);
+    expect(sdk.searchNearBy).toHaveBeenCalledWith('', [116.397, 39.908], 2000, expect.any(Function));
     expect(restaurants).toEqual([]);
   });
 
@@ -49,6 +61,19 @@ describe('Amap nearby search client', () => {
 
     expect(restaurant.location).toEqual({ longitude: 116.397, latitude: 39.908 });
     expect(restaurant.entranceLocation).toEqual({ longitude: 116.398, latitude: 39.909 });
+    expect(restaurant.distanceMeters).toBe(120);
+  });
+
+  it('把 JS API 的 LngLat 对象转为数字', () => {
+    const restaurant = normalizeAmapPoi({
+      id: 'B001',
+      name: '一间餐厅',
+      type: '餐饮服务;中餐厅;粤菜馆',
+      location: { lng: 116.397, lat: 39.908 },
+      distance: 120,
+    }, '2026-08-31T00:00:00.000Z');
+
+    expect(restaurant.location).toEqual({ longitude: 116.397, latitude: 39.908 });
     expect(restaurant.distanceMeters).toBe(120);
   });
 
@@ -97,30 +122,33 @@ describe('Amap nearby search client', () => {
     });
   });
 
-  it('高德返回非 1 状态时保留 detail 与 info 作为错误原因', async () => {
+  it('高德 JS API 返回错误时保留 detail 与 info 作为错误原因', async () => {
+    const invalidKeySdk = placeSearchSdk('error', { info: 'INVALID_USER_KEY', infocode: '10001', detail: 'key expired' });
     await expect(searchNearbyRestaurants({
       config,
       center,
       radiusMeters: 500,
-      fetcher: async () => response({ status: '0', info: 'INVALID_USER_KEY', infocode: '10001', detail: 'key expired' }),
+      loadAmap: vi.fn().mockResolvedValue(invalidKeySdk.amap),
     })).rejects.toMatchObject({ code: 'INVALID_CONFIG', message: expect.stringContaining('key expired') });
+    const unavailableSdk = placeSearchSdk('error', { info: 'SERVICE_NOT_AVAILABLE', detail: 'service unavailable' });
     await expect(searchNearbyRestaurants({
       config,
       center,
       radiusMeters: 500,
-      fetcher: async () => response({ status: '0', info: 'SERVICE_NOT_AVAILABLE', detail: 'service unavailable' }),
+      loadAmap: vi.fn().mockResolvedValue(unavailableSdk.amap),
     })).rejects.toSatisfy((error: unknown) => error instanceof AmapSearchError
       && error.code === 'REQUEST_FAILED'
       && error.message.includes('service unavailable')
       && error.message.includes('SERVICE_NOT_AVAILABLE'));
   });
 
-  it('返回空 pois 时返回空数组', async () => {
+  it('高德 JS API 返回 no_data 时返回空数组', async () => {
+    const sdk = placeSearchSdk('no_data', 'NO_DATA');
     await expect(searchNearbyRestaurants({
       config,
       center,
       radiusMeters: 500,
-      fetcher: async () => response({ status: '1', pois: [] }),
+      loadAmap: vi.fn().mockResolvedValue(sdk.amap),
     })).resolves.toEqual([]);
   });
 });

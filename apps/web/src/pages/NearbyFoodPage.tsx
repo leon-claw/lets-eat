@@ -1,5 +1,5 @@
-import { MapPin, RefreshCw, Search } from 'lucide-react';
-import { useEffect, useMemo, useRef } from 'react';
+import { LocateFixed, MapPin, RefreshCw, Search } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation as useRouterLocation, useNavigate } from 'react-router-dom';
 import { createNearbyRoundStore } from '@/features/nearby-food/nearby-storage';
 import { nearbyRestaurantsToFoodChoices } from '@/features/nearby-food/nearby-food-adapter';
@@ -45,9 +45,10 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
   const navigate = useNavigate();
   const { toast } = useFeedback();
   const selectedLocation = selectedLocationFromState(location.state);
+  const [initialSelectedLocation] = useState(selectedLocation);
   const effectiveDependencies = useMemo(
-    () => selectedLocation ? { ...searchDependencies, initialLocation: selectedLocation } : searchDependencies,
-    [searchDependencies, selectedLocation],
+    () => initialSelectedLocation ? { ...searchDependencies, initialLocation: initialSelectedLocation } : searchDependencies,
+    [initialSelectedLocation, searchDependencies],
   );
   const search = useNearbyFoodSearch(effectiveDependencies);
   const shownError = useRef<string | null>(null);
@@ -67,8 +68,9 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
     if (search.state.status === 'location-fallback') navigate('/nearby/location', { replace: true });
   }, [navigate, search.state.status]);
 
+  const isBusy = search.state.status === 'locating' || search.state.status === 'searching';
   const startGame = () => {
-    if (search.state.restaurants.length < 3 || search.state.hasPendingRadiusChange || search.state.status === 'searching') return;
+    if (search.state.restaurants.length < 3 || search.state.hasPendingRadiusChange || isBusy) return;
     const itemIds = prepareRoundChoices(nearbyRestaurantsToFoodChoices(search.state.restaurants)).map((choice) => choice.id);
     roundStore.save({
       restaurants: search.state.restaurants,
@@ -82,7 +84,7 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
 
   const canStart = search.state.restaurants.length >= 3
     && !search.state.hasPendingRadiusChange
-    && search.state.status !== 'searching';
+    && !isBusy;
 
   return (
     <PageShell title="周围菜品">
@@ -96,9 +98,12 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
             </div>
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-400/20 text-sky-200"><MapPin className="h-6 w-6" /></div>
           </div>
-          <div className="mt-5 flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-2 text-sm text-slate-200" role="status">
-            <span className={`h-2 w-2 rounded-full ${search.state.center ? 'bg-emerald-300' : 'bg-amber-300'}`} />
-            {search.state.center ? '已准备搜索位置' : '正在准备搜索位置'}
+          <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl bg-white/10 px-3 py-2 text-sm text-slate-200">
+            <div className="flex min-w-0 items-center gap-2" role="status">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${search.state.status === 'locating' ? 'bg-amber-300' : search.state.center ? 'bg-emerald-300' : 'bg-amber-300'}`} />
+              <span className="truncate">{search.state.status === 'locating' ? '正在获取当前位置' : search.state.center ? '已准备搜索位置' : '正在准备搜索位置'}</span>
+            </div>
+            <button type="button" disabled={isBusy} onClick={() => void search.retryLocation()} className="pressable inline-flex shrink-0 items-center gap-1 rounded-xl bg-white/10 px-2.5 py-1.5 text-xs font-black text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"><LocateFixed className="h-3.5 w-3.5" />{search.state.status === 'locating' ? '定位中…' : '定位到我'}</button>
           </div>
         </div>
 
@@ -116,13 +121,19 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
             <p className="text-sm font-black text-slate-900">{search.state.restaurants.length > 0 ? `找到 ${search.state.restaurants.length} 家餐厅` : '附近餐厅'}</p>
             <p className="mt-1 text-xs text-slate-400">范围改变后，点击重新搜索才会更新结果</p>
           </div>
-          <button type="button" disabled={!search.state.center || search.state.status === 'searching'} onClick={() => void search.search()} className="pressable inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-2 text-xs font-black text-sky-800 disabled:cursor-not-allowed disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" />{search.state.status === 'searching' ? '搜索中…' : '重新搜索'}</button>
+          <button type="button" disabled={!search.state.center || isBusy} onClick={() => void search.search()} className="pressable inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-2 text-xs font-black text-sky-800 disabled:cursor-not-allowed disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" />{search.state.status === 'searching' ? '搜索中…' : '重新搜索'}</button>
         </div>
 
         {search.state.status === 'searching' && <div className="rounded-3xl bg-white px-5 py-8 text-center text-sm font-bold text-slate-500 shadow-sm"><Search className="mx-auto mb-3 h-7 w-7 animate-pulse text-sky-500" />正在搜索附近餐厅…</div>}
         {search.state.status === 'empty' && <div className="rounded-3xl bg-white px-5 py-8 text-center text-sm font-bold text-slate-500 shadow-sm">附近没有找到餐厅<br /><span className="mt-2 block text-xs font-normal text-slate-400">可以更换位置或扩大搜索范围。</span></div>}
         {search.state.status === 'insufficient' && <div className="rounded-3xl bg-amber-50 px-5 py-4 text-center text-sm font-bold text-amber-800">至少需要 3 家餐厅才能开始游戏</div>}
-        {search.state.status === 'error' && <div className="rounded-3xl bg-rose-50 px-5 py-4 text-center text-sm font-bold text-rose-800">本次搜索失败，仍保留上次结果。点击重新搜索再试一次。</div>}
+        {search.state.status === 'error' && (
+          <div className="rounded-3xl bg-rose-50 px-5 py-4 text-center text-sm font-bold text-rose-800">
+            {search.state.restaurants.length > 0
+              ? '本次操作失败，仍保留上次结果。可以重新定位或重新搜索。'
+              : '本次搜索失败，请检查配置或更换位置后重试。'}
+          </div>
+        )}
         {search.state.errorCode === 'INVALID_CONFIG' && <button type="button" onClick={() => navigate('/settings?return=nearby')} className="pressable rounded-2xl border border-rose-100 bg-white px-4 py-3 text-sm font-black text-rose-700 shadow-sm">前往设置</button>}
 
         {search.state.restaurants.length > 0 && (

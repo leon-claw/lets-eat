@@ -87,4 +87,48 @@ describe('SettingsPage', () => {
 
     expect(amapConfigStore.load()).toEqual({ key: 'new-key', securityJsCode: 'new-security' });
   });
+
+  it('没有浏览器配置时使用本地高德配置填充表单', async () => {
+    const amapStorage = new Map<string, string>();
+    const amapConfigStore = createNearbyConfigStore({
+      getItem: (key) => amapStorage.get(key) ?? null,
+      setItem: (key, value) => { amapStorage.set(key, value); },
+      removeItem: (key) => { amapStorage.delete(key); },
+    });
+    const localConfig = { key: 'local-key', securityJsCode: 'local-security' };
+    render(
+      <FeedbackProvider>
+        <MemoryRouter>
+          <SettingsPage repository={repository} amapConfigStore={amapConfigStore} defaultAmapConfig={localConfig} />
+        </MemoryRouter>
+      </FeedbackProvider>,
+    );
+
+    expect(await screen.findByRole('textbox', { name: '高德 Key' })).toHaveValue('local-key');
+    expect(screen.getByRole('textbox', { name: 'securityJsCode' })).toHaveValue('local-security');
+  });
+
+  it('浏览器已保存的高德配置优先于本地默认配置', async () => {
+    const amapStorage = new Map<string, string>();
+    const amapConfigStore = createNearbyConfigStore({
+      getItem: (key) => amapStorage.get(key) ?? null,
+      setItem: (key, value) => { amapStorage.set(key, value); },
+      removeItem: (key) => { amapStorage.delete(key); },
+    });
+    amapConfigStore.save({ key: 'saved-key', securityJsCode: 'saved-security' });
+    render(
+      <FeedbackProvider>
+        <MemoryRouter>
+          <SettingsPage
+            repository={repository}
+            amapConfigStore={amapConfigStore}
+            defaultAmapConfig={{ key: 'local-key', securityJsCode: 'local-security' }}
+          />
+        </MemoryRouter>
+      </FeedbackProvider>,
+    );
+
+    expect(await screen.findByRole('textbox', { name: '高德 Key' })).toHaveValue('saved-key');
+    expect(screen.getByRole('textbox', { name: 'securityJsCode' })).toHaveValue('saved-security');
+  });
 });

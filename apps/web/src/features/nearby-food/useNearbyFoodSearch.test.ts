@@ -77,6 +77,27 @@ describe('useNearbyFoodSearch', () => {
     expect(deps.searchRestaurants).toHaveBeenCalledWith({ config, center: selectedPosition, radiusMeters: 2000 });
   });
 
+  it('地图返回的新位置优先于旧的搜索会话', async () => {
+    const selectedPosition = { longitude: 113.264, latitude: 23.129 };
+    const oldSession = {
+      center: position,
+      radiusMeters: 1000,
+      restaurants: [restaurant(1), restaurant(2), restaurant(3)],
+      searchedAt: 'old',
+    };
+    const deps = dependencies({
+      initialLocation: selectedPosition,
+      searchSessionStore: store(oldSession),
+    });
+    const { result } = renderHook(() => useNearbyFoodSearch(deps));
+
+    await waitFor(() => expect(result.current.state.status).toBe('ready'));
+
+    expect(deps.searchRestaurants).toHaveBeenCalledWith({ config, center: selectedPosition, radiusMeters: 1000 });
+    expect(result.current.state.center).toEqual(selectedPosition);
+    expect(deps.getLocation).not.toHaveBeenCalled();
+  });
+
   it('浏览器定位失败且有上次位置时使用缓存位置并自动搜索', async () => {
     const cachedPosition = { longitude: 121.473, latitude: 31.23 };
     const deps = dependencies({
@@ -99,6 +120,57 @@ describe('useNearbyFoodSearch', () => {
 
     expect(result.current.state.errorMessage).toContain('permission denied');
     expect(deps.searchRestaurants).not.toHaveBeenCalled();
+  });
+
+  it('主动重新定位后使用浏览器返回的新位置和当前范围搜索', async () => {
+    const selectedPosition = { longitude: 121.473, latitude: 31.23 };
+    const session = {
+      center: position,
+      radiusMeters: 3000,
+      restaurants: [restaurant(1), restaurant(2), restaurant(3)],
+      searchedAt: 'old',
+    };
+    const getLocation = vi.fn().mockResolvedValue(selectedPosition);
+    const searchRestaurants = vi.fn().mockResolvedValue([restaurant(4), restaurant(5), restaurant(6)]);
+    const deps = dependencies({
+      getLocation,
+      searchRestaurants,
+      searchSessionStore: store(session),
+    });
+    const { result } = renderHook(() => useNearbyFoodSearch(deps));
+    await waitFor(() => expect(result.current.state.status).toBe('ready'));
+
+    await act(async () => { await result.current.retryLocation(); });
+
+    expect(result.current.state.center).toEqual(selectedPosition);
+    expect(result.current.state.restaurants).toEqual([restaurant(4), restaurant(5), restaurant(6)]);
+    expect(searchRestaurants).toHaveBeenCalledWith({ config, center: selectedPosition, radiusMeters: 3000 });
+  });
+
+  it('主动重新定位失败时保留当前位置和餐厅，不使用缓存位置搜索', async () => {
+    const session = {
+      center: position,
+      radiusMeters: 2000,
+      restaurants: [restaurant(1), restaurant(2), restaurant(3)],
+      searchedAt: 'old',
+    };
+    const searchRestaurants = vi.fn().mockResolvedValue([restaurant(4), restaurant(5), restaurant(6)]);
+    const deps = dependencies({
+      getLocation: vi.fn().mockRejectedValue(new Error('无法获取当前位置')),
+      locationStore: store<GeoPoint>({ longitude: 121.473, latitude: 31.23 }),
+      searchRestaurants,
+      searchSessionStore: store(session),
+    });
+    const { result } = renderHook(() => useNearbyFoodSearch(deps));
+    await waitFor(() => expect(result.current.state.status).toBe('ready'));
+
+    await act(async () => { await result.current.retryLocation(); });
+
+    expect(result.current.state.status).toBe('error');
+    expect(result.current.state.errorMessage).toBe('无法获取当前位置');
+    expect(result.current.state.center).toEqual(position);
+    expect(result.current.state.restaurants).toEqual(session.restaurants);
+    expect(searchRestaurants).not.toHaveBeenCalled();
   });
 
   it('使用手动位置后保存为上次成功位置并搜索', async () => {

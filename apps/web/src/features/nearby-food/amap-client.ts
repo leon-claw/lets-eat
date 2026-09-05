@@ -1,3 +1,5 @@
+import { loadAmap as loadAmapSdk } from './amap-map';
+import type { AmapNamespace, AmapPlaceSearchInstance } from './amap-types';
 import type { AmapConfig, GeoPoint, NearbyRestaurant } from './types';
 
 export type AmapSearchErrorCode = 'INVALID_CONFIG' | 'REQUEST_FAILED' | 'NO_RESULTS' | 'INVALID_RESPONSE';
@@ -12,7 +14,6 @@ export class AmapSearchError extends Error {
   }
 }
 
-type AmapFetcher = (input: string | URL, init?: RequestInit) => Promise<Response>;
 type AmapRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): AmapRecord | null {
@@ -25,10 +26,14 @@ function optionalString(record: AmapRecord, key: string): string | undefined {
 }
 
 function parsePoint(value: unknown): GeoPoint | undefined {
-  if (typeof value !== 'string') return undefined;
-  const [longitudeText, latitudeText] = value.split(',').map((part) => part.trim());
-  const longitude = Number(longitudeText);
-  const latitude = Number(latitudeText);
+  const record = asRecord(value);
+  const parts = typeof value === 'string'
+    ? value.split(',').map((part) => part.trim())
+    : record
+      ? [record.lng, record.lat]
+      : [];
+  const longitude = Number(parts[0]);
+  const latitude = Number(parts[1]);
   if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return undefined;
   return { longitude, latitude };
 }
@@ -52,6 +57,33 @@ function amapErrorReason(body: AmapRecord): string {
   const detail = optionalString(body, 'detail');
   const infocode = optionalString(body, 'infocode');
   return [info, detail, infocode ? `错误码 ${infocode}` : undefined].filter(Boolean).join('：');
+}
+
+function placeSearchError(result: unknown): AmapSearchError {
+  const record = asRecord(result) ?? { info: typeof result === 'string' ? result : '高德地点搜索失败' };
+  return new AmapSearchError(classifyAmapError(record), amapErrorReason(record));
+}
+
+function loadPlaceSearch(amap: AmapNamespace): Promise<new (options: {
+  type: string;
+  pageSize: number;
+  pageIndex: number;
+  extensions: 'all';
+}) => AmapPlaceSearchInstance> {
+  return new Promise((resolve, reject) => {
+    try {
+      amap.plugin('AMap.PlaceSearch', () => {
+        if (!amap.PlaceSearch) {
+          reject(new AmapSearchError('INVALID_RESPONSE', '高德地点搜索插件加载失败'));
+          return;
+        }
+        resolve(amap.PlaceSearch);
+      });
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : '高德地点搜索插件加载失败';
+      reject(new AmapSearchError('REQUEST_FAILED', message));
+    }
+  });
 }
 
 export function normalizeAmapPoi(poi: unknown, fetchedAt: string): NearbyRestaurant {
@@ -109,51 +141,60 @@ export async function searchNearbyRestaurants(input: {
   config: AmapConfig;
   center: GeoPoint;
   radiusMeters: number;
-  fetcher?: AmapFetcher;
+  loadAmap?: (config: AmapConfig) => Promise<AmapNamespace>;
   now?: () => string;
 }): Promise<NearbyRestaurant[]> {
   const { config, center, radiusMeters } = input;
-  if (!config.key.trim()) throw new AmapSearchError('INVALID_CONFIG', '高德 Key 未配置');
+  if (!config.key.trim() || !config.securityJsCode.trim()) {
+    throw new AmapSearchError('INVALID_CONFIG', '高德 Key 或 securityJsCode 未配置');
+  }
   if (!Number.isFinite(center.longitude) || !Number.isFinite(center.latitude) || !Number.isFinite(radiusMeters) || radiusMeters <= 0) {
     throw new AmapSearchError('INVALID_CONFIG', '附近搜索参数无效');
   }
 
-  const params = new URLSearchParams({
-    key: config.key,
-    location: `${center.longitude},${center.latitude}`,
-    types: '050000',
-    radius: String(radiusMeters),
-    sortrule: 'weight',
-    offset: '20',
-    page: '1',
-    extensions: 'all',
-  });
-  const url = `https://restapi.amap.com/v3/place/around?${params.toString()}`;
-  const fetcher = input.fetcher ?? globalThis.fetch.bind(globalThis);
-  let response: Response;
+  let amap: AmapNamespace;
   try {
-    response = await fetcher(url);
+    amap = await (input.loadAmap ?? loadAmapSdk)(config);
   } catch (cause) {
-    const message = cause instanceof Error ? cause.message : '网络请求失败';
+    if (cause instanceof AmapSearchError) throw cause;
+    const message = cause instanceof Error ? cause.message : '高德地图服务加载失败';
     throw new AmapSearchError('REQUEST_FAILED', `附近餐厅搜索失败：${message}`);
   }
-  if (!response.ok) {
-    throw new AmapSearchError('REQUEST_FAILED', `附近餐厅搜索失败：HTTP ${response.status}`);
-  }
-
-  let body: unknown;
-  try {
-    body = await response.json();
-  } catch {
-    throw new AmapSearchError('INVALID_RESPONSE', '高德返回的数据无法解析');
-  }
-  const record = asRecord(body);
-  if (!record || String(record.status) !== '1') {
-    throw new AmapSearchError(record ? classifyAmapError(record) : 'INVALID_RESPONSE', record ? amapErrorReason(record) : '高德返回的数据格式无效');
-  }
-  if (!Array.isArray(record.pois)) {
-    throw new AmapSearchError('INVALID_RESPONSE', '高德返回的数据缺少餐厅列表');
-  }
+  const PlaceSearch = await loadPlaceSearch(amap);
   const fetchedAt = (input.now ?? (() => new Date().toISOString()))();
-  return record.pois.slice(0, 20).map((poi) => normalizeAmapPoi(poi, fetchedAt));
+  const placeSearch = new PlaceSearch({
+    type: '050000',
+    pageSize: 20,
+    pageIndex: 1,
+    extensions: 'all',
+  });
+
+  return new Promise((resolve, reject) => {
+    try {
+      placeSearch.searchNearBy('', [center.longitude, center.latitude], radiusMeters, (status, result) => {
+        if (status === 'no_data') {
+          resolve([]);
+          return;
+        }
+        if (status !== 'complete') {
+          reject(placeSearchError(result));
+          return;
+        }
+        const record = asRecord(result);
+        const poiList = record && asRecord(record.poiList);
+        if (!poiList || !Array.isArray(poiList.pois)) {
+          reject(new AmapSearchError('INVALID_RESPONSE', '高德返回的数据缺少餐厅列表'));
+          return;
+        }
+        try {
+          resolve(poiList.pois.slice(0, 20).map((poi) => normalizeAmapPoi(poi, fetchedAt)));
+        } catch (cause) {
+          reject(cause);
+        }
+      });
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : '高德地点搜索请求失败';
+      reject(new AmapSearchError('REQUEST_FAILED', `附近餐厅搜索失败：${message}`));
+    }
+  });
 }

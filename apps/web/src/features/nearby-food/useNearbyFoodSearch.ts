@@ -95,6 +95,7 @@ export function useNearbyFoodSearch(dependencies: NearbyFoodSearchDependencies =
   const radiusRef = useRef(DEFAULT_NEARBY_RADIUS_METERS);
   const configRef = useRef<AmapConfig | null>(null);
   const requestRef = useRef<Promise<void> | null>(null);
+  const locationRequestRef = useRef<Promise<void> | null>(null);
 
   const performSearch = useCallback((center: GeoPoint, radiusMeters: number): Promise<void> => {
     if (requestRef.current) return requestRef.current;
@@ -172,6 +173,30 @@ export function useNearbyFoodSearch(dependencies: NearbyFoodSearchDependencies =
     }
   }, [getLocation, locationStore, performSearch]);
 
+  const retryLocation = useCallback((): Promise<void> => {
+    if (locationRequestRef.current) return locationRequestRef.current;
+    if (requestRef.current) return requestRef.current;
+
+    setState((current) => ({ ...current, status: 'locating', errorMessage: null, errorCode: null }));
+    const request = Promise.resolve()
+      .then(() => getLocation())
+      .then((point) => performSearch(point, radiusRef.current))
+      .catch((cause: unknown) => {
+        const error = errorDetails(cause);
+        setState((current) => ({
+          ...current,
+          status: 'error',
+          errorMessage: error.message,
+          errorCode: error.code,
+        }));
+      })
+      .finally(() => {
+        locationRequestRef.current = null;
+      });
+    locationRequestRef.current = request;
+    return request;
+  }, [getLocation, performSearch]);
+
   useEffect(() => {
     let active = true;
     const restore = async () => {
@@ -182,6 +207,12 @@ export function useNearbyFoodSearch(dependencies: NearbyFoodSearchDependencies =
       }
       configRef.current = config;
       const session = searchSessionStore.load();
+      if (dependencies.initialLocation) {
+        const radiusMeters = session?.radiusMeters ?? radiusRef.current;
+        radiusRef.current = radiusMeters;
+        await performSearch(dependencies.initialLocation, radiusMeters);
+        return;
+      }
       if (session) {
         centerRef.current = session.center;
         radiusRef.current = session.radiusMeters;
@@ -196,10 +227,6 @@ export function useNearbyFoodSearch(dependencies: NearbyFoodSearchDependencies =
             hasPendingRadiusChange: false,
           });
         }
-        return;
-      }
-      if (dependencies.initialLocation) {
-        await performSearch(dependencies.initialLocation, radiusRef.current);
         return;
       }
       if (active) setState((current) => ({ ...current, status: 'locating' }));
@@ -230,6 +257,6 @@ export function useNearbyFoodSearch(dependencies: NearbyFoodSearchDependencies =
     setRadius,
     search,
     useLocation,
-    retryLocation: locate,
+    retryLocation,
   };
 }

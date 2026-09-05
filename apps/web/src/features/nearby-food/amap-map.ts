@@ -51,6 +51,7 @@ export function createMapPicker(options: {
   initialCenter: GeoPoint;
   amap: AmapNamespace;
 }): { getCenter(): GeoPoint; destroy(): void } {
+  options.container.style.setProperty('position', 'absolute', 'important');
   const map = new options.amap.Map(options.container, {
     center: [options.initialCenter.longitude, options.initialCenter.latitude],
     zoom: 15,

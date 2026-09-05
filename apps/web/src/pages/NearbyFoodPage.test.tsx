@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
@@ -46,10 +46,14 @@ function LocationProbe() {
   return <output data-testid="location">{location.pathname}{location.search}</output>;
 }
 
-function renderNearby(searchDependencies: ReturnType<typeof dependencies>, roundStore?: { load(): NearbyRoundSession | null; save(value: NearbyRoundSession): void; clear(): void }) {
+function renderNearby(
+  searchDependencies: ReturnType<typeof dependencies>,
+  roundStore?: { load(): NearbyRoundSession | null; save(value: NearbyRoundSession): void; clear(): void },
+  initialEntry: string | { pathname: string; state?: unknown } = '/nearby',
+) {
   return render(
     <FeedbackProvider>
-      <MemoryRouter initialEntries={['/nearby']}>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/nearby" element={<NearbyFoodPage searchDependencies={searchDependencies} roundStore={roundStore} />} />
           <Route path="*" element={<LocationProbe />} />
@@ -86,6 +90,23 @@ describe('NearbyFoodPage', () => {
     expect(deps.searchRestaurants).toHaveBeenLastCalledWith(expect.objectContaining({ radiusMeters: 5000 }));
   });
 
+  it('点击定位到我后锁定按钮，并使用浏览器返回的新位置搜索', async () => {
+    const user = userEvent.setup();
+    const deps = dependencies();
+    renderNearby(deps);
+    await screen.findByText('找到 3 家餐厅');
+    const selectedPosition = { longitude: 121.473, latitude: 31.23 };
+    let resolveLocation: ((point: GeoPoint) => void) | undefined;
+    deps.getLocation.mockImplementationOnce(() => new Promise<GeoPoint>((resolve) => { resolveLocation = resolve; }));
+
+    await user.click(screen.getByRole('button', { name: '定位到我' }));
+
+    expect(screen.getByRole('button', { name: '定位中…' })).toBeDisabled();
+    await act(async () => { resolveLocation?.(selectedPosition); });
+    await waitFor(() => expect(deps.searchRestaurants).toHaveBeenLastCalledWith(expect.objectContaining({ center: selectedPosition })));
+    expect(screen.getByRole('button', { name: '定位到我' })).toBeEnabled();
+  });
+
   it('结果少于 3 家时禁用开始游戏并给出明确提示', async () => {
     const deps = dependencies([restaurant(1), restaurant(2)]);
     renderNearby(deps);
@@ -110,12 +131,28 @@ describe('NearbyFoodPage', () => {
     expect(await screen.findByTestId('location')).toHaveTextContent('/nearby/location');
   });
 
+  it('地图选点返回后使用选中位置搜索且不再调用浏览器定位', async () => {
+    const deps = dependencies();
+    deps.getLocation.mockRejectedValue(new Error('定位权限被拒绝'));
+    renderNearby(deps, undefined, {
+      pathname: '/nearby',
+      state: { selectedLocation: position },
+    });
+
+    expect(await screen.findByText('找到 3 家餐厅')).toBeInTheDocument();
+    expect(deps.searchRestaurants).toHaveBeenCalledWith(expect.objectContaining({ center: position }));
+    expect(deps.getLocation).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('location')).not.toBeInTheDocument();
+  });
+
   it('Key 错误显示错误提示和前往设置按钮', async () => {
     const deps = dependencies();
     deps.searchRestaurants.mockRejectedValueOnce(new AmapSearchError('INVALID_CONFIG', 'Key 无效'));
     renderNearby(deps);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Key 无效');
+    expect(screen.getByText('本次搜索失败，请检查配置或更换位置后重试。')).toBeInTheDocument();
+    expect(screen.queryByText(/保留上次结果/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '前往设置' })).toBeInTheDocument();
   });
 
