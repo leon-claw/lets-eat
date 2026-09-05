@@ -5,9 +5,11 @@ import {
   saveDisplayName,
 } from './home-model';
 import { createShareConfig } from '../../shared/share-config';
+import { BUILD_LABEL } from '../../config/build-info';
 
 interface HomePageData {
   displayName: string;
+  buildLabel: string;
   toastMessage: string;
   toastVisible: boolean;
 }
@@ -32,6 +34,7 @@ Page<HomePageData, HomePageMethods>({
 
   data: {
     displayName: '',
+    buildLabel: BUILD_LABEL,
     toastMessage: '',
     toastVisible: false,
   },

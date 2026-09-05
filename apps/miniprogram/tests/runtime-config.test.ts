@@ -3,9 +3,9 @@ import { API_BASE_URL } from '../src/config/runtime';
 import { getWebSocketUrl } from '../src/adapters/wx-realtime';
 
 describe('mini program runtime API configuration', () => {
-  it('uses the local API origin and lets adapters append /api routes', () => {
-    expect(API_BASE_URL).toBe('http://192.168.0.115:3001');
+  it('uses the production API origin and derives its secure websocket URL', () => {
+    expect(API_BASE_URL).toBe('https://lets-eat.jianghong.site');
     expect(API_BASE_URL).not.toMatch(/\/$/);
-    expect(getWebSocketUrl(API_BASE_URL)).toBe('ws://192.168.0.115:3001/ws');
+    expect(getWebSocketUrl(API_BASE_URL)).toBe('wss://lets-eat.jianghong.site/ws');
   });
 });

@@ -21,6 +21,7 @@ interface RoomPageDefinition {
   data: Record<string, unknown>;
   applyRoom(room: RoomSnapshotFixture): void;
   refreshRoom(): void;
+  connectRealtime(): void;
   onDatasetTap(event: { currentTarget: { dataset: { dataset?: string } } }): void;
 }
 
@@ -59,6 +60,7 @@ async function registerRoomPage(overrides: {
   changeRoomDataset?: ReturnType<typeof vi.fn>;
 } = {}) {
   let pageDefinition: RoomPageDefinition | undefined;
+  let realtimeStaleHandler: ((state: { room: boolean; round: boolean; reconnected: boolean }) => void) | undefined;
   const getRoom = overrides.getRoom ?? vi.fn();
   const changeRoomDataset = overrides.changeRoomDataset ?? vi.fn();
 
@@ -75,7 +77,14 @@ async function registerRoomPage(overrides: {
     startRoomRound: vi.fn(),
   }));
   vi.doMock('../src/adapters/wx-realtime', () => ({
-    createWxRealtimeTransport: vi.fn(() => ({ connect: vi.fn(() => vi.fn()) })),
+    createWxRealtimeTransport: vi.fn(() => ({
+      connect: vi.fn((options: {
+        onStale(state: { room: boolean; round: boolean; reconnected: boolean }): void;
+      }) => {
+        realtimeStaleHandler = options.onStale;
+        return vi.fn();
+      }),
+    })),
   }));
   vi.doMock('../src/adapters/wx-storage', () => ({
     clearRoomReference: vi.fn(),
@@ -107,7 +116,12 @@ async function registerRoomPage(overrides: {
     data: Record<string, unknown>;
     setData(update: Record<string, unknown>): void;
   };
-  return { page, getRoom, changeRoomDataset };
+  return {
+    page,
+    getRoom,
+    changeRoomDataset,
+    getRealtimeStaleHandler: () => realtimeStaleHandler,
+  };
 }
 
 describe('room page synchronization', () => {
@@ -152,6 +166,27 @@ describe('room page synchronization', () => {
     page.refreshRoom();
 
     await vi.waitFor(() => expect(getRoom).toHaveBeenCalledTimes(1));
+  });
+
+  it('shows a newly joined guest as soon as the realtime room event arrives', async () => {
+    const roomAfterGuestJoined = createRoom(1, ['房主', '客人 B']);
+    const getRoom = vi.fn().mockResolvedValue(roomAfterGuestJoined);
+    const { page, getRealtimeStaleHandler } = await registerRoomPage({ getRoom });
+    page.applyRoom(createRoom(0));
+
+    page.connectRealtime();
+    await vi.waitFor(() => expect(getRealtimeStaleHandler()).toBeTypeOf('function'));
+    getRealtimeStaleHandler()?.({ room: true, round: false, reconnected: false });
+
+    await vi.waitFor(() => {
+      expect(page.data.room).toMatchObject({
+        revision: 1,
+        members: [
+          expect.objectContaining({ displayName: '房主' }),
+          expect.objectContaining({ displayName: '客人 B' }),
+        ],
+      });
+    });
   });
 
   it('moves a queued refresh to the newly joined room when the old request finishes late', async () => {
@@ -254,5 +289,78 @@ describe('room page synchronization', () => {
     });
     expect(changeRoomDataset).toHaveBeenNthCalledWith(1, expect.any(String), expect.objectContaining({ revision: 0 }), 'small');
     expect(changeRoomDataset).toHaveBeenNthCalledWith(2, expect.any(String), expect.objectContaining({ revision: 1 }), 'small');
+  });
+
+  it('keeps a dataset change automatic across consecutive room revision conflicts', async () => {
+    const roomAfterFirstGuest = createRoom(1, ['房主', '客人 B']);
+    const roomAfterSecondGuest = createRoom(2, ['房主', '客人 B', '客人 C']);
+    const roomAfterDatasetChanged = {
+      ...roomAfterSecondGuest,
+      selectedDataset: 'small' as const,
+      revision: 3,
+    };
+    const { WxApiError } = await import('../src/adapters/wx-http');
+    const changeRoomDataset = vi.fn()
+      .mockRejectedValueOnce(
+        new WxApiError(
+          409,
+          'ROOM_REVISION_CONFLICT',
+          '房间信息已更新，请刷新后重试',
+          'req-4',
+          roomAfterFirstGuest,
+        ),
+      )
+      .mockRejectedValueOnce(
+        new WxApiError(
+          409,
+          'ROOM_REVISION_CONFLICT',
+          '房间信息已更新，请刷新后重试',
+          'req-5',
+          roomAfterSecondGuest,
+        ),
+      )
+      .mockResolvedValueOnce(roomAfterDatasetChanged);
+    const { page } = await registerRoomPage({ changeRoomDataset });
+    page.applyRoom(createRoom(0));
+    page.setData({ isHost: true });
+
+    page.onDatasetTap({ currentTarget: { dataset: { dataset: 'small' } } });
+
+    await vi.waitFor(() => {
+      expect(page.data.room).toMatchObject({
+        selectedDataset: 'small',
+        revision: 3,
+        members: [
+          expect.objectContaining({ displayName: '房主' }),
+          expect.objectContaining({ displayName: '客人 B' }),
+          expect.objectContaining({ displayName: '客人 C' }),
+        ],
+      });
+    });
+    expect(changeRoomDataset).toHaveBeenCalledTimes(3);
+    expect(page.data.toastVisible).toBe(false);
+  });
+
+  it('silently reconciles the latest room when dataset conflicts keep occurring', async () => {
+    const latestRoom = createRoom(1, ['房主', '客人 B']);
+    const { WxApiError } = await import('../src/adapters/wx-http');
+    const changeRoomDataset = vi.fn().mockRejectedValue(
+      new WxApiError(
+        409,
+        'ROOM_REVISION_CONFLICT',
+        '房间信息已更新，请刷新后重试',
+        'req-persistent-conflict',
+        latestRoom,
+      ),
+    );
+    const { page } = await registerRoomPage({ changeRoomDataset });
+    page.applyRoom(createRoom(0));
+    page.setData({ isHost: true });
+
+    page.onDatasetTap({ currentTarget: { dataset: { dataset: 'small' } } });
+
+    await vi.waitFor(() => expect(page.data.busyAction).toBeNull());
+    expect(page.data.room).toMatchObject({ revision: 1, members: latestRoom.members });
+    expect(page.data.toastVisible).toBe(false);
   });
 });

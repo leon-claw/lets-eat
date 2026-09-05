@@ -35,6 +35,8 @@ type RoomPageStatus = 'loading' | 'waiting' | 'playing' | 'results' | 'error' | 
 type BusyAction = 'create' | 'join' | 'dataset' | 'leave' | 'start' | 'next' | null;
 type ConfirmAction = 'leave' | null;
 
+const DATASET_CHANGE_MAX_ATTEMPTS = 3;
+
 interface RoomPageData {
   sessionId: number;
   status: RoomPageStatus;
@@ -532,7 +534,6 @@ Page<RoomPageData, RoomPageMethods>({
       }
       this.setData({ errorMessage: '', busyAction: null });
       if (!appliedLatest) this.refreshRoom();
-      this.showToast(appliedLatest ? '房间信息已同步，请重试操作' : '房间信息已更新，正在同步');
       return;
     }
     if (cause instanceof WxApiError && isTerminalRoomError(cause.code)) {
@@ -562,27 +563,34 @@ async function changeDatasetWithRevisionRetry(
   room: RoomSnapshot,
   datasetType: RoomDatasetType,
 ): Promise<RoomSnapshot> {
-  try {
-    return await changeRoomDataset(API_BASE_URL, room, datasetType);
-  } catch (cause) {
-    if (!(cause instanceof WxApiError) || cause.code !== 'ROOM_REVISION_CONFLICT') throw cause;
+  let roomForAttempt = room;
+  for (let attempt = 1; attempt <= DATASET_CHANGE_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await changeRoomDataset(API_BASE_URL, roomForAttempt, datasetType);
+    } catch (cause) {
+      if (!(cause instanceof WxApiError) || cause.code !== 'ROOM_REVISION_CONFLICT') throw cause;
 
-    const latestRoom = await loadLatestRoomAfterConflict(cause, room.id);
-    if (
-      latestRoom.status !== 'waiting' ||
-      latestRoom.selectedDataset === datasetType
-    ) {
-      return latestRoom;
+      const latestRoom = await loadLatestRoomAfterConflict(cause, room.id);
+      if (
+        latestRoom.status !== 'waiting' ||
+        latestRoom.selectedDataset === datasetType
+      ) {
+        return latestRoom;
+      }
+      if (attempt === DATASET_CHANGE_MAX_ATTEMPTS) throw cause;
+
+      writeRealtimeLog('info', 'room.dataset.conflict.retrying', {
+        roomId: room.id,
+        attempt,
+        previousRevision: roomForAttempt.revision,
+        latestRevision: latestRoom.revision,
+        datasetType,
+      });
+      roomForAttempt = latestRoom;
     }
-
-    writeRealtimeLog('info', 'room.dataset.conflict.retrying', {
-      roomId: room.id,
-      previousRevision: room.revision,
-      latestRevision: latestRoom.revision,
-      datasetType,
-    });
-    return changeRoomDataset(API_BASE_URL, latestRoom, datasetType);
   }
+
+  return roomForAttempt;
 }
 
 async function loadLatestRoomAfterConflict(cause: WxApiError, roomId: string): Promise<RoomSnapshot> {
