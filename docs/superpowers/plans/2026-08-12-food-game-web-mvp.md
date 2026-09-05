@@ -246,7 +246,7 @@ describe('shared contracts', () => {
   it('rejects a room snapshot that exposes member decisions', () => {
     const hostUserId = crypto.randomUUID();
     const parsed = RoomSnapshotSchema.safeParse({
-      id: crypto.randomUUID(), code: '12345678', status: 'waiting',
+      id: crypto.randomUUID(), code: '1234', status: 'waiting',
       selectedDataset: 'large', revision: 1, currentRoundId: null,
       hostUserId,
       members: [{
@@ -370,7 +370,6 @@ export const CreateRoomRequestSchema = z.object({ displayName: z.string().trim()
 export const JoinRoomRequestSchema = z.object({
   code: z.string().regex(/^\d{8}$/),
   displayName: z.string().trim().min(1).max(24),
-  replaceCurrentRoom: z.boolean().default(false),
 }).strict();
 export const ChangeDatasetRequestSchema = z.object({ datasetType: DatasetTypeSchema, expectedRevision: RevisionSchema }).strict();
 export const StartRoundRequestSchema = z.object({ expectedRoomRevision: RevisionSchema }).strict();
@@ -914,11 +913,11 @@ Expected: FAIL because routes/services do not exist.
 
 - [ ] **Step 2: Implement room creation and eight-digit collision retry**
 
-Generate a cryptographically random integer from `10000000` through `99999999`, try insertion up to 10 times on unique conflict, then return `ROOM_CODE_EXHAUSTED` with 409. In one transaction create the room and host member; before creation, reject users already present in any room with `ALREADY_IN_ROOM`.
+Generate a cryptographically random integer from `1000` through `9999`, try insertion up to 10 times on unique conflict, then return `ROOM_CODE_EXHAUSTED` with 409. In one transaction create the room and host member; before creation, automatically switch users already present in another room.
 
 - [ ] **Step 3: Implement join, replace-current, and membership limits transactionally**
 
-Lock the target room and current members. Validate `waiting` and count `< 8`. For `replaceCurrentRoom: true`, validate the target first, then lock both current and target room IDs in lexical order, delete the caller’s host-owned current room, and join the target in the same transaction. Invalid target code/status leaves the current room unchanged. A guest uses the regular leave route before joining another room.
+Lock the target room and current members. Validate `waiting` and count `< 8`. Validate the target first, then lock both current and target room IDs in lexical order, automatically remove the caller from a guest-owned current room or delete a host-owned current room, and join the target in the same transaction. Invalid target code/status leaves the current room unchanged.
 
 - [ ] **Step 4: Implement reads, dataset revision, guest leave, and host close**
 
@@ -1183,7 +1182,7 @@ The shared `RoomPage` branches on `room.hostUserId === identity.userId`. Host se
 
 - [ ] **Step 4: Implement safe join replacement and return confirmation**
 
-The dialog accepts only `/^\d{8}$/`. Host-to-guest join sends `replaceCurrentRoom: true`; server atomicity prevents losing the current room on invalid target. Confirmed host back/delete closes the room and navigates `/mode`; confirmed guest back/exit leaves and navigates `/mode`. Cancel keeps route and room unchanged.
+The dialog accepts only `/^\d{8}$/`. Joining another room automatically switches away from the current room after target validation; server atomicity prevents losing the current room on invalid target. Confirmed host back/delete closes the room and navigates `/mode`; confirmed guest back/exit leaves and navigates `/mode`. Cancel keeps route and room unchanged.
 
 - [ ] **Step 5: Add start/realtime route transitions and refresh recovery**
 

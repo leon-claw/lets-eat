@@ -37,4 +37,22 @@ describe('wx http adapter', () => {
       requestId: 'req-1',
     });
   });
+
+  it('preserves the latest server snapshot on a revision conflict', async () => {
+    installFakeWx();
+    const latest = { id: 'room-1', revision: 3 };
+    (globalThis as unknown as { wx: { request: (options: Record<string, unknown>) => void } }).wx.request = (options) => {
+      (options.success as (response: unknown) => void)({
+        statusCode: 409,
+        data: {
+          code: 'ROOM_REVISION_CONFLICT',
+          message: '房间信息已更新',
+          requestId: 'req-2',
+          latest,
+        },
+      });
+    };
+
+    await expect(requestJson('http://localhost:3001', '/api/test')).rejects.toMatchObject({ latest });
+  });
 });

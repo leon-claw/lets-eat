@@ -13,4 +13,9 @@ describe('home page brand logo', () => {
     expect(homeMarkup).toContain('aria-label="今天吃什么 Logo"');
     expect(homeMarkup).not.toContain('>🍜</');
   });
+
+  it('renders the fixed build label at the bottom of the page', () => {
+    expect(homeMarkup).toContain('class="build-info"');
+    expect(homeMarkup).toContain('{{buildLabel}}');
+  });
 });

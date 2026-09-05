@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { beforeAll, afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { createApp } from '../app.js';
 import { TokenService } from '../auth/token-service.js';
@@ -8,6 +8,7 @@ import { CatalogService } from '../catalog/catalog-service.js';
 import { idempotencyRecords, roomMembers, rooms } from '../db/schema.js';
 import { createTestDatabase, closeTestDatabase } from '../test/database.js';
 import { RoomService } from './room-service.js';
+import type { RealtimeHub } from '../realtime/realtime-hub.js';
 
 describe('room HTTP routes', () => {
   let database: Awaited<ReturnType<typeof createTestDatabase>>;
@@ -25,7 +26,7 @@ describe('room HTTP routes', () => {
       catalogService,
       pool: database.pool,
       tokenService: tokens,
-      roomService: new RoomService({ db: database.db, catalogService, codeGenerator: () => '12345678' }),
+      roomService: new RoomService({ db: database.db, catalogService, codeGenerator: () => '1234' }),
     });
   });
 
@@ -117,6 +118,90 @@ describe('room HTTP routes', () => {
       .send({ datasetType: 'large', expectedRevision: 2 })
       .expect(403);
     expect(guestChange.body.code).toBe('HOST_ONLY');
+  });
+
+  it('automatically closes the current room when the host creates another room', async () => {
+    if (!database) return;
+    let nextCode = 0;
+    const switchApp = createApp({
+      catalogService,
+      pool: database.pool,
+      tokenService: tokens,
+      roomService: new RoomService({
+        db: database.db,
+        catalogService,
+        codeGenerator: () => `200${++nextCode}`,
+      }),
+    });
+    const host = await tokens.issue();
+    const guest = await tokens.issue();
+    const oldRoom = await request(switchApp)
+      .post('/api/rooms')
+      .set('authorization', `Bearer ${host.token}`)
+      .send({ displayName: '旧房主' })
+      .expect(201);
+    await request(switchApp)
+      .post('/api/rooms/join')
+      .set('authorization', `Bearer ${guest.token}`)
+      .send({ code: oldRoom.body.room.code, displayName: '旧客人' })
+      .expect(200);
+
+    const newRoom = await request(switchApp)
+      .post('/api/rooms')
+      .set('authorization', `Bearer ${host.token}`)
+      .send({ displayName: '新房主' })
+      .expect(201);
+
+    expect(newRoom.body.room.id).not.toBe(oldRoom.body.room.id);
+    await request(switchApp)
+      .get(`/api/rooms/${oldRoom.body.room.id}`)
+      .set('authorization', `Bearer ${guest.token}`)
+      .expect(404);
+    await request(switchApp)
+      .get('/api/me/room')
+      .set('authorization', `Bearer ${host.token}`)
+      .expect(200)
+      .expect((response) => expect(response.body.room.id).toBe(newRoom.body.room.id));
+  });
+
+  it('notifies old room members when an automatic host switch closes their room', async () => {
+    if (!database) return;
+    let nextCode = 0;
+    const publish = vi.fn();
+    const switchApp = createApp({
+      catalogService,
+      pool: database.pool,
+      tokenService: tokens,
+      realtimeHub: { publish } as unknown as RealtimeHub,
+      roomService: new RoomService({
+        db: database.db,
+        catalogService,
+        codeGenerator: () => `210${++nextCode}`,
+      }),
+    });
+    const host = await tokens.issue();
+    const guest = await tokens.issue();
+    const oldRoom = await request(switchApp)
+      .post('/api/rooms')
+      .set('authorization', `Bearer ${host.token}`)
+      .send({ displayName: '旧房主' })
+      .expect(201);
+    await request(switchApp)
+      .post('/api/rooms/join')
+      .set('authorization', `Bearer ${guest.token}`)
+      .send({ code: oldRoom.body.room.code, displayName: '旧客人' })
+      .expect(200);
+
+    await request(switchApp)
+      .post('/api/rooms')
+      .set('authorization', `Bearer ${host.token}`)
+      .send({ displayName: '新房主' })
+      .expect(201);
+
+    expect(publish).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'room.closed',
+      roomId: oldRoom.body.room.id,
+    }));
   });
 
   it('freezes and returns the host custom catalog at room entry', async () => {

@@ -38,6 +38,8 @@ import {
   type StoredSingleRound,
 } from './single-round-storage';
 import { MULTIPLAYER_ROUND_STORAGE_KEY_PREFIX } from './multiplayer-round-storage';
+import { createShareConfig } from '../../shared/share-config';
+import { writeRealtimeLog } from '../../shared/realtime-logger';
 
 type PageStatus = 'loading' | 'choosing' | 'syncing' | 'waiting' | 'empty' | 'error' | 'completed';
 type GameMode = 'single' | 'multiplayer';
@@ -125,6 +127,11 @@ const multiplayerDecisionQueue = new DecisionQueue(
 );
 let multiplayerRealtimeStop: (() => void) | null = null;
 let multiplayerRealtimeConnectInFlight = false;
+let multiplayerRealtimeConnectionAttempt = 0;
+let multiplayerRealtimeRevisions = { roomRevision: 0, roundRevision: 0 };
+let multiplayerRefreshInFlight = false;
+let multiplayerRefreshQueued = false;
+let multiplayerPageSessionId = 0;
 let pendingDecisionWrites: Promise<void>[] = [];
 let multiplayerCompletionInFlight = false;
 let multiplayerLoadToken = 0;
@@ -141,6 +148,8 @@ let entryTimer: ReturnType<typeof setTimeout> | null = null;
 let loadToken = 0;
 
 Page<GamePageData, GamePageMethods>({
+  ...createShareConfig(),
+
   data: {
     mode: 'single',
     roundId: '',
@@ -165,14 +174,18 @@ Page<GamePageData, GamePageMethods>({
   },
 
   onLoad(options) {
+    this.disconnectMultiplayerRealtime();
+    multiplayerPageSessionId += 1;
     gameMode = options?.roundId ? 'multiplayer' : 'single';
     roundId = options?.roundId ?? '';
     multiplayerRound = null;
     multiplayerSelection = null;
+    multiplayerRealtimeRevisions = { roomRevision: 0, roundRevision: 0 };
+    multiplayerRefreshInFlight = false;
+    multiplayerRefreshQueued = false;
     pendingDecisionWrites = [];
     multiplayerCompletionInFlight = false;
     navigatedResultRoundId = '';
-    this.disconnectMultiplayerRealtime();
     gameState = null;
     this.setData({ mode: gameMode, roundId: options?.roundId ?? '' });
     if (gameMode === 'multiplayer' && options?.roundId) {
@@ -196,6 +209,10 @@ Page<GamePageData, GamePageMethods>({
   },
 
   onUnload() {
+    multiplayerPageSessionId += 1;
+    multiplayerLoadToken += 1;
+    multiplayerRefreshInFlight = false;
+    multiplayerRefreshQueued = false;
     this.disconnectMultiplayerRealtime();
     if (decisionTimer) clearTimeout(decisionTimer);
     if (entryTimer) clearTimeout(entryTimer);
@@ -249,6 +266,7 @@ Page<GamePageData, GamePageMethods>({
         if (currentLoadToken !== multiplayerLoadToken) return;
         const restored = restoreMultiplayerState(selection, snapshot, roundId);
         multiplayerRound = snapshot;
+        multiplayerRealtimeRevisions.roundRevision = snapshot.revision;
         multiplayerSelection = selection;
         this.connectMultiplayerRealtime();
         void multiplayerDecisionQueue.flush(roundId).catch((cause) => console.warn('恢复多人决定失败', cause));
@@ -283,6 +301,7 @@ Page<GamePageData, GamePageMethods>({
       })
       .catch((cause: unknown) => {
         if (currentLoadToken !== multiplayerLoadToken) return;
+        writeRealtimeLog('error', 'game.round.load.failed', { roundId, message: cause instanceof Error ? cause.message : 'unknown error' });
         console.error('加载多人轮次失败', cause);
         multiplayerRound = null;
         multiplayerSelection = null;
@@ -301,53 +320,98 @@ Page<GamePageData, GamePageMethods>({
 
   refreshMultiplayerRound() {
     if (gameMode !== 'multiplayer' || !roundId || !multiplayerRound) return;
+    if (multiplayerRefreshInFlight) {
+      multiplayerRefreshQueued = true;
+      return;
+    }
+    const currentPageSessionId = multiplayerPageSessionId;
+    const currentRoundId = roundId;
+    multiplayerRefreshInFlight = true;
+    multiplayerRefreshQueued = false;
     void getRound(API_BASE_URL, roundId)
       .then((snapshot) => {
+        if (currentPageSessionId !== multiplayerPageSessionId || currentRoundId !== roundId) return;
         multiplayerRound = snapshot;
+        multiplayerRealtimeRevisions.roundRevision = snapshot.revision;
         this.syncMultiplayerMembers(snapshot);
         if (snapshot.status === 'completed') {
+          multiplayerRefreshQueued = false;
           this.disconnectMultiplayerRealtime();
           this.setData({ status: 'completed' });
-          navigateToMultiplayerResult(roundId);
+          navigateToMultiplayerResult(currentRoundId);
           return;
         }
         const self = snapshot.members.find((member) => member.isSelf);
         if (self?.status === 'completed') {
           this.setData({ status: 'waiting' });
-          this.disconnectMultiplayerRealtime();
-          this.connectMultiplayerRealtime();
-          return;
         }
-        this.disconnectMultiplayerRealtime();
-        this.loadMultiplayerRound();
       })
       .catch((cause: unknown) => {
+        if (currentPageSessionId !== multiplayerPageSessionId || currentRoundId !== roundId) return;
+        writeRealtimeLog('error', 'game.round.refresh.failed', { roundId: currentRoundId, message: cause instanceof Error ? cause.message : 'unknown error' });
         console.warn('刷新多人轮次失败', cause);
+      })
+      .finally(() => {
+        if (currentPageSessionId !== multiplayerPageSessionId || currentRoundId !== roundId) return;
+        multiplayerRefreshInFlight = false;
+        if (multiplayerRefreshQueued && navigatedResultRoundId !== currentRoundId) {
+          multiplayerRefreshQueued = false;
+          this.refreshMultiplayerRound();
+        }
       });
   },
 
   connectMultiplayerRealtime() {
     if (!multiplayerRound || multiplayerRealtimeStop || multiplayerRealtimeConnectInFlight) return;
+    const currentPageSessionId = multiplayerPageSessionId;
+    const currentRoundId = roundId;
+    const connectionAttempt = ++multiplayerRealtimeConnectionAttempt;
     multiplayerRealtimeConnectInFlight = true;
     void getRoomIdentity(API_BASE_URL)
       .then((identity) => {
-        if (!multiplayerRound) return;
+        if (
+          currentPageSessionId !== multiplayerPageSessionId ||
+          currentRoundId !== roundId ||
+          connectionAttempt !== multiplayerRealtimeConnectionAttempt ||
+          !multiplayerRound
+        ) {
+          writeRealtimeLog('warn', 'game.realtime.connect.aborted', {
+            reason: 'page-or-round-changed-before-identity',
+            roundId: currentRoundId,
+          });
+          return;
+        }
         multiplayerRealtimeStop = createWxRealtimeTransport(API_BASE_URL).connect({
           token: identity.token,
           roomId: multiplayerRound.roomId,
-          revisions: { roomRevision: 0, roundRevision: multiplayerRound.revision },
+          revisions: multiplayerRealtimeRevisions,
           onStale: (state) => {
+            writeRealtimeLog('info', 'game.realtime.stale', {
+              roundId,
+              room: state.room,
+              round: state.round,
+              reconnected: state.reconnected,
+            });
             if (state.room || state.round || state.reconnected) this.refreshMultiplayerRound();
           },
         });
       })
-      .catch((cause) => console.warn('多人游戏实时连接失败', cause))
+      .catch((cause) => {
+        if (connectionAttempt !== multiplayerRealtimeConnectionAttempt) return;
+        writeRealtimeLog('error', 'game.realtime.connect.failed', { roundId: currentRoundId, message: cause instanceof Error ? cause.message : 'unknown error' });
+        console.warn('多人游戏实时连接失败', cause);
+      })
       .finally(() => {
-        multiplayerRealtimeConnectInFlight = false;
+        if (connectionAttempt === multiplayerRealtimeConnectionAttempt) {
+          multiplayerRealtimeConnectInFlight = false;
+        }
       });
   },
 
   disconnectMultiplayerRealtime() {
+    multiplayerRealtimeConnectionAttempt += 1;
+    multiplayerRealtimeConnectInFlight = false;
+    if (multiplayerRealtimeStop) writeRealtimeLog('info', 'game.realtime.disconnect.started', { roundId });
     multiplayerRealtimeStop?.();
     multiplayerRealtimeStop = null;
   },
@@ -375,6 +439,7 @@ Page<GamePageData, GamePageMethods>({
       .then(() => completeRound(API_BASE_URL, multiplayerRound!))
       .then((snapshot) => {
         multiplayerRound = snapshot;
+        multiplayerRealtimeRevisions.roundRevision = snapshot.revision;
         this.syncMultiplayerMembers(snapshot);
         if (snapshot.status === 'completed') {
           this.disconnectMultiplayerRealtime();

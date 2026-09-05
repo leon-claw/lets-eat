@@ -15,6 +15,7 @@ services:
     restart: unless-stopped
 
   api:
+    image: lets-eat-api:${API_IMAGE_TAG:-local}
     build:
       context: .
       dockerfile: apps/api/Dockerfile

@@ -12,6 +12,31 @@
 
 生产环境需要一键启动 PostgreSQL、API 和 Web 时，请使用：[Agent 后端部署手册](docs/AGENT-BACKEND-DEPLOYMENT.md)。
 
+使用 GitHub Release 中的预构建 API 镜像部署或回滚时，请使用：[Agent Release 镜像部署手册](docs/AGENT-RELEASE-IMAGE-DEPLOYMENT.md)。
+
+在 Apple Silicon Mac mini 上保留现有 Homebrew PostgreSQL、仅将 API 改为 Docker 容器时，请使用：[Agent Mac mini API 部署手册](docs/AGENT-MAC-MINI-API-DEPLOYMENT.md)。
+
+### 当前生产方案摘要
+
+当前 Mac mini M5 使用 `arm64` 架构，生产环境保留 Homebrew PostgreSQL、Cloudflare/反向代理和宿主机 `3002` 端口，只将 API 进程替换为 Docker 容器。当前可部署镜像为：
+
+```text
+Release：api-v0.2.0-test.2
+镜像：lets-eat-api:0.2.0-test.2
+平台：linux/arm64
+```
+
+部署顺序如下，完整命令和回滚步骤见 [Agent Mac mini API 部署手册](docs/AGENT-MAC-MINI-API-DEPLOYMENT.md)：
+
+1. 在服务器确认 `uname -m` 为 `arm64`，Docker Desktop 正常运行，并记录现有 API 的 LaunchAgent Label 和 plist 路径。
+2. 下载 Release 的 ARM64 镜像及 `.sha256` 文件，执行 `shasum -a 256 -c` 校验，再用 `docker load` 导入；必须确认镜像平台为 `linux/arm64`。
+3. 使用现有 `apps/api/.env` 执行 `pg_dump` 备份 Homebrew PostgreSQL；不要启动 `compose.prod.yaml`，也不要创建新的 PostgreSQL volume。
+4. 将容器内的数据库地址从 `localhost` 转换为 `host.docker.internal`，先把镜像映射到 `33002`，完成 migration、`health/live`、`health/ready` 和菜单接口验证。
+5. 验证通过后停止旧 LaunchAgent，使用 `--restart unless-stopped` 启动 `lets-eat-api:0.2.0-test.2`，将容器 `3001` 映射到宿主机 `127.0.0.1:3002`。
+6. 检查本机和公网接口，并用两个真实客户端验证 WebSocket 多人流程。失败时停止容器，使用原 plist 重新 `launchctl bootstrap` 恢复旧 API。
+
+旧的 `api-v0.2.0-test.1` 已废弃，禁止部署或用于回滚。当前没有可部署的 `linux/amd64` Release；其他架构应按 [Agent 后端部署手册](docs/AGENT-BACKEND-DEPLOYMENT.md)从源码构建。
+
 本文档描述当前仓库真实支持的本地开发和生产部署方式。
 
 ## 环境要求
@@ -106,6 +131,44 @@ pnpm test
 # 构建所有可构建 workspace
 pnpm build
 ```
+
+## 小程序长延迟调试
+
+本地复现远程网络延迟时，可以让小程序的 HTTP 和 WebSocket 同时经过 Toxiproxy。代理使用独立端口，不修改 API、Web 或 PostgreSQL 的网络行为。
+
+先正常启动本地服务：
+
+```bash
+pnpm dev:stack
+```
+
+然后在另一个终端开启延迟代理：
+
+```bash
+pnpm latency:on
+```
+
+首次使用会通过 Docker Compose 下载并启动 Toxiproxy。默认同时添加上行和下行 `1200ms ± 300ms` 延迟。需要自定义延迟和抖动时，把毫秒值作为参数传入：
+
+```bash
+pnpm latency:on -- 2000 500
+```
+
+小程序本地调试地址需要配置为当前电脑的局域网 IP 和代理端口，例如：
+
+```ts
+export const API_BASE_URL = 'http://192.168.0.115:3002';
+```
+
+修改小程序地址后需要重新构建一次；之后开启或关闭延迟不需要再次构建：
+
+```bash
+pnpm latency:on       # 开启双向延迟
+pnpm latency:off      # 删除延迟，3002 继续透明转发到 3001
+pnpm latency:status   # 查看当前代理和延迟状态
+```
+
+只有访问 `3002` 的客户端会经过代理。直接访问 API `3001`、Web `3000` 和 PostgreSQL `5432` 都不受影响。Toxiproxy 的管理端口 `8474` 只绑定在本机，局域网设备不能修改延迟规则。
 
 ## 配置文件
 

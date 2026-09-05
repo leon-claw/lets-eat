@@ -122,7 +122,7 @@ type CustomCatalogSnapshot = {
 
 `rooms`
 
-- `id`、唯一 8 位数字 `code`、`host_user_id`。
+- `id`、唯一 4 位数字 `code`、`host_user_id`。
 - `selected_dataset`，默认 `large`，允许 `large | small | custom`。
 - `custom_catalog`，可空 JSONB，保存创建房间时冻结的 `CustomCatalogSnapshot`。
 - `status`: `waiting | playing | results`。
@@ -131,7 +131,7 @@ type CustomCatalogSnapshot = {
 `room_members`
 
 - `id`、`room_id`、`user_id`、`display_name`、`role`、`joined_at`。
-- `(room_id, user_id)` 唯一；一个用户同时最多属于一个未关闭房间。
+- `(room_id, user_id)` 唯一；一个用户同时最多属于一个有效房间。创建或加入新房间时，服务端自动清理该用户的旧房间关系。
 
 `rounds`
 
@@ -164,10 +164,11 @@ type CustomCatalogSnapshot = {
 
 ### 6.2 房间生命周期
 
-- 创建房间时生成 8 位数字房间号，冲突则重试。
+- 创建房间时生成 4 位数字房间号，冲突则重试。
 - 创建房间时读取并校验房主本地自定义配置；配置通过后冻结到房间。没有合法配置不影响创建房间，但 `custom` 选项不可用。
 - 房间最多 8 人（含房主），满员后拒绝加入。
 - 房主断线不转让房主身份。
+- 创建或加入新房间时，服务端先校验目标房间，再在同一事务中自动切换旧房间；旧身份为客人时删除成员关系，旧身份为房主时删除旧房间并级联清理其业务数据。
 - 房主主动关闭房间时立即级联删除房间业务数据。
 - 连续 24 小时无业务操作的房间由清理任务删除。
 - 一轮结束后房间进入 `results`，保留当前轮次供所有轮次成员查看冻结结果；结果状态不允许新成员加入。
@@ -278,7 +279,7 @@ GET    /api/rounds/:roundId/result
 POST   /api/rooms/:roomId/open-next-round
 ```
 
-`POST /api/rooms` 的请求可以携带完整 `customCatalog`；服务端只在创建房间时接受该字段。`PATCH /dataset` 只修改 `large`、`small` 或 `custom` 选择，不接受自定义 ID 列表。`POST /rooms/join` 的入口响应返回完整房间自定义快照；`GET /rooms/:roomId/custom-catalog` 仅供刷新恢复或本地 Hash 缺失时读取。开始轮次接口从房间快照读取自定义菜品，不接受客户端二次替换。
+`POST /api/rooms` 的请求可以携带完整 `customCatalog`；服务端只在创建房间时接受该字段，并自动切换当前身份已有的房间。`PATCH /dataset` 只修改 `large`、`small` 或 `custom` 选择，不接受自定义 ID 列表。`POST /rooms/join` 的入口响应返回完整房间自定义快照，并自动切换当前身份已有的房间；`GET /rooms/:roomId/custom-catalog` 仅供刷新恢复或本地 Hash 缺失时读取。开始轮次接口从房间快照读取自定义菜品，不接受客户端二次替换。
 
 常规房间状态响应包含 `customSelectionHash` 和 `customItemCount`，不重复返回完整 `itemIds`。自定义快照只对房间成员可读。
 
@@ -339,7 +340,8 @@ WebSocket 地址为 `/ws`。连接建立后客户端先认证并订阅当前房�
 - `backup` 服务每天执行一次 `pg_dump`，写入宿主机 `backups/`。
 - 只保留最近 7 份成功备份；`backups/` 加入 `.gitignore`。
 - 备份失败必须写错误日志且不得删除最后一份成功备份。
-- 定时清理 24 小时无业务活动的房间和过期幂等记录。
+- API 进程启动后立即执行一次房间清理，之后每小时执行一次；使用单条原子删除语句清理 `last_activity_at` 严格早于 24 小时截止点的房间，并通过外键级联删除成员、轮次和选择。清理失败只记录错误，不中止 API；删除后向仍在线的成员广播 `room.closed`。
+- 定时清理过期幂等记录。
 - 迁移云端时先停止写入，创建最终备份，在新 PostgreSQL 恢复后执行迁移校验，再切换域名。
 
 ## 14. 测试策略

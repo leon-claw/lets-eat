@@ -33,7 +33,7 @@ export const RoomMemberSchema = z.object({
 
 export const RoomSnapshotSchema = z.object({
   id: UuidSchema,
-  code: z.string().regex(/^\d{8}$/),
+  code: z.string().regex(/^\d{4}$/),
   hostUserId: UuidSchema,
   selectedDataset: RoomDatasetTypeSchema,
   customCatalog: CustomCatalogSummarySchema.nullable().default(null),
@@ -53,9 +53,8 @@ export const CreateRoomRequestSchema = z.object({
 }).strict();
 
 export const JoinRoomRequestSchema = z.object({
-  code: z.string().regex(/^\d{8}$/),
+  code: z.string().regex(/^\d{4}$/),
   displayName: z.string().trim().min(1).max(24),
-  replaceCurrentRoom: z.boolean().default(false),
 }).strict();
 
 export const ChangeDatasetRequestSchema = z.object({

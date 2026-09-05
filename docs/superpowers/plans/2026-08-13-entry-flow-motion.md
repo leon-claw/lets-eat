@@ -371,13 +371,13 @@ it('renders the modal motion hooks and preserves the input while joining', async
   render(<JoinRoomDialog open displayName="小明" onJoin={onJoin} onClose={vi.fn()} />);
 
   const input = screen.getByLabelText('房间号');
-  await user.type(input, '12345678');
+  await user.type(input, '1234');
   await user.click(screen.getByRole('button', { name: '加入' }));
 
   expect(screen.getByRole('dialog')).toHaveClass('dialog-backdrop');
   expect(screen.getByTestId('join-room-dialog-panel')).toHaveClass('dialog-panel');
   expect(screen.getByRole('button', { name: '正在加入…' })).toHaveAttribute('aria-busy', 'true');
-  expect(input).toHaveValue('12345678');
+  expect(input).toHaveValue('1234');
 
   resolveJoin();
 });

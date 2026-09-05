@@ -4,9 +4,12 @@ import {
   loadOrCreateDisplayName,
   saveDisplayName,
 } from './home-model';
+import { createShareConfig } from '../../shared/share-config';
+import { BUILD_LABEL } from '../../config/build-info';
 
 interface HomePageData {
   displayName: string;
+  buildLabel: string;
   toastMessage: string;
   toastVisible: boolean;
 }
@@ -27,8 +30,11 @@ interface HomePageMethods {
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
 Page<HomePageData, HomePageMethods>({
+  ...createShareConfig(),
+
   data: {
     displayName: '',
+    buildLabel: BUILD_LABEL,
     toastMessage: '',
     toastVisible: false,
   },

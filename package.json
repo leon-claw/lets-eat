@@ -13,7 +13,12 @@
     "dev:stack": "bash scripts/dev-stack.sh",
     "build": "pnpm -r --workspace-concurrency=1 build",
     "lint": "pnpm -r --workspace-concurrency=1 lint",
-    "test": "pnpm -r --workspace-concurrency=1 test",
+    "test": "pnpm test:latency && pnpm test:workspaces",
+    "test:latency": "node --test scripts/network-latency.test.mjs",
+    "test:workspaces": "pnpm -r --workspace-concurrency=1 test",
+    "latency:on": "node scripts/network-latency.mjs on",
+    "latency:off": "node scripts/network-latency.mjs off",
+    "latency:status": "node scripts/network-latency.mjs status",
     "db:up": "docker compose up -d postgres",
     "db:test:up": "docker compose --profile test up -d postgres-test"
   },

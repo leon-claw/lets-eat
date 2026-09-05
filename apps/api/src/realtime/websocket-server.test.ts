@@ -33,7 +33,7 @@ describe('authenticated WebSocket server', () => {
     await database.db.delete(idempotencyRecords);
     await database.db.delete(roomMembers);
     await database.db.delete(rooms);
-    roomService = new RoomService({ db: database.db, codeGenerator: () => '12345678' });
+    roomService = new RoomService({ db: database.db, codeGenerator: () => '1234' });
     server = createServer();
     handle = attachWebSocketServer({ httpServer: server, tokenService, roomService, authTimeoutMs: 35, heartbeatMs: 60_000 });
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));

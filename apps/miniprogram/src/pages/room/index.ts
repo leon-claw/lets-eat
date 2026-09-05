@@ -7,6 +7,7 @@ import {
   joinRoom,
   leaveRoom,
   openNextRoomRound,
+  parseRoomSnapshot,
   startRoomRound,
 } from '../../adapters/wx-room';
 import { WxApiError } from '../../adapters/wx-http';
@@ -27,12 +28,17 @@ import {
   type RoomDatasetType,
   type RoomSnapshot,
 } from './room-model';
+import { createShareConfig } from '../../shared/share-config';
+import { writeRealtimeLog } from '../../shared/realtime-logger';
 
 type RoomPageStatus = 'loading' | 'waiting' | 'playing' | 'results' | 'error' | 'closed';
 type BusyAction = 'create' | 'join' | 'dataset' | 'leave' | 'start' | 'next' | null;
 type ConfirmAction = 'leave' | null;
 
+const DATASET_CHANGE_MAX_ATTEMPTS = 3;
+
 interface RoomPageData {
+  sessionId: number;
   status: RoomPageStatus;
   room: RoomSnapshot | null;
   roomCode: string;
@@ -95,13 +101,20 @@ interface DatasetEventLike {
 let identityUserId = '';
 let currentRoom: RoomSnapshot | null = null;
 let pollInFlight = false;
+let refreshPendingRoomId: string | null = null;
+let roomSessionId = 0;
+let realtimeRevisions = { roomRevision: 0 };
 let realtimeStop: (() => void) | null = null;
 let realtimeConnectInFlight = false;
+let realtimeConnectionAttempt = 0;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 let navigatedRoundId = '';
 
 Page<RoomPageData, RoomPageMethods>({
+  ...createShareConfig(),
+
   data: {
+    sessionId: 0,
     status: 'loading',
     room: null,
     roomCode: '',
@@ -124,8 +137,18 @@ Page<RoomPageData, RoomPageMethods>({
   },
 
   onLoad() {
+    this.disconnectRealtime();
+    roomSessionId += 1;
+    identityUserId = '';
+    currentRoom = null;
+    pollInFlight = false;
+    refreshPendingRoomId = null;
+    realtimeRevisions = { roomRevision: 0 };
     navigatedRoundId = '';
-    this.setData({ displayName: loadOrCreateDisplayName(createWxDisplayNameStorage()) });
+    this.setData({
+      sessionId: roomSessionId,
+      displayName: loadOrCreateDisplayName(createWxDisplayNameStorage()),
+    });
     this.restoreRoom();
   },
 
@@ -142,22 +165,34 @@ Page<RoomPageData, RoomPageMethods>({
 
   onUnload() {
     this.disconnectRealtime();
+    if (this.data.sessionId === roomSessionId) {
+      roomSessionId += 1;
+      identityUserId = '';
+      currentRoom = null;
+      pollInFlight = false;
+      refreshPendingRoomId = null;
+      realtimeRevisions = { roomRevision: 0 };
+    }
     if (toastTimer) clearTimeout(toastTimer);
     toastTimer = null;
   },
 
   restoreRoom() {
+    const sessionId = this.data.sessionId;
     this.setData({ status: 'loading', errorMessage: '' });
     void (async () => {
       try {
         const identity = await getRoomIdentity(API_BASE_URL);
+        if (sessionId !== roomSessionId) return;
         identityUserId = identity.userId;
         this.setData({ userId: identity.userId });
         const storedRoomId = readRoomReference();
         if (storedRoomId) {
           try {
             const room = await getRoom(API_BASE_URL, storedRoomId);
+            if (sessionId !== roomSessionId) return;
             if (room.members.some((member) => member.userId === identityUserId)) {
+              writeRealtimeLog('info', 'room.restore.found', { roomId: room.id, status: room.status, roomRevision: room.revision });
               this.applyRoom(room);
               this.connectRealtime();
               return;
@@ -170,54 +205,108 @@ Page<RoomPageData, RoomPageMethods>({
 
         this.setData({ busyAction: 'create' });
         const room = await createRoom(API_BASE_URL, this.data.displayName);
+        if (sessionId !== roomSessionId) return;
         saveRoomReference(room.id);
         this.applyRoom(room);
         this.connectRealtime();
       } catch (cause) {
+        if (sessionId !== roomSessionId) return;
+        writeRealtimeLog('error', 'room.restore.failed', { message: cause instanceof Error ? cause.message : 'unknown error' });
         this.handleError(cause);
       } finally {
-        this.setData({ busyAction: null });
+        if (sessionId === roomSessionId) this.setData({ busyAction: null });
       }
     })();
   },
 
   refreshRoom() {
-    if (!currentRoom || pollInFlight || this.data.busyAction) return;
+    if (!currentRoom || this.data.sessionId !== roomSessionId) return;
+    refreshPendingRoomId = currentRoom.id;
+    if (pollInFlight) {
+      writeRealtimeLog('info', 'room.refresh.queued', { roomId: currentRoom.id });
+      return;
+    }
+
+    const sessionId = this.data.sessionId;
+    const roomId = currentRoom.id;
+    refreshPendingRoomId = null;
     pollInFlight = true;
-    void getRoom(API_BASE_URL, currentRoom.id)
+    writeRealtimeLog('info', 'room.refresh.started', { roomId, roomRevision: currentRoom.revision });
+    void getRoom(API_BASE_URL, roomId)
       .then((room) => {
-        if (!currentRoom || room.revision !== currentRoom.revision || room.status !== currentRoom.status) {
-          this.applyRoom(room);
+        if (sessionId !== roomSessionId || currentRoom?.id !== roomId) {
+          writeRealtimeLog('warn', 'room.refresh.ignored', {
+            roomId,
+            reason: sessionId !== roomSessionId ? 'page-session-changed' : 'room-changed',
+          });
+          return;
         }
+        writeRealtimeLog('info', 'room.refresh.succeeded', { roomId, roomRevision: room.revision });
+        this.applyRoom(room);
       })
-      .catch((cause: unknown) => this.handleError(cause))
+      .catch((cause: unknown) => {
+        if (sessionId !== roomSessionId || currentRoom?.id !== roomId) return;
+        writeRealtimeLog('error', 'room.refresh.failed', {
+          roomId,
+          message: cause instanceof Error ? cause.message : 'unknown error',
+        });
+        this.handleError(cause);
+      })
       .finally(() => {
+        if (sessionId !== roomSessionId) return;
         pollInFlight = false;
+        if (refreshPendingRoomId && currentRoom?.id === refreshPendingRoomId) this.refreshRoom();
       });
   },
 
   connectRealtime() {
     if (!currentRoom || realtimeStop || realtimeConnectInFlight) return;
+    const sessionId = this.data.sessionId;
+    const roomId = currentRoom.id;
+    const connectionAttempt = ++realtimeConnectionAttempt;
     realtimeConnectInFlight = true;
     void getRoomIdentity(API_BASE_URL)
       .then((identity) => {
-        if (!currentRoom) return;
+        if (
+          sessionId !== roomSessionId ||
+          connectionAttempt !== realtimeConnectionAttempt ||
+          currentRoom?.id !== roomId
+        ) {
+          writeRealtimeLog('warn', 'realtime.connect.aborted', {
+            roomId,
+            reason: sessionId !== roomSessionId ? 'page-session-changed' : 'room-changed-before-identity',
+          });
+          return;
+        }
         realtimeStop = createWxRealtimeTransport(API_BASE_URL).connect({
           token: identity.token,
-          roomId: currentRoom.id,
-          revisions: { roomRevision: currentRoom.revision },
+          roomId,
+          revisions: realtimeRevisions,
           onStale: (state) => {
+            writeRealtimeLog('info', 'realtime.stale', {
+              roomId: currentRoom?.id,
+              room: state.room,
+              round: state.round,
+              reconnected: state.reconnected,
+            });
             if (state.room || state.round || state.reconnected) this.refreshRoom();
           },
         });
       })
-      .catch((cause) => console.warn('房间实时连接失败', cause))
+      .catch((cause) => {
+        if (sessionId !== roomSessionId || connectionAttempt !== realtimeConnectionAttempt) return;
+        writeRealtimeLog('error', 'realtime.connect.failed', { roomId, message: cause instanceof Error ? cause.message : 'unknown error' });
+        console.warn('房间实时连接失败', cause);
+      })
       .finally(() => {
-        realtimeConnectInFlight = false;
+        if (connectionAttempt === realtimeConnectionAttempt) realtimeConnectInFlight = false;
       });
   },
 
   disconnectRealtime() {
+    realtimeConnectionAttempt += 1;
+    realtimeConnectInFlight = false;
+    if (realtimeStop) writeRealtimeLog('info', 'realtime.disconnect.started', { roomId: currentRoom?.id });
     realtimeStop?.();
     realtimeStop = null;
   },
@@ -253,15 +342,16 @@ Page<RoomPageData, RoomPageMethods>({
 
   onJoinSubmit() {
     const code = this.data.joinCode.trim();
-    if (!/^\d{8}$/.test(code)) {
-      this.setData({ joinError: '请输入 8 位数字房间号' });
+    if (!/^\d{4}$/.test(code)) {
+      this.setData({ joinError: '请输入 4 位数字房间号' });
       return;
     }
     this.setData({ busyAction: 'join', joinError: '' });
-    void joinRoom(API_BASE_URL, code, this.data.displayName, this.data.isHost)
+    void joinRoom(API_BASE_URL, code, this.data.displayName)
       .then((room) => {
         saveRoomReference(room.id);
         this.setData({ joinVisible: false });
+        this.disconnectRealtime();
         this.applyRoom(room);
         this.connectRealtime();
       })
@@ -285,8 +375,9 @@ Page<RoomPageData, RoomPageMethods>({
       this.showToast('请先在设置页保存至少 3 道自定义菜品');
       return;
     }
+    const roomAtTap = currentRoom;
     this.setData({ busyAction: 'dataset' });
-    void changeRoomDataset(API_BASE_URL, currentRoom, selected)
+    void changeDatasetWithRevisionRetry(roomAtTap, selected)
       .then((room) => this.applyRoom(room))
       .catch((cause: unknown) => this.handleError(cause))
       .finally(() => this.setData({ busyAction: null }));
@@ -294,13 +385,18 @@ Page<RoomPageData, RoomPageMethods>({
 
   onStartTap() {
     if (!currentRoom || !this.data.isHost || this.data.busyAction) return;
+    writeRealtimeLog('info', 'room.start.sending', { roomId: currentRoom.id, roomRevision: currentRoom.revision });
     this.setData({ busyAction: 'start' });
     void startRoomRound(API_BASE_URL, currentRoom)
       .then((round) => {
+        writeRealtimeLog('info', 'room.start.succeeded', { roomId: currentRoom?.id, roundId: round.id });
         this.setData({ status: 'playing', roundId: round.id });
         navigateToMultiplayerRound(round.id);
       })
-      .catch((cause: unknown) => this.handleError(cause))
+      .catch((cause: unknown) => {
+        writeRealtimeLog('error', 'room.start.failed', { roomId: currentRoom?.id, message: cause instanceof Error ? cause.message : 'unknown error' });
+        this.handleError(cause);
+      })
       .finally(() => this.setData({ busyAction: null }));
   },
 
@@ -322,14 +418,17 @@ Page<RoomPageData, RoomPageMethods>({
     const operation = this.data.isHost
       ? deleteRoom(API_BASE_URL, currentRoom.id)
       : leaveRoom(API_BASE_URL, currentRoom.id);
+    writeRealtimeLog('info', this.data.isHost ? 'room.close.sending' : 'room.leave.sending', { roomId: roomId });
     void operation
       .then(() => {
+        writeRealtimeLog('info', this.data.isHost ? 'room.close.succeeded' : 'room.leave.succeeded', { roomId });
         clearRoomReference();
         currentRoom = null;
         this.disconnectRealtime();
         wx.navigateBack({ delta: 1 });
       })
       .catch((cause: unknown) => {
+        writeRealtimeLog('error', this.data.isHost ? 'room.close.failed' : 'room.leave.failed', { roomId, message: cause instanceof Error ? cause.message : 'unknown error' });
         if (cause instanceof WxApiError && isTerminalRoomError(cause.code)) {
           clearRoomReference();
           clearRoomCustomCatalog(roomId);
@@ -349,6 +448,8 @@ Page<RoomPageData, RoomPageMethods>({
   onBackToMode() {
     if (currentRoom) clearRoomCustomCatalog(currentRoom.id);
     clearRoomReference();
+    this.disconnectRealtime();
+    currentRoom = null;
     navigatedRoundId = '';
     wx.navigateBack({ delta: 1 });
   },
@@ -376,6 +477,21 @@ Page<RoomPageData, RoomPageMethods>({
   },
 
   applyRoom(room: RoomSnapshot) {
+    if (this.data.sessionId !== roomSessionId) return;
+    if (currentRoom?.id === room.id && room.revision < currentRoom.revision) {
+      writeRealtimeLog('warn', 'room.snapshot.ignored', {
+        roomId: room.id,
+        roomRevision: room.revision,
+        currentRoomRevision: currentRoom.revision,
+        reason: 'stale-revision',
+      });
+      return;
+    }
+    if (currentRoom?.id !== room.id) {
+      realtimeRevisions = { roomRevision: room.revision };
+    } else {
+      realtimeRevisions.roomRevision = room.revision;
+    }
     currentRoom = room;
     saveRoomReference(room.id);
     const isHost = identityUserId !== '' && getRoomRole(room, identityUserId) === 'host';
@@ -394,6 +510,32 @@ Page<RoomPageData, RoomPageMethods>({
   },
 
   handleError(cause: unknown) {
+    writeRealtimeLog('error', 'room.error', {
+      roomId: currentRoom?.id,
+      code: cause instanceof WxApiError ? cause.code : undefined,
+      status: cause instanceof WxApiError ? cause.status : undefined,
+      message: cause instanceof Error ? cause.message : 'unknown error',
+    });
+    if (cause instanceof WxApiError && cause.code === 'ROOM_REVISION_CONFLICT') {
+      let appliedLatest = false;
+      if (cause.latest !== undefined) {
+        try {
+          const latestRoom = parseRoomSnapshot(cause.latest);
+          if (!currentRoom || latestRoom.id === currentRoom.id) {
+            this.applyRoom(latestRoom);
+            appliedLatest = true;
+          }
+        } catch (parseError) {
+          writeRealtimeLog('warn', 'room.conflict.latest.invalid', {
+            roomId: currentRoom?.id,
+            message: parseError instanceof Error ? parseError.message : 'unknown error',
+          });
+        }
+      }
+      this.setData({ errorMessage: '', busyAction: null });
+      if (!appliedLatest) this.refreshRoom();
+      return;
+    }
     if (cause instanceof WxApiError && isTerminalRoomError(cause.code)) {
       if (currentRoom) clearRoomCustomCatalog(currentRoom.id);
       clearRoomReference();
@@ -415,4 +557,53 @@ function navigateToMultiplayerRound(roundId: string, force = false): void {
   if (!roundId || (!force && navigatedRoundId === roundId)) return;
   navigatedRoundId = roundId;
   wx.navigateTo({ url: `/pages/game/index?roundId=${roundId}` });
+}
+
+async function changeDatasetWithRevisionRetry(
+  room: RoomSnapshot,
+  datasetType: RoomDatasetType,
+): Promise<RoomSnapshot> {
+  let roomForAttempt = room;
+  for (let attempt = 1; attempt <= DATASET_CHANGE_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await changeRoomDataset(API_BASE_URL, roomForAttempt, datasetType);
+    } catch (cause) {
+      if (!(cause instanceof WxApiError) || cause.code !== 'ROOM_REVISION_CONFLICT') throw cause;
+
+      const latestRoom = await loadLatestRoomAfterConflict(cause, room.id);
+      if (
+        latestRoom.status !== 'waiting' ||
+        latestRoom.selectedDataset === datasetType
+      ) {
+        return latestRoom;
+      }
+      if (attempt === DATASET_CHANGE_MAX_ATTEMPTS) throw cause;
+
+      writeRealtimeLog('info', 'room.dataset.conflict.retrying', {
+        roomId: room.id,
+        attempt,
+        previousRevision: roomForAttempt.revision,
+        latestRevision: latestRoom.revision,
+        datasetType,
+      });
+      roomForAttempt = latestRoom;
+    }
+  }
+
+  return roomForAttempt;
+}
+
+async function loadLatestRoomAfterConflict(cause: WxApiError, roomId: string): Promise<RoomSnapshot> {
+  if (cause.latest !== undefined) {
+    try {
+      const latestRoom = parseRoomSnapshot(cause.latest);
+      if (latestRoom.id === roomId) return latestRoom;
+    } catch (parseError) {
+      writeRealtimeLog('warn', 'room.dataset.conflict.latest.invalid', {
+        roomId,
+        message: parseError instanceof Error ? parseError.message : 'unknown error',
+      });
+    }
+  }
+  return getRoom(API_BASE_URL, roomId);
 }

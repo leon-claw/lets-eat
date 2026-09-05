@@ -13,6 +13,7 @@ export class WxApiError extends Error {
     readonly code: string,
     message: string,
     readonly requestId?: string,
+    readonly latest?: unknown,
   ) {
     super(message);
     this.name = 'WxApiError';
@@ -52,6 +53,7 @@ export function requestJson<T = unknown>(
             typeof payload.code === 'string' ? payload.code : 'HTTP_ERROR',
             typeof payload.message === 'string' ? payload.message : `请求失败（${status}）`,
             typeof payload.requestId === 'string' ? payload.requestId : requestId,
+            payload.latest,
           ));
           return;
         }

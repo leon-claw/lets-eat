@@ -40,7 +40,7 @@ export class RoomService {
   constructor(private readonly options: RoomServiceOptions) {
     this.idempotency = options.idempotency ?? new IdempotencyService(options.db, options.now);
     this.now = options.now ?? (() => new Date());
-    this.codeGenerator = options.codeGenerator ?? (() => String(randomInt(10_000_000, 100_000_000)));
+    this.codeGenerator = options.codeGenerator ?? generateRoomCode;
   }
 
   async createRoom(actorUserId: string, input: CreateRoomRequest, idempotencyKey?: string): Promise<RoomSnapshot> {
@@ -63,11 +63,15 @@ export class RoomService {
           }
 
           const [currentMembership] = await tx
-            .select({ id: roomMembers.id })
+            .select()
             .from(roomMembers)
             .where(eq(roomMembers.userId, actorUserId))
+            .for('update')
             .limit(1);
-          if (currentMembership) throw new ApiError(409, 'ALREADY_IN_ROOM', '当前用户已经在一个房间中');
+          if (currentMembership) {
+            const currentRoom = await this.lockRoom(tx, currentMembership.roomId);
+            await this.releaseCurrentMembership(tx, currentRoom, currentMembership);
+          }
 
           const [room] = await tx.insert(rooms).values({
             code: this.codeGenerator(),
@@ -158,6 +162,7 @@ export class RoomService {
         .select()
         .from(roomMembers)
         .where(eq(roomMembers.userId, actorUserId))
+        .for('update')
         .limit(1);
       const [targetCandidate] = await tx
         .select()
@@ -166,7 +171,6 @@ export class RoomService {
         .limit(1);
       if (!targetCandidate) throw new ApiError(404, 'ROOM_NOT_FOUND', '房间不存在');
       if (currentMembership?.roomId === targetCandidate.id) throw new ApiError(409, 'ALREADY_IN_ROOM', '当前用户已经在这个房间中');
-      if (currentMembership && !input.replaceCurrentRoom) throw new ApiError(409, 'ALREADY_IN_ROOM', '当前用户已经在一个房间中');
 
       const roomIds = [targetCandidate.id, ...(currentMembership ? [currentMembership.roomId] : [])].sort();
       const lockedRooms = await tx
@@ -190,12 +194,7 @@ export class RoomService {
       if (targetMembers.length >= MAX_MEMBERS) throw new ApiError(409, 'ROOM_FULL', '房间已满');
 
       if (currentMembership) {
-        if (currentMembership.role === 'host') {
-          await tx.delete(rooms).where(eq(rooms.id, currentRoom!.id));
-        } else {
-          await tx.delete(roomMembers).where(eq(roomMembers.id, currentMembership.id));
-          await this.touchRoom(tx, currentRoom!.id, currentRoom!.revision + 1);
-        }
+        await this.releaseCurrentMembership(tx, currentRoom!, currentMembership);
       }
 
       await tx.insert(roomMembers).values({
@@ -288,10 +287,31 @@ export class RoomService {
     }).where(eq(rooms.id, roomId));
   }
 
+  private async releaseCurrentMembership(
+    executor: DatabaseExecutor,
+    room: typeof rooms.$inferSelect,
+    member: typeof roomMembers.$inferSelect,
+  ): Promise<void> {
+    if (member.role === 'host') {
+      await executor.delete(rooms).where(eq(rooms.id, room.id));
+      return;
+    }
+
+    const finalized = room.status === 'playing' && this.options.roundLifecycle
+      ? await this.options.roundLifecycle.removeGuestFromActiveRound(executor, room.id, member.id)
+      : false;
+    await executor.delete(roomMembers).where(eq(roomMembers.id, member.id));
+    if (!finalized) await this.touchRoom(executor, room.id, room.revision + 1);
+  }
+
   private replay(existingHash: string, requestHash: string, responseBody: unknown): RoomSnapshot {
     if (existingHash !== requestHash) throw new ApiError(409, 'IDEMPOTENCY_KEY_REUSED', '同一个幂等键不能用于不同请求');
     return responseBody as RoomSnapshot;
   }
+}
+
+export function generateRoomCode(): string {
+  return String(randomInt(1_000, 10_000));
 }
 
 function isUniqueViolation(error: unknown, constraint: string): boolean {

@@ -15,6 +15,7 @@ import type { TokenService } from '../auth/token-service.js';
 import { RoomService } from './room-service.js';
 import type { RealtimeHub } from '../realtime/realtime-hub.js';
 import { createRealtimeEvent } from '../realtime/realtime-events.js';
+import type { RoomSnapshot } from '@lets-eat/contracts';
 
 export function createRoomRouter(roomService: RoomService, tokenService: TokenService, hub?: RealtimeHub): Router {
   const router = Router();
@@ -28,8 +29,10 @@ export function createRoomRouter(roomService: RoomService, tokenService: TokenSe
     const input = parseBody(CreateRoomRequestSchema, request.body);
     const key = request.header('idempotency-key');
     const actorUserId = requireUserId(request);
+    const previousRoom = await roomService.getCurrentRoom(actorUserId);
     const room = await roomService.createRoom(actorUserId, input, key || undefined);
     const entry = await roomService.getRoomEntry(actorUserId, room.id);
+    publishRoomSwitch(hub, previousRoom, actorUserId, entry.room.id);
     hub?.publish(createRealtimeEvent({ type: 'room.updated', roomId: entry.room.id, roomRevision: entry.room.revision }));
     response.status(201).json(CreateRoomResponseSchema.parse(entry));
   });
@@ -37,8 +40,10 @@ export function createRoomRouter(roomService: RoomService, tokenService: TokenSe
   router.post('/rooms/join', auth, async (request, response) => {
     const input = parseBody(JoinRoomRequestSchema, request.body);
     const actorUserId = requireUserId(request);
+    const previousRoom = await roomService.getCurrentRoom(actorUserId);
     const room = await roomService.joinRoom(actorUserId, input);
     const entry = await roomService.getRoomEntry(actorUserId, room.id);
+    publishRoomSwitch(hub, previousRoom, actorUserId, entry.room.id);
     hub?.publish(createRealtimeEvent({ type: 'room.updated', roomId: entry.room.id, roomRevision: entry.room.revision }));
     response.json(JoinRoomResponseSchema.parse(entry));
   });
@@ -94,4 +99,26 @@ function parseBody<T>(schema: { parse: (value: unknown) => T }, body: unknown): 
   } catch {
     throw new ApiError(400, 'INVALID_REQUEST', '请求参数不合法');
   }
+}
+
+function publishRoomSwitch(
+  hub: RealtimeHub | undefined,
+  previousRoom: RoomSnapshot | null,
+  actorUserId: string,
+  nextRoomId: string,
+): void {
+  if (!hub || !previousRoom || previousRoom.id === nextRoomId) return;
+  if (previousRoom.hostUserId === actorUserId) {
+    hub.publish(createRealtimeEvent({
+      type: 'room.closed',
+      roomId: previousRoom.id,
+      roomRevision: previousRoom.revision,
+    }));
+    return;
+  }
+  hub.publish(createRealtimeEvent({
+    type: 'room.updated',
+    roomId: previousRoom.id,
+    roomRevision: previousRoom.revision + 1,
+  }));
 }

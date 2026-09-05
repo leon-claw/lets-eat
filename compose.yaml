@@ -32,6 +32,15 @@ services:
       timeout: 5s
       retries: 10
 
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    profiles: [latency]
+    ports:
+      - "3002:8666"
+      - "127.0.0.1:8474:8474"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
 volumes:
   postgres-data:
   postgres-test-data:

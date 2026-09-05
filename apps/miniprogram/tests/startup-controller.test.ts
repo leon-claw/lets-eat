@@ -4,7 +4,7 @@ import { createStartupController } from '../src/app-shell/startup-controller';
 
 const room = {
   id: 'room-1',
-  code: '12345678',
+  code: '1234',
   hostUserId: 'user-1',
   selectedDataset: 'large',
   customCatalog: null,

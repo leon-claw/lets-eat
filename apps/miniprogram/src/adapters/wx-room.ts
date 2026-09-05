@@ -44,12 +44,11 @@ export async function joinRoom(
   baseUrl: string,
   code: string,
   displayName: string,
-  replaceCurrentRoom: boolean,
 ): Promise<RoomSnapshot> {
   const entry = await withIdentity(baseUrl, (identity) => requestRoomEntry(baseUrl, '/api/rooms/join', {
     method: 'POST',
     token: identity.token,
-    body: { code, displayName, replaceCurrentRoom },
+    body: { code, displayName },
   }));
   cacheRoomEntry(entry);
   return entry.room;
@@ -182,7 +181,7 @@ async function requestRoomSnapshot(
   return parseRoomSnapshot(response);
 }
 
-function parseRoomSnapshot(value: unknown): RoomSnapshot {
+export function parseRoomSnapshot(value: unknown): RoomSnapshot {
   if (!value || typeof value !== 'object') throw new Error('房间数据响应无效');
   const record = value as Record<string, unknown>;
   const selectedDataset = record.selectedDataset;

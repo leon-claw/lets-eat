@@ -1,5 +1,6 @@
 import { loadCatalogCounts } from '../../adapters/wx-catalog';
 import { API_BASE_URL } from '../../config/runtime';
+import { createShareConfig } from '../../shared/share-config';
 
 interface DatasetPageData {
   countsLoading: boolean;
@@ -20,6 +21,8 @@ interface DatasetPageMethods {
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
 Page<DatasetPageData, DatasetPageMethods>({
+  ...createShareConfig(),
+
   data: {
     countsLoading: true,
     largeCount: 0,

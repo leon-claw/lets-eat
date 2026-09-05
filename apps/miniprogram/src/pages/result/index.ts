@@ -8,6 +8,7 @@ import { loadCustomCatalogSelection } from '../../adapters/wx-room';
 import { clearWxDecisionQueue } from '../../adapters/wx-decision-queue';
 import { clearStoredMultiplayerRound } from '../game/multiplayer-round-storage';
 import { API_BASE_URL } from '../../config/runtime';
+import { createShareConfig } from '../../shared/share-config';
 
 type ResultPageStatus = 'loading' | 'ready' | 'error';
 
@@ -35,6 +36,8 @@ let roundId = '';
 let loadToken = 0;
 
 Page<ResultPageData, ResultPageMethods>({
+  ...createShareConfig(),
+
   data: {
     status: 'loading',
     commonChoices: [],
