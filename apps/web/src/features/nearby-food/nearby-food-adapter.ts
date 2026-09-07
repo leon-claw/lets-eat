@@ -7,10 +7,10 @@ export function nearbyRestaurantToFoodChoice(restaurant: NearbyRestaurant): Food
   return {
     id: `amap:${restaurant.id}`,
     name: restaurant.name,
-    description: '',
-    coverImage: BRAND_PLACEHOLDER,
-    tags: restaurant.type ? [restaurant.type] : [],
-    representativeFoods: [],
+    description: restaurant.type || '附近餐厅',
+    coverImage: restaurant.imageUrl ?? BRAND_PLACEHOLDER,
+    tags: [restaurant.rating === undefined ? '附近门店' : `评分 ${restaurant.rating.toFixed(1)}`],
+    representativeFoods: [restaurant.name],
   };
 }
 

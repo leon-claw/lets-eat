@@ -6,6 +6,18 @@ import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
 import { FeedbackProvider } from '@/shared/components/FeedbackProvider';
 import { GamePage } from './GamePage';
 import type { NearbyRoundSession } from '@/features/nearby-food/types';
+import type { FoodChoice } from '@/entities/food-choice/types';
+
+const nearbyChoices: FoodChoice[] = [
+  {
+    id: 'amap:poi-1',
+    name: '蜀香楼',
+    description: '餐饮服务;中餐厅;四川菜（川菜）',
+    coverImage: '/brand-logo.png',
+    tags: ['评分 4.8'],
+    representativeFoods: ['蜀香楼'],
+  },
+];
 
 describe('GamePage feedback', () => {
   it('shows a toast when the single-player catalog cannot load', async () => {
@@ -30,7 +42,8 @@ describe('GamePage feedback', () => {
     const nearbyRoundStore = {
       load: vi.fn((): NearbyRoundSession => ({
         restaurants: [1, 2, 3].map((index) => ({ source: 'amap' as const, id: `poi-${index}`, name: `餐厅 ${index}`, type: '餐饮服务;中餐厅', fetchedAt: '2026-08-31T00:00:00.000Z' })),
-        itemIds: ['amap:poi-1', 'amap:poi-2', 'amap:poi-3'],
+        choices: nearbyChoices,
+        itemIds: ['sichuan'],
         decisions: {}, history: [], completedAt: null,
       })),
       save: vi.fn(),
@@ -46,6 +59,11 @@ describe('GamePage feedback', () => {
     );
 
     expect(await screen.findByText('滑动选菜器')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '蜀香楼' })).toHaveAttribute('src', '/brand-logo.png');
+    expect(screen.getByText('餐饮服务;中餐厅;四川菜（川菜）')).toBeInTheDocument();
+    expect(screen.getByText('附近门店')).toBeInTheDocument();
+    expect(screen.getAllByText('蜀香楼')).toHaveLength(2);
+    expect(screen.getByText('菜系详情')).toBeInTheDocument();
     expect(repository.list).not.toHaveBeenCalled();
   });
 
@@ -55,7 +73,8 @@ describe('GamePage feedback', () => {
     const nearbyRoundStore = {
       load: vi.fn((): NearbyRoundSession => ({
         restaurants: [{ source: 'amap' as const, id: 'poi-1', name: '餐厅 1', type: '餐饮服务;中餐厅', fetchedAt: '2026-08-31T00:00:00.000Z' }],
-        itemIds: ['amap:poi-1'], decisions: {}, history: [], completedAt: null,
+        choices: nearbyChoices,
+        itemIds: ['sichuan'], decisions: {}, history: [], completedAt: null,
       })),
       save: vi.fn(),
       clear: vi.fn(),

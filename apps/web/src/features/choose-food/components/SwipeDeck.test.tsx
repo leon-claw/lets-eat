@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { FoodChoice } from '@/entities/food-choice/types';
@@ -21,9 +21,12 @@ describe('SwipeDeck', () => {
     const onLike = vi.fn();
     const onUndo = vi.fn();
 
-    render(<SwipeDeck choice={choice} nextChoice={nextChoice} current={1} total={16} canUndo onDislike={onDislike} onLike={onLike} onUndo={onUndo} onInteractionLockChange={vi.fn()} />);
+    render(<SwipeDeck choice={choice} nextChoice={nextChoice} current={1} total={16} canUndo representativeFoodsLabel="附近门店" emphasizeRepresentativeFoods onDislike={onDislike} onLike={onLike} onUndo={onUndo} onInteractionLockChange={vi.fn()} />);
 
     expect(screen.getByText('滑动选菜器')).toBeInTheDocument();
+    expect(screen.getByText('附近门店')).toBeInTheDocument();
+    expect(screen.getByText('白切鸡 · 烧鹅')).toHaveClass('text-base');
+    expect(screen.getByText('白切鸡 · 烧鹅')).not.toHaveClass('truncate');
     expect(screen.queryByText(/强推|必吃超赞|摇号|2人想吃/)).not.toBeInTheDocument();
     await user.click(screen.getByTitle('不喜欢'));
     await waitFor(() => expect(onDislike).toHaveBeenCalledOnce());
@@ -33,27 +36,18 @@ describe('SwipeDeck', () => {
     expect(onUndo).toHaveBeenCalledOnce();
   });
 
-  it('附近卡片展示名称和类型，不展示虚构菜品描述', () => {
-    render(
-      <SwipeDeck
-        choice={{ ...choice, id: 'amap:restaurant-1', name: '附近餐厅', description: '不应该展示的虚构描述', coverImage: '/brand-logo.png', tags: ['餐饮服务;中餐厅'], representativeFoods: [] }}
-        current={1}
-        total={1}
-        canUndo={false}
-        variant="nearby"
-        onDislike={vi.fn()}
-        onLike={vi.fn()}
-        onUndo={vi.fn()}
-        onInteractionLockChange={vi.fn()}
-      />,
-    );
+  it('keeps the original representative food section for fixed-menu games', () => {
+    render(<SwipeDeck choice={choice} current={1} total={16} canUndo={false} onDislike={vi.fn()} onLike={vi.fn()} onUndo={vi.fn()} onInteractionLockChange={vi.fn()} />);
 
-    expect(screen.getByText('附近餐厅')).toBeInTheDocument();
-    expect(screen.getAllByText('餐饮服务;中餐厅')).toHaveLength(1);
-    expect(screen.getByRole('img', { name: '附近餐厅' })).toHaveAttribute('src', '/brand-logo.png');
-    expect(screen.queryByText('不应该展示的虚构描述')).not.toBeInTheDocument();
-    expect(screen.queryByText('代表食物')).not.toBeInTheDocument();
-    expect(screen.queryByText('菜系详情')).not.toBeInTheDocument();
-    expect(screen.queryByText('菜系灵感')).not.toBeInTheDocument();
+    expect(screen.getByText('代表食物')).toBeInTheDocument();
+    expect(screen.getByText('白切鸡 · 烧鹅')).toHaveClass('text-sm', 'truncate');
+  });
+
+  it('附近游戏的高德图片加载失败时回退到内置封面', () => {
+    render(<SwipeDeck choice={choice} current={1} total={1} canUndo={false} representativeFoodsLabel="附近门店" emphasizeRepresentativeFoods onDislike={vi.fn()} onLike={vi.fn()} onUndo={vi.fn()} onInteractionLockChange={vi.fn()} />);
+
+    fireEvent.error(screen.getByRole('img', { name: choice.name }));
+
+    expect(screen.getByRole('img', { name: choice.name })).toHaveAttribute('src', '/brand-logo.png');
   });
 });

@@ -10,7 +10,7 @@ export const EnvSchema = z.object({
   JWT_SECRET: z.string().min(32).default(SAMPLE_JWT_SECRET),
   WEB_ORIGINS: z.string().min(1).default('http://localhost:3000'),
   TRUST_PROXY: z.string().default('loopback'),
-  CATALOG_VERSION: z.string().regex(/^v[1-9]\d*$/).default('v2'),
+  CATALOG_VERSION: z.string().regex(/^v[1-9]\d*$/).default('v3'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

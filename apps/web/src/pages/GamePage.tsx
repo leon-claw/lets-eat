@@ -95,7 +95,8 @@ function NearbySingleGamePage({ nearbyRoundStore }: { nearbyRoundStore?: NearbyR
           current={game.progress.current}
           total={game.progress.total}
           canUndo={game.state.history.length > 0}
-          variant="nearby"
+          representativeFoodsLabel="附近门店"
+          emphasizeRepresentativeFoods
           onDislike={game.dislike}
           onLike={game.like}
           onUndo={game.undo}

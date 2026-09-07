@@ -79,15 +79,16 @@ describe('AppRouter', () => {
   it('routes nearby results without loading the fixed menu repository', async () => {
     createNearbyRoundStore().save({
       restaurants: [{ source: 'amap', id: 'poi-1', name: '附近餐厅', type: '餐饮服务;中餐厅', fetchedAt: '2026-08-31T00:00:00.000Z' }],
-      itemIds: ['amap:poi-1'],
-      decisions: { 'amap:poi-1': 'liked' },
-      history: ['amap:poi-1'],
+      choices: [{ id: 'other', name: '其他', description: '其他风味。', coverImage: '/brand-logo.png', tags: ['其他风味'], representativeFoods: ['附近餐厅'], datasetType: 'large' }],
+      itemIds: ['other'],
+      decisions: { other: 'liked' },
+      history: ['other'],
       completedAt: '2026-08-31T00:00:00.000Z',
     });
     const list = vi.fn().mockResolvedValue([]);
     render(<AppRouter repository={{ list }} initialPath="/result/single?mode=nearby" />);
 
-    expect(await screen.findByText('附近餐厅')).toBeInTheDocument();
+    expect(await screen.findByText('其他')).toBeInTheDocument();
     expect(list).not.toHaveBeenCalled();
   });
 

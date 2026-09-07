@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { nearbyRestaurantsToFoodChoices } from '@/features/nearby-food/nearby-food-adapter';
 import { createNearbyRoundStore } from '@/features/nearby-food/nearby-storage';
 import type { NearbyRoundSession } from '@/features/nearby-food/types';
 import type { NearbyRoundStore } from '@/features/nearby-food/nearby-round';
@@ -17,7 +16,7 @@ export function NearbyResultPage({ roundStore = browserRoundStore }: NearbyResul
   const session = roundStore.load();
   const choices = useMemo(() => {
     if (!session) return [];
-    return nearbyRestaurantsToFoodChoices(session.restaurants)
+    return session.choices
       .filter((choice) => session.decisions[choice.id] === 'liked');
   }, [session]);
 

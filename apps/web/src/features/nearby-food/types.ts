@@ -1,4 +1,5 @@
 import type { Decision } from '@lets-eat/contracts';
+import type { FoodChoice } from '@/entities/food-choice/types';
 
 export type GeoPoint = {
   longitude: number;
@@ -10,6 +11,8 @@ export type AmapConfig = {
   securityJsCode: string;
 };
 
+export type NearbyResultLimit = 10 | 20 | 30;
+
 export type NearbyRestaurant = {
   source: 'amap';
   id: string;
@@ -20,6 +23,8 @@ export type NearbyRestaurant = {
   location?: GeoPoint;
   entranceLocation?: GeoPoint;
   distanceMeters?: number;
+  rating?: number;
+  imageUrl?: string;
   address?: string;
   province?: string;
   provinceCode?: string;
@@ -41,11 +46,13 @@ export type NearbySearchSession = {
   center: GeoPoint;
   radiusMeters: number;
   restaurants: NearbyRestaurant[];
+  resultLimit?: NearbyResultLimit;
   searchedAt: string;
 };
 
 export type NearbyRoundSession = {
   restaurants: NearbyRestaurant[];
+  choices: FoodChoice[];
   itemIds: string[];
   decisions: Record<string, Decision>;
   history: string[];

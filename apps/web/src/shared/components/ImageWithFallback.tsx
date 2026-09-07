@@ -1,13 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface ImageWithFallbackProps {
   src: string;
   alt: string;
   className?: string;
+  fallbackSrc?: string;
 }
 
-export function ImageWithFallback({ src, alt, className = '' }: ImageWithFallbackProps) {
-  const [hasError, setHasError] = useState(false);
+export function ImageWithFallback({ src, alt, className = '', fallbackSrc }: ImageWithFallbackProps) {
+  const [imageState, setImageState] = useState<'primary' | 'fallback' | 'error'>('primary');
+
+  useEffect(() => {
+    setImageState('primary');
+  }, [fallbackSrc, src]);
 
   if (!src) {
     return (
@@ -22,7 +27,7 @@ export function ImageWithFallback({ src, alt, className = '' }: ImageWithFallbac
     );
   }
 
-  if (hasError) {
+  if (imageState === 'error') {
     return (
       <div
         role="img"
@@ -35,12 +40,16 @@ export function ImageWithFallback({ src, alt, className = '' }: ImageWithFallbac
     );
   }
 
+  const displayedSrc = imageState === 'fallback' && fallbackSrc ? fallbackSrc : src;
   return (
     <img
-      src={src}
+      src={displayedSrc}
       alt={alt}
       className={className}
-      onError={() => setHasError(true)}
+      onError={() => {
+        if (displayedSrc === src && fallbackSrc && fallbackSrc !== src) setImageState('fallback');
+        else setImageState('error');
+      }}
       referrerPolicy="no-referrer"
     />
   );

@@ -24,9 +24,13 @@ describe('NearbyResultPage', () => {
         type: '餐饮服务;中餐厅',
         fetchedAt: '2026-08-31T00:00:00.000Z',
       })),
-      itemIds: ['amap:poi-1', 'amap:poi-2', 'amap:poi-3'],
-      decisions: { 'amap:poi-1': 'liked', 'amap:poi-2': 'disliked', 'amap:poi-3': 'liked' },
-      history: ['amap:poi-1', 'amap:poi-2', 'amap:poi-3'],
+      choices: [
+        { id: 'amap:poi-1', name: '餐厅 1', description: '餐饮服务;中餐厅', coverImage: '/brand-logo.png', tags: ['评分 4.8'], representativeFoods: ['餐厅 1'] },
+        { id: 'amap:poi-2', name: '餐厅 2', description: '餐饮服务;中餐厅', coverImage: '/brand-logo.png', tags: ['评分 4.6'], representativeFoods: ['餐厅 2'] },
+      ],
+      itemIds: ['amap:poi-1', 'amap:poi-2'],
+      decisions: { 'amap:poi-1': 'liked', 'amap:poi-2': 'disliked' },
+      history: ['amap:poi-1', 'amap:poi-2'],
       completedAt: '2026-08-31T00:00:00.000Z',
     });
 
@@ -41,17 +45,16 @@ describe('NearbyResultPage', () => {
 
     expect(await screen.findByRole('heading', { name: '看完全部菜品啦！' })).toBeInTheDocument();
     expect(screen.getByText('餐厅 1')).toBeInTheDocument();
-    expect(screen.getByText('餐厅 3')).toBeInTheDocument();
     expect(screen.queryByText('餐厅 2')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '查看备选清单 (2)' }));
-    expect(screen.getByRole('heading', { name: '备选清单 (2)' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '查看备选清单 (1)' }));
+    expect(screen.getByRole('heading', { name: '备选清单 (1)' })).toBeInTheDocument();
     expect(screen.getAllByText('餐厅 1')).toHaveLength(2);
   });
 
   it('结束后清理附近回合存储，但不清理附近搜索会话', async () => {
     const user = userEvent.setup();
-    const roundStore = createStore({ restaurants: [], itemIds: [], decisions: {}, history: [], completedAt: null });
+    const roundStore = createStore({ restaurants: [], choices: [], itemIds: [], decisions: {}, history: [], completedAt: null });
     render(
       <MemoryRouter initialEntries={['/result/single?mode=nearby']}>
         <Routes>

@@ -98,7 +98,7 @@ DATABASE_URL=postgresql://lets_eat:<同一密码>@postgres:5432/lets_eat
 JWT_SECRET=<至少32字符的随机密钥>
 WEB_ORIGINS=https://<公网域名>
 TRUST_PROXY=loopback
-CATALOG_VERSION=v2
+CATALOG_VERSION=v3
 WEB_PORT=8080
 ```
 

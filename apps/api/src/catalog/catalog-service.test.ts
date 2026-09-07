@@ -1,3 +1,5 @@
+import { access } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createCatalogFixture, TEST_CATALOG } from './catalog-test-fixture.js';
 import { CatalogService } from './catalog-service.js';
@@ -31,5 +33,20 @@ describe('CatalogService', () => {
     expect(service.getManifest().catalogVersion).toBe('v2');
     expect(service.getCatalog('v1')).toEqual(TEST_CATALOG);
     expect(service.getCatalog('v2')).toEqual(nextCatalog);
+  });
+
+  it('publishes hotpot as a large item with a versioned cover image', async () => {
+    const root = resolve(new URL('../../catalog', import.meta.url).pathname);
+    const service = await CatalogService.fromDirectory(root, 'v3');
+    const hotpot = service.getCurrentSelection('large').items.find((item) => item.id === 'hotpot');
+
+    expect(service.getManifest().catalogVersion).toBe('v3');
+    expect(service.getManifest().counts.large).toBe(19);
+    expect(hotpot).toMatchObject({
+      name: '火锅',
+      datasetType: 'large',
+      imageUrl: '/api/catalog-assets/v3/images/hotpot.webp',
+    });
+    await expect(access(resolve(root, 'v3/images/hotpot.webp'))).resolves.toBeUndefined();
   });
 });

@@ -4,19 +4,21 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { AmapSearchError } from '@/features/nearby-food/amap-client';
 import type { AmapConfig, GeoPoint, NearbyRestaurant, NearbyRoundSession, NearbySearchSession } from '@/features/nearby-food/types';
-import { createNearbyConfigStore, createNearbyLocationStore, createNearbySearchSessionStore } from '@/features/nearby-food/nearby-storage';
+import type { NearbyRoundStore } from '@/features/nearby-food/nearby-round';
 import { FeedbackProvider } from '@/shared/components/FeedbackProvider';
 import { NearbyFoodPage } from './NearbyFoodPage';
 
 const config: AmapConfig = { key: 'key', securityJsCode: 'security' };
 const position: GeoPoint = { longitude: 116.397, latitude: 39.908 };
 
-function restaurant(index: number): NearbyRestaurant {
+function restaurant(index: number, rating?: number, imageUrl?: string): NearbyRestaurant {
   return {
     source: 'amap',
     id: `poi-${index}`,
     name: `餐厅 ${index}`,
     type: '餐饮服务;中餐厅',
+    ...(rating === undefined ? {} : { rating }),
+    ...(imageUrl ? { imageUrl } : {}),
     fetchedAt: '2026-08-31T00:00:00.000Z',
     providerData: { secret: 'should not render' },
   };
@@ -48,8 +50,8 @@ function LocationProbe() {
 
 function renderNearby(
   searchDependencies: ReturnType<typeof dependencies>,
-  roundStore?: { load(): NearbyRoundSession | null; save(value: NearbyRoundSession): void; clear(): void },
   initialEntry: string | { pathname: string; state?: unknown } = '/nearby',
+  roundStore?: NearbyRoundStore,
 ) {
   return render(
     <FeedbackProvider>
@@ -76,6 +78,37 @@ describe('NearbyFoodPage', () => {
     expect(screen.queryByText('地址')).not.toBeInTheDocument();
   });
 
+  it('显示高德评分，并允许从有效门店开始游戏', async () => {
+    const deps = dependencies([restaurant(1, 4.8), restaurant(2, 4.2), restaurant(3, 3.9)]);
+    renderNearby(deps);
+
+    expect(await screen.findByText('评分 4.8')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '开始游戏' })).toBeEnabled();
+  });
+
+  it('点击开始游戏后保存评分门店回合并进入单人游戏', async () => {
+    const user = userEvent.setup();
+    const deps = dependencies([restaurant(1, 4.8, 'https://example.com/restaurant-1.jpg'), restaurant(2, 4.6), restaurant(3, 4.4)]);
+    const roundStore = store<NearbyRoundSession>(null);
+    renderNearby(deps, '/nearby', roundStore);
+
+    await screen.findByText('找到 3 家餐厅');
+    expect(screen.getByRole('button', { name: '开始游戏' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: '开始游戏' }));
+
+    expect(roundStore.save).toHaveBeenCalledWith(expect.objectContaining({
+      restaurants: expect.arrayContaining([expect.objectContaining({ id: 'poi-1', rating: 4.8 })]),
+      choices: expect.arrayContaining([
+        expect.objectContaining({ id: 'amap:poi-1', name: '餐厅 1', coverImage: 'https://example.com/restaurant-1.jpg', representativeFoods: ['餐厅 1'] }),
+      ]),
+      itemIds: expect.arrayContaining(['amap:poi-1', 'amap:poi-2', 'amap:poi-3']),
+      decisions: {},
+      history: [],
+      completedAt: null,
+    }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/game/single?dataset=nearby');
+  });
+
   it('范围改变后不立即调用搜索，点击重新搜索时使用新范围', async () => {
     const user = userEvent.setup();
     const deps = dependencies();
@@ -87,7 +120,60 @@ describe('NearbyFoodPage', () => {
     expect(deps.searchRestaurants).toHaveBeenCalledTimes(callsBefore);
     await user.click(screen.getByRole('button', { name: '重新搜索' }));
 
-    expect(deps.searchRestaurants).toHaveBeenLastCalledWith(expect.objectContaining({ radiusMeters: 5000 }));
+    expect(deps.searchRestaurants).toHaveBeenLastCalledWith(expect.objectContaining({ radiusMeters: 5000, resultLimit: 20 }));
+  });
+
+  it('可以选择 10、20、30 家门店，并在重新搜索后应用数量', async () => {
+    const user = userEvent.setup();
+    const deps = dependencies(Array.from({ length: 30 }, (_, index) => restaurant(index + 1)));
+    renderNearby(deps);
+    await screen.findByText('找到 20 家餐厅');
+    const callsBefore = deps.searchRestaurants.mock.calls.length;
+
+    const resultLimit = screen.getByRole('combobox', { name: '菜品数量' });
+    expect(Array.from((resultLimit as HTMLSelectElement).options).map((option) => option.value)).toEqual(['10', '20', '30']);
+    await user.selectOptions(resultLimit, '30');
+    expect(deps.searchRestaurants).toHaveBeenCalledTimes(callsBefore);
+    expect(screen.getByRole('button', { name: '请先重新搜索' })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: '重新搜索' }));
+
+    expect(deps.searchRestaurants).toHaveBeenLastCalledWith(expect.objectContaining({ resultLimit: 30 }));
+    expect(await screen.findByText('找到 30 家餐厅')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '开始游戏' })).toBeEnabled();
+  });
+
+  it('将开始游戏和退出按钮放在搜索范围下方、门店列表上方', async () => {
+    const deps = dependencies();
+    renderNearby(deps);
+    await screen.findByText('找到 3 家餐厅');
+
+    const follows = (before: Element, after: Element) => Boolean(
+      before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    const searchRange = screen.getByRole('combobox', { name: '搜索范围' });
+    const startGame = screen.getByRole('button', { name: '开始游戏' });
+    const exitNearby = screen.getByRole('button', { name: '退出周围菜品' });
+    const restaurantList = screen.getByLabelText('附近餐厅列表');
+
+    expect(follows(searchRange, startGame)).toBe(true);
+    expect(follows(searchRange, exitNearby)).toBe(true);
+    expect(follows(exitNearby, restaurantList)).toBe(true);
+  });
+
+  it('将定位和重新搜索作为并排普通按钮，并使用深色退出按钮', async () => {
+    const deps = dependencies();
+    renderNearby(deps);
+    await screen.findByText('找到 3 家餐厅');
+
+    const locateButton = screen.getByRole('button', { name: '定位到我' });
+    const searchButton = screen.getByRole('button', { name: '重新搜索' });
+    const actionRow = locateButton.parentElement;
+    expect(actionRow).toHaveClass('grid', 'grid-cols-2');
+    expect(actionRow).toContainElement(searchButton);
+    expect(locateButton).toHaveClass('bg-white', 'border-slate-200');
+    expect(searchButton).toHaveClass('bg-white', 'border-slate-200');
+    expect(screen.getByRole('button', { name: '退出周围菜品' })).toHaveClass('bg-slate-950', 'text-white');
   });
 
   it('点击定位到我后锁定按钮，并使用浏览器返回的新位置搜索', async () => {
@@ -103,15 +189,15 @@ describe('NearbyFoodPage', () => {
 
     expect(screen.getByRole('button', { name: '定位中…' })).toBeDisabled();
     await act(async () => { resolveLocation?.(selectedPosition); });
-    await waitFor(() => expect(deps.searchRestaurants).toHaveBeenLastCalledWith(expect.objectContaining({ center: selectedPosition })));
+    await waitFor(() => expect(deps.searchRestaurants).toHaveBeenLastCalledWith(expect.objectContaining({ center: selectedPosition, resultLimit: 20 })));
     expect(screen.getByRole('button', { name: '定位到我' })).toBeEnabled();
   });
 
-  it('结果少于 3 家时禁用开始游戏并给出明确提示', async () => {
-    const deps = dependencies([restaurant(1), restaurant(2)]);
+  it('结果少于 3 家时给出有效评分门店提示', async () => {
+    const deps = dependencies([restaurant(1, 4.5), restaurant(2, 4.2)]);
     renderNearby(deps);
 
-    expect(await screen.findByText('至少需要 3 家餐厅才能开始游戏')).toBeInTheDocument();
+    expect(await screen.findByText('有效评分门店不足 3 家')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '开始游戏' })).toBeDisabled();
   });
 
@@ -134,7 +220,7 @@ describe('NearbyFoodPage', () => {
   it('地图选点返回后使用选中位置搜索且不再调用浏览器定位', async () => {
     const deps = dependencies();
     deps.getLocation.mockRejectedValue(new Error('定位权限被拒绝'));
-    renderNearby(deps, undefined, {
+    renderNearby(deps, {
       pathname: '/nearby',
       state: { selectedLocation: position },
     });
@@ -182,20 +268,4 @@ describe('NearbyFoodPage', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/nearby/location');
   });
 
-  it('至少 3 家餐厅时保存附近回合并进入单人游戏', async () => {
-    const user = userEvent.setup();
-    const deps = dependencies();
-    const roundStore = store<NearbyRoundSession>(null);
-    renderNearby(deps, roundStore);
-    await screen.findByText('找到 3 家餐厅');
-
-    await user.click(screen.getByRole('button', { name: '开始游戏' }));
-
-    expect(roundStore.save).toHaveBeenCalledWith(expect.objectContaining({
-      itemIds: expect.arrayContaining(['amap:poi-1', 'amap:poi-2', 'amap:poi-3']),
-      decisions: {},
-      completedAt: null,
-    }));
-    expect(screen.getByTestId('location')).toHaveTextContent('/game/single?dataset=nearby');
-  });
 });

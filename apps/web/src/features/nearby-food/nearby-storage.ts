@@ -2,9 +2,11 @@ import type {
   AmapConfig,
   GeoPoint,
   NearbyRestaurant,
+  NearbyResultLimit,
   NearbyRoundSession,
   NearbySearchSession,
 } from './types';
+import type { FoodChoice } from '@/entities/food-choice/types';
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -25,6 +27,10 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function isResultLimit(value: unknown): value is NearbyResultLimit {
+  return value === 10 || value === 20 || value === 30;
+}
+
 function isGeoPoint(value: unknown): value is GeoPoint {
   return isRecord(value)
     && typeof value.longitude === 'number'
@@ -42,6 +48,8 @@ function isNearbyRestaurant(value: unknown): value is NearbyRestaurant {
   if (value.location !== undefined && !isGeoPoint(value.location)) return false;
   if (value.entranceLocation !== undefined && !isGeoPoint(value.entranceLocation)) return false;
   if (value.distanceMeters !== undefined && (typeof value.distanceMeters !== 'number' || !Number.isFinite(value.distanceMeters))) return false;
+  if (value.rating !== undefined && (typeof value.rating !== 'number' || !Number.isFinite(value.rating) || value.rating <= 0 || value.rating > 5)) return false;
+  if (value.imageUrl !== undefined && (typeof value.imageUrl !== 'string' || !/^https?:\/\//i.test(value.imageUrl))) return false;
 
   for (const field of ['address', 'province', 'provinceCode', 'city', 'cityCode', 'district', 'districtCode', 'businessArea', 'telephone', 'website', 'email', 'businessHours', 'businessStatus']) {
     if (value[field] !== undefined && typeof value[field] !== 'string') return false;
@@ -60,8 +68,9 @@ function isSearchSession(value: unknown): value is NearbySearchSession {
     && Number.isFinite(value.radiusMeters)
     && value.radiusMeters > 0
     && Array.isArray(value.restaurants)
-    && value.restaurants.length <= 20
+    && value.restaurants.length <= 30
     && value.restaurants.every(isNearbyRestaurant)
+    && (value.resultLimit === undefined || isResultLimit(value.resultLimit))
     && isNonEmptyString(value.searchedAt);
 }
 
@@ -69,8 +78,21 @@ function isDecision(value: unknown): value is 'liked' | 'disliked' {
   return value === 'liked' || value === 'disliked';
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function isFoodChoice(value: unknown): value is FoodChoice {
+  if (!isRecord(value)) return false;
+  if (!isNonEmptyString(value.id) || !isNonEmptyString(value.name) || typeof value.description !== 'string' || !isNonEmptyString(value.coverImage)) return false;
+  if (!isStringArray(value.tags) || !isStringArray(value.representativeFoods)) return false;
+  if (value.cuisineTags !== undefined && !isStringArray(value.cuisineTags)) return false;
+  return value.datasetType === undefined || value.datasetType === 'large' || value.datasetType === 'small';
+}
+
 function isRoundSession(value: unknown): value is NearbyRoundSession {
-  if (!isRecord(value) || !Array.isArray(value.restaurants) || value.restaurants.length > 20 || !value.restaurants.every(isNearbyRestaurant)) return false;
+  if (!isRecord(value) || !Array.isArray(value.restaurants) || value.restaurants.length > 30 || !value.restaurants.every(isNearbyRestaurant)) return false;
+  if (!Array.isArray(value.choices) || !value.choices.every(isFoodChoice)) return false;
   if (!Array.isArray(value.itemIds) || !value.itemIds.every((item) => typeof item === 'string')) return false;
   if (!isRecord(value.decisions) || !Object.values(value.decisions).every(isDecision)) return false;
   if (!Array.isArray(value.history) || !value.history.every((item) => typeof item === 'string')) return false;
@@ -116,7 +138,8 @@ export function createNearbySearchSessionStore(storage: StorageLike = defaultSto
   return {
     ...store,
     save(value: NearbySearchSession): void {
-      store.save({ ...value, restaurants: value.restaurants.slice(0, 20) });
+      const resultLimit = value.resultLimit ?? 20;
+      store.save({ ...value, resultLimit, restaurants: value.restaurants.slice(0, resultLimit) });
     },
   };
 }
@@ -126,7 +149,7 @@ export function createNearbyRoundStore(storage: StorageLike = defaultStorage('se
   return {
     ...store,
     save(value: NearbyRoundSession): void {
-      store.save({ ...value, restaurants: value.restaurants.slice(0, 20) });
+      store.save({ ...value, restaurants: value.restaurants.slice(0, 30) });
     },
   };
 }

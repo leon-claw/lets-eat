@@ -266,7 +266,7 @@ DATABASE_URL=postgresql://<user>:<password>@<private-host>:5432/<database>
 JWT_SECRET=<至少 32 个字符的随机密钥>
 WEB_ORIGINS=https://eat.example.com
 TRUST_PROXY=loopback
-CATALOG_VERSION=v2
+CATALOG_VERSION=v3
 ```
 
 可选配置：
@@ -451,6 +451,7 @@ curl -fsS http://127.0.0.1:3001/health/ready
 ```text
 apps/api/catalog/v1/
 apps/api/catalog/v2/
+apps/api/catalog/v3/
 ```
 
 发布新菜单时：
@@ -463,7 +464,7 @@ apps/api/catalog/v2/
 6. 重新构建并验证 `/api/catalog/manifest`；
 7. 保留旧版本，直到数据库中没有轮次引用它。
 
-不要直接修改已经发布的 `v1` 或 `v2` 内容。轮次会锁定 `catalogVersion`、`catalogHash` 和数据集，旧轮次恢复依赖旧版本资源仍然存在。
+不要直接修改已经发布的 `v1`、`v2` 或 `v3` 内容。轮次会锁定 `catalogVersion`、`catalogHash` 和数据集，旧轮次恢复依赖旧版本资源仍然存在。
 
 ## 12. 发布、回滚和进程管理
 

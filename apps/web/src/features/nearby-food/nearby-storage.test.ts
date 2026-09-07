@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Decision } from '@lets-eat/contracts';
+import type { FoodChoice } from '@/entities/food-choice/types';
 import type { NearbyRestaurant } from './types';
 import {
   createNearbyConfigStore,
@@ -30,9 +31,23 @@ function restaurant(index: number): NearbyRestaurant {
     categoryPath: ['餐饮服务', '中餐厅'],
     location: { longitude: 116.4 + index / 1000, latitude: 39.9 },
     distanceMeters: index * 10,
+    rating: 4.5,
+    imageUrl: `https://example.com/raw-${index}.jpg`,
     address: `地址 ${index}`,
     fetchedAt: '2026-08-31T00:00:00.000Z',
     providerData: { id: `raw-${index}` },
+  };
+}
+
+function foodChoice(id: string): FoodChoice {
+  return {
+    id,
+    name: id === 'other' ? '其他' : '川菜',
+    description: '类别说明',
+    coverImage: `/${id}.webp`,
+    tags: ['附近餐厅'],
+    representativeFoods: ['附近门店'],
+    datasetType: 'large',
   };
 }
 
@@ -78,23 +93,27 @@ describe('nearby browser storage', () => {
     expect(sessionStorage.getItem('lets-eat.nearby-search-session.v1')).not.toBeNull();
     expect(localStorage.getItem('lets-eat.nearby-search-session.v1')).toBeNull();
     expect(store.load()?.center).toEqual({ longitude: 116.4, latitude: 39.9 });
+    expect(store.load()?.restaurants[0]?.rating).toBe(4.5);
   });
 
-  it('保存的搜索会话包含最多 20 条完整餐厅数据', () => {
+  it('保存的搜索会话包含最多 30 条完整餐厅数据并保留数量配置', () => {
     const store = createNearbySearchSessionStore(createMemoryStorage());
-    const restaurants = Array.from({ length: 21 }, (_, index) => restaurant(index));
+    const restaurants = Array.from({ length: 30 }, (_, index) => restaurant(index));
 
     store.save({
       center: { longitude: 116.4, latitude: 39.9 },
       radiusMeters: 500,
       restaurants,
+      resultLimit: 30,
       searchedAt: '2026-08-31T00:00:00.000Z',
     });
 
     const loaded = store.load();
-    expect(loaded?.restaurants).toHaveLength(20);
-    expect(loaded?.restaurants[19]).toEqual(restaurants[19]);
-    expect(loaded?.restaurants[19]?.providerData).toEqual({ id: 'raw-19' });
+    expect(loaded?.restaurants).toHaveLength(30);
+    expect(loaded?.resultLimit).toBe(30);
+    expect(loaded?.restaurants[29]).toEqual(restaurants[29]);
+    expect(loaded?.restaurants[29]?.providerData).toEqual({ id: 'raw-29' });
+    expect(loaded?.restaurants[29]?.imageUrl).toBe('https://example.com/raw-29.jpg');
   });
 
   it('附近游戏回合可以保存决策和完成状态', () => {
@@ -103,13 +122,33 @@ describe('nearby browser storage', () => {
 
     store.save({
       restaurants: [restaurant(1), restaurant(2)],
-      itemIds: ['amap:poi-1', 'amap:poi-2'],
+      choices: [foodChoice('sichuan'), foodChoice('other')],
+      itemIds: ['sichuan', 'other'],
       decisions,
-      history: ['amap:poi-1', 'amap:poi-2'],
+      history: ['sichuan', 'other'],
       completedAt: '2026-08-31T01:00:00.000Z',
     });
 
-    expect(store.load()).toMatchObject({ decisions, history: ['amap:poi-1', 'amap:poi-2'], completedAt: '2026-08-31T01:00:00.000Z' });
+    expect(store.load()).toMatchObject({
+      choices: [foodChoice('sichuan'), foodChoice('other')],
+      decisions,
+      history: ['sichuan', 'other'],
+      completedAt: '2026-08-31T01:00:00.000Z',
+    });
+  });
+
+  it('缺少有效类别快照的旧回合返回 null，避免恢复成空白游戏', () => {
+    const storage = createMemoryStorage();
+    const store = createNearbyRoundStore(storage);
+    storage.setItem('lets-eat.nearby-round.v1', JSON.stringify({
+      restaurants: [restaurant(1), restaurant(2)],
+      itemIds: ['amap:poi-1', 'amap:poi-2'],
+      decisions: {},
+      history: [],
+      completedAt: null,
+    }));
+
+    expect(store.load()).toBeNull();
   });
 
   it('clear 删除对应存储项但不影响其他存储项', () => {

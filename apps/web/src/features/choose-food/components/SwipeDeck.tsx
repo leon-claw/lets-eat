@@ -10,7 +10,8 @@ interface SwipeDeckProps {
   current: number;
   total: number;
   canUndo: boolean;
-  variant?: 'catalog' | 'nearby';
+  representativeFoodsLabel?: string;
+  emphasizeRepresentativeFoods?: boolean;
   onDislike(): void;
   onLike(): void;
   onUndo(): void;
@@ -22,15 +23,11 @@ const SWIPE_OFFSET = 80;
 const SWIPE_VELOCITY = 250;
 const SWIPE_DURATION = 220;
 
-function ChoicePreview({ choice, variant }: { choice: FoodChoice; variant: 'catalog' | 'nearby' }) {
-  if (variant === 'nearby') {
-    return <NearbyChoiceCard choice={choice} />;
-  }
-
+function ChoicePreview({ choice, fallbackSrc }: { choice: FoodChoice; fallbackSrc?: string }) {
   return (
     <div className="h-full overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
       <div className="relative h-60 w-full overflow-hidden bg-gray-100">
-        <ImageWithFallback src={choice.coverImage} alt="" className="h-full w-full object-cover" />
+        <ImageWithFallback src={choice.coverImage} alt="" fallbackSrc={fallbackSrc} className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <div className="absolute bottom-3 left-3 right-3 text-white">
           <div className="text-[10px] font-bold text-amber-300">下一道菜系灵感</div>
@@ -51,26 +48,19 @@ function ChoicePreview({ choice, variant }: { choice: FoodChoice; variant: 'cata
   );
 }
 
-function NearbyChoiceCard({ choice }: { choice: FoodChoice }) {
-  return (
-    <div className="h-full overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-      <div className="relative h-full w-full overflow-hidden bg-gray-100">
-        <ImageWithFallback src="/brand-logo.png" alt={choice.name} className="h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-        <div className="absolute bottom-3 left-3 right-3 text-white">
-          <h2 className="truncate text-lg font-extrabold leading-tight">{choice.name}</h2>
-          <p className="mt-1 truncate text-xs font-semibold text-sky-100">{choice.tags[0] ?? '餐饮服务'}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ChoiceCard({ choice }: { choice: FoodChoice }) {
+function ChoiceCard({
+  choice,
+  representativeFoodsLabel = '代表食物',
+  emphasizeRepresentativeFoods = false,
+}: {
+  choice: FoodChoice;
+  representativeFoodsLabel?: string;
+  emphasizeRepresentativeFoods?: boolean;
+}) {
   return (
     <>
       <div className="relative h-60 w-full shrink-0 overflow-hidden bg-gray-100">
-        <ImageWithFallback src={choice.coverImage} alt={choice.name} className="h-full w-full object-cover" />
+        <ImageWithFallback src={choice.coverImage} alt={choice.name} fallbackSrc={emphasizeRepresentativeFoods ? '/brand-logo.png' : undefined} className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
         <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
           <span className="flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2.5 py-0.5 text-[11px] font-extrabold text-gray-900 shadow-xs">
@@ -96,12 +86,26 @@ function ChoiceCard({ choice }: { choice: FoodChoice }) {
           </div>
           <p className="line-clamp-2 text-xs leading-relaxed text-gray-500">{choice.description}</p>
         </div>
-        <div className="flex items-center justify-between border-t border-gray-100 pt-2">
-          <div className="min-w-0">
-            <span className="text-[10px] text-gray-400">代表食物</span>
-            <p className="truncate text-sm font-black text-red-600">{choice.representativeFoods.join(' · ')}</p>
-          </div>
-          <span className="ml-3 shrink-0 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700">菜系详情</span>
+        <div className={emphasizeRepresentativeFoods
+          ? 'mt-4 rounded-2xl border border-red-100 bg-red-50/70 p-3.5'
+          : 'flex items-center justify-between border-t border-gray-100 pt-2'}>
+          {emphasizeRepresentativeFoods ? (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-bold text-gray-500">{representativeFoodsLabel}</span>
+                <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700">菜系详情</span>
+              </div>
+              <p className="mt-2 break-words text-base font-black leading-6 text-red-600">{choice.representativeFoods.join(' · ')}</p>
+            </>
+          ) : (
+            <>
+              <div className="min-w-0">
+                <span className="text-[10px] text-gray-400">{representativeFoodsLabel}</span>
+                <p className="truncate text-sm font-black text-red-600">{choice.representativeFoods.join(' · ')}</p>
+              </div>
+              <span className="ml-3 shrink-0 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700">菜系详情</span>
+            </>
+          )}
         </div>
       </div>
     </>
@@ -114,11 +118,12 @@ export function SwipeDeck({
   current,
   total,
   canUndo,
+  representativeFoodsLabel,
+  emphasizeRepresentativeFoods,
   onDislike,
   onLike,
   onUndo,
   onInteractionLockChange,
-  variant = 'catalog',
 }: SwipeDeckProps) {
   const [isSwiping, setIsSwiping] = useState(false);
   const x = useMotionValue(0);
@@ -176,7 +181,7 @@ export function SwipeDeck({
       <div className="relative flex h-[480px] w-full max-w-sm items-center justify-center">
         {nextChoice && (
           <motion.div animate={{ scale: isSwiping ? 1 : 0.95, y: isSwiping ? 0 : 12, opacity: isSwiping ? 1 : 0.7 }} transition={{ duration: 0.2 }} className="pointer-events-none absolute h-full w-full">
-            <ChoicePreview choice={nextChoice} variant={variant} />
+            <ChoicePreview choice={nextChoice} fallbackSrc={emphasizeRepresentativeFoods ? '/brand-logo.png' : undefined} />
           </motion.div>
         )}
         <motion.article
@@ -190,7 +195,7 @@ export function SwipeDeck({
         >
           <motion.div style={{ opacity: likeOpacity }} className="pointer-events-none absolute right-6 top-6 z-20 flex rotate-12 items-center gap-1 rounded-2xl border-2 border-white bg-emerald-500 px-3.5 py-1 text-lg font-black text-white shadow-lg"><Heart className="h-5 w-5 fill-white" />喜欢</motion.div>
           <motion.div style={{ opacity: dislikeOpacity }} className="pointer-events-none absolute left-6 top-6 z-20 flex -rotate-12 items-center gap-1 rounded-2xl border-2 border-white bg-rose-500 px-3.5 py-1 text-lg font-black text-white shadow-lg"><X className="h-5 w-5 stroke-[3]" />不喜欢</motion.div>
-          {variant === 'nearby' ? <NearbyChoiceCard choice={choice} /> : <ChoiceCard choice={choice} />}
+          <ChoiceCard choice={choice} representativeFoodsLabel={representativeFoodsLabel} emphasizeRepresentativeFoods={emphasizeRepresentativeFoods} />
         </motion.article>
       </div>
 

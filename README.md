@@ -180,7 +180,7 @@ pnpm latency:status   # 查看当前代理和延迟状态
 - `DATABASE_URL`：PostgreSQL 连接地址
 - `JWT_SECRET`：匿名身份令牌签名密钥
 - `WEB_ORIGINS`：允许的 Web 来源
-- `CATALOG_VERSION`：固定菜品库版本，默认 `v2`
+- `CATALOG_VERSION`：固定菜品库版本，默认 `v3`
 
 ## 项目结构
 

@@ -8,7 +8,6 @@ import {
 } from '@/features/choose-food/choose-food-state';
 import { prepareRoundChoices } from '@/features/choose-food/round-choice-order';
 import { createNearbyRoundStore } from './nearby-storage';
-import { nearbyRestaurantsToFoodChoices } from './nearby-food-adapter';
 import type { NearbyRoundSession } from './types';
 
 export interface NearbyRoundStore {
@@ -28,7 +27,7 @@ export function useNearbyRound(roundStore: NearbyRoundStore = browserRoundStore)
     let active = true;
     dispatch({ type: 'load-start' });
     const saved = restoredSession.current;
-    const choices = saved ? nearbyRestaurantsToFoodChoices(saved.restaurants) : [];
+    const choices = saved?.choices ?? [];
     const canRestoreSaved = saved?.completedAt === null;
     const orderedChoices = prepareRoundChoices(choices, canRestoreSaved ? saved.itemIds : undefined);
 
@@ -53,6 +52,7 @@ export function useNearbyRound(roundStore: NearbyRoundStore = browserRoundStore)
     store.save({
       ...session,
       restaurants: session.restaurants,
+      choices: session.choices,
       itemIds: state.choices.map((choice) => choice.id),
       decisions,
       history: state.history.map(({ choice }) => choice.id),
