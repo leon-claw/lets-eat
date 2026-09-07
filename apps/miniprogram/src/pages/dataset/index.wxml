@@ -32,7 +32,22 @@
       </button>
 
       <button
-        class="dataset-option dataset-option--nearby pressable entry-fade-up entry-delay-120"
+        class="dataset-option dataset-option--custom pressable entry-fade-up entry-delay-120"
+        hover-class="dataset-option--custom-hover"
+        bindtap="onCustomTap"
+      >
+        <view class="dataset-row">
+          <text class="dataset-icon dataset-icon--custom">✦</text>
+          <text class="dataset-title">自定义菜品</text>
+          <text wx:if="{{customConfigured}}" class="dataset-count">{{customCount}} 道</text>
+          <text wx:else class="dataset-count">去设置</text>
+        </view>
+        <text wx:if="{{customConfigured}}" class="dataset-description">使用当前设备已保存的菜品</text>
+        <text wx:else class="dataset-description">至少选择 3 道菜品后开始游戏</text>
+      </button>
+
+      <button
+        class="dataset-option dataset-option--nearby pressable entry-fade-up entry-delay-160"
         hover-class="dataset-option--nearby-hover"
         bindtap="onNearbyTap"
       >

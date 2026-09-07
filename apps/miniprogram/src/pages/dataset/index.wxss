@@ -63,6 +63,20 @@
   opacity: 0.72;
 }
 
+.dataset-option--custom {
+  border-color: #fef3c7;
+  background: #fffbeb;
+}
+
+.dataset-option--custom-hover {
+  background: #fef3c7;
+  transform: translateY(-2px);
+}
+
+.dataset-icon--custom {
+  color: #d97706;
+}
+
 .dataset-option--nearby-hover {
   background: #e2e8f0;
 }

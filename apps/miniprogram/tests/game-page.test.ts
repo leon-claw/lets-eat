@@ -63,4 +63,12 @@ describe('game page', () => {
     expect(script).toContain('nextChoice: nextPreview');
     expect(script).toContain('CARD_ENTRY_REVEAL_DELAY');
   });
+
+  it('loads the saved custom catalog in single-player mode', async () => {
+    const script = await readFile(scriptPath, 'utf8');
+
+    expect(script).toContain("options?.dataset === 'custom'");
+    expect(script).toContain('loadLocalCustomCatalogSelection');
+    expect(script).toContain("const selectionPromise = datasetType === 'custom'");
+  });
 });

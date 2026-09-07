@@ -1,0 +1,12 @@
+{
+  "extends": "../../packages/client-core/tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rootDir": "../../packages/client-core/src",
+    "outDir": "dist/vendor/client-core",
+    "declaration": false
+  },
+  "include": ["../../packages/client-core/src/**/*.ts"],
+  "exclude": ["../../packages/client-core/src/**/*.test.ts"]
+}

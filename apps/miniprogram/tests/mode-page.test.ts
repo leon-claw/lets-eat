@@ -3,6 +3,10 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { MODE_ROUTES } from '../src/pages/mode/mode-model';
 
+const modeScript = readFileSync(
+  resolve(__dirname, '../src/pages/mode/index.ts'),
+  'utf8',
+);
 const modeMarkup = readFileSync(
   resolve(__dirname, '../src/pages/mode/index.wxml'),
   'utf8',
@@ -18,6 +22,10 @@ describe('mode page', () => {
       dataset: '/pages/dataset/index',
       room: '/pages/room/index',
     });
+  });
+
+  it('starts a fresh room when the user explicitly enters team mode', () => {
+    expect(modeScript).toContain("url: `${MODE_ROUTES.room}?newRoom=1`");
   });
 
   it('contains the two game mode actions and the supporting copy', () => {

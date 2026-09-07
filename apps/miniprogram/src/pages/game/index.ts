@@ -1,9 +1,11 @@
 import { loadCatalogSelection, type CatalogDatasetType, type CatalogSelection } from '../../adapters/wx-catalog';
 import { loadCustomCatalogSelection } from '../../adapters/wx-room';
+import { loadLocalCustomCatalogSelection } from '../../adapters/wx-custom-catalog';
 import { getRoomIdentity } from '../../adapters/wx-room';
 import { createWxDecisionOperationStore } from '../../adapters/wx-decision-queue';
 import { createWxRealtimeTransport } from '../../adapters/wx-realtime';
 import { API_BASE_URL } from '../../config/runtime';
+import { hydrateCatalogSelectionImages } from '../../adapters/wx-image-cache';
 import { DecisionQueue } from '@lets-eat/client-core';
 import {
   completeRound,
@@ -192,8 +194,18 @@ Page<GamePageData, GamePageMethods>({
       this.loadMultiplayerRound();
       return;
     }
-    datasetType = options?.dataset === 'small' ? 'small' : 'large';
-    this.setData({ datasetLabel: datasetType === 'small' ? '小类菜品' : '大类菜品' });
+    datasetType = options?.dataset === 'small'
+      ? 'small'
+      : options?.dataset === 'custom'
+        ? 'custom'
+        : 'large';
+    this.setData({
+      datasetLabel: datasetType === 'small'
+        ? '小类菜品'
+        : datasetType === 'custom'
+          ? '自定义菜品'
+          : '大类菜品',
+    });
     this.loadRound();
   },
 
@@ -224,7 +236,11 @@ Page<GamePageData, GamePageMethods>({
   loadRound() {
     const currentLoadToken = ++loadToken;
     this.setData({ status: 'loading', errorMessage: '', isSwiping: false });
-    void loadCatalogSelection(API_BASE_URL, datasetType)
+    const selectionPromise = datasetType === 'custom'
+      ? loadLocalCustomCatalogSelection(API_BASE_URL)
+      : loadCatalogSelection(API_BASE_URL, datasetType);
+    void selectionPromise
+      .then((selection) => hydrateCatalogSelectionImages(API_BASE_URL, selection))
       .then((selection) => {
         if (currentLoadToken !== loadToken) return;
         catalogSelection = selection;
@@ -263,16 +279,17 @@ Page<GamePageData, GamePageMethods>({
         const selection = snapshot.datasetType === 'custom'
           ? await loadCustomCatalogSelection(API_BASE_URL, snapshot.roomId)
           : await loadCatalogSelection(API_BASE_URL, snapshot.datasetType);
+        const hydratedSelection = await hydrateCatalogSelectionImages(API_BASE_URL, selection);
         if (currentLoadToken !== multiplayerLoadToken) return;
-        const restored = restoreMultiplayerState(selection, snapshot, roundId);
+        const restored = restoreMultiplayerState(hydratedSelection, snapshot, roundId);
         multiplayerRound = snapshot;
         multiplayerRealtimeRevisions.roundRevision = snapshot.revision;
-        multiplayerSelection = selection;
+        multiplayerSelection = hydratedSelection;
         this.connectMultiplayerRealtime();
         void multiplayerDecisionQueue.flush(roundId).catch((cause) => console.warn('恢复多人决定失败', cause));
         gameState = restored.state;
-        catalogSelection = selection;
-        persistMultiplayerRound(gameState, selection, roundId);
+        catalogSelection = hydratedSelection;
+        persistMultiplayerRound(gameState, hydratedSelection, roundId);
         this.setData({
           datasetLabel: snapshot.datasetType === 'small'
             ? '小类菜品'
@@ -283,7 +300,7 @@ Page<GamePageData, GamePageMethods>({
         this.syncMultiplayerMembers(snapshot);
         const self = snapshot.members.find((member) => member.isSelf);
         if (restored.hasLocalState && snapshot.status === 'playing' && self?.status === 'choosing') {
-          reconcileMultiplayerDecisions(snapshot, selection, gameState);
+          reconcileMultiplayerDecisions(snapshot, hydratedSelection, gameState);
         }
         if (snapshot.status === 'completed') {
           this.disconnectMultiplayerRealtime();

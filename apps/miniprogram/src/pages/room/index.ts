@@ -61,7 +61,7 @@ interface RoomPageData {
 }
 
 interface RoomPageMethods {
-  onLoad(): void;
+  onLoad(options?: { newRoom?: string }): void;
   onShow(): void;
   onHide(): void;
   onUnload(): void;
@@ -109,6 +109,7 @@ let realtimeConnectInFlight = false;
 let realtimeConnectionAttempt = 0;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 let navigatedRoundId = '';
+let createNewRoomOnEntry = false;
 
 Page<RoomPageData, RoomPageMethods>({
   ...createShareConfig(),
@@ -136,7 +137,8 @@ Page<RoomPageData, RoomPageMethods>({
     roundId: '',
   },
 
-  onLoad() {
+  onLoad(options) {
+    createNewRoomOnEntry = options?.newRoom === '1';
     this.disconnectRealtime();
     roomSessionId += 1;
     identityUserId = '';
@@ -173,6 +175,7 @@ Page<RoomPageData, RoomPageMethods>({
       refreshPendingRoomId = null;
       realtimeRevisions = { roomRevision: 0 };
     }
+    createNewRoomOnEntry = false;
     if (toastTimer) clearTimeout(toastTimer);
     toastTimer = null;
   },
@@ -186,7 +189,7 @@ Page<RoomPageData, RoomPageMethods>({
         if (sessionId !== roomSessionId) return;
         identityUserId = identity.userId;
         this.setData({ userId: identity.userId });
-        const storedRoomId = readRoomReference();
+        const storedRoomId = createNewRoomOnEntry ? null : readRoomReference();
         if (storedRoomId) {
           try {
             const room = await getRoom(API_BASE_URL, storedRoomId);

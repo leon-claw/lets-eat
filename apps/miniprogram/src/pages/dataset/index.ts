@@ -1,4 +1,8 @@
 import { loadCatalogCounts } from '../../adapters/wx-catalog';
+import {
+  MIN_CUSTOM_CATALOG_ITEMS,
+  readCustomCatalog,
+} from '../../adapters/wx-custom-catalog';
 import { API_BASE_URL } from '../../config/runtime';
 import { createShareConfig } from '../../shared/share-config';
 
@@ -6,15 +10,20 @@ interface DatasetPageData {
   countsLoading: boolean;
   largeCount: number;
   smallCount: number;
+  customCount: number;
+  customConfigured: boolean;
   toastMessage: string;
   toastVisible: boolean;
 }
 
 interface DatasetPageMethods {
+  onShow(): void;
   onLargeTap(): void;
   onSmallTap(): void;
+  onCustomTap(): void;
   onNearbyTap(): void;
   onBack(): void;
+  refreshCustomSummary(): void;
   showToast(message: string): void;
 }
 
@@ -27,11 +36,14 @@ Page<DatasetPageData, DatasetPageMethods>({
     countsLoading: true,
     largeCount: 0,
     smallCount: 0,
+    customCount: 0,
+    customConfigured: false,
     toastMessage: '',
     toastVisible: false,
   },
 
   onLoad() {
+    this.refreshCustomSummary();
     void loadCatalogCounts(API_BASE_URL).then((counts) => {
       this.setData({
         countsLoading: false,
@@ -45,6 +57,18 @@ Page<DatasetPageData, DatasetPageMethods>({
     });
   },
 
+  onShow() {
+    this.refreshCustomSummary();
+  },
+
+  refreshCustomSummary() {
+    const customCatalog = readCustomCatalog();
+    this.setData({
+      customCount: customCatalog?.itemIds.length ?? 0,
+      customConfigured: (customCatalog?.itemIds.length ?? 0) >= MIN_CUSTOM_CATALOG_ITEMS,
+    });
+  },
+
   onBack() {
     wx.navigateBack({ delta: 1 });
   },
@@ -55,6 +79,15 @@ Page<DatasetPageData, DatasetPageMethods>({
 
   onSmallTap() {
     wx.navigateTo({ url: '/pages/game/index?dataset=small' });
+  },
+
+  onCustomTap() {
+    const customCatalog = readCustomCatalog();
+    if (!customCatalog || customCatalog.itemIds.length < MIN_CUSTOM_CATALOG_ITEMS) {
+      wx.navigateTo({ url: '/pages/settings/index' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/game/index?dataset=custom' });
   },
 
   onNearbyTap() {

@@ -13,6 +13,6 @@ Page({
   },
 
   onTeamTap() {
-    wx.navigateTo({ url: MODE_ROUTES.room });
+    wx.navigateTo({ url: `${MODE_ROUTES.room}?newRoom=1` });
   },
 });

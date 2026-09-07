@@ -7,6 +7,7 @@ import {
   clearRoomReference,
   readRoomReference,
 } from './adapters/wx-storage';
+import { preloadCatalogImages } from './adapters/wx-image-cache';
 import { API_BASE_URL } from './config/runtime';
 
 let startupIntent: NavigationTarget | undefined;
@@ -14,6 +15,10 @@ let foregroundSignal = 0;
 
 App({
   onLaunch() {
+    void preloadCatalogImages(API_BASE_URL).catch((cause) => {
+      console.warn('预加载菜品图片失败', cause);
+    });
+
     const controller = createStartupController({
       loadIdentity: async () => {
         const identity = await loadOrCreateAnonymousIdentity(API_BASE_URL);

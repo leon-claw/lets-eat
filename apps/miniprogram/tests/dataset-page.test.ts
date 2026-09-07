@@ -11,7 +11,7 @@ const datasetConfig = JSON.parse(
 ) as { navigationBarTitleText?: string };
 
 describe('dataset page', () => {
-  it('contains the three dataset choices and the single-player handoff', () => {
+  it('contains the single-player dataset choices including custom foods', () => {
     expect(datasetConfig.navigationBarTitleText).toBe('确认菜品数据集');
     expect(datasetMarkup).toContain('今天想从哪一类菜品开始？');
     expect(datasetMarkup).toContain('大类菜品');
@@ -20,8 +20,22 @@ describe('dataset page', () => {
     expect(datasetMarkup).toContain('螺蛳粉、火锅、披萨等小分类');
     expect(datasetMarkup).toContain('周围菜品');
     expect(datasetMarkup).toContain('待上线，点击催开发进度');
+    expect(datasetMarkup).toContain('自定义菜品');
+    expect(datasetMarkup).toContain('至少选择 3 道菜品');
     expect(datasetMarkup).toContain('onLargeTap');
     expect(datasetMarkup).toContain('onSmallTap');
     expect(datasetMarkup).toContain('onNearbyTap');
+    expect(datasetMarkup).toContain('onCustomTap');
+  });
+
+  it('routes the custom dataset choice to the local configuration or game', async () => {
+    const script = readFileSync(resolve(__dirname, '../src/pages/dataset/index.ts'), 'utf8');
+
+    expect(script).toContain('readCustomCatalog');
+    expect(script).toContain('MIN_CUSTOM_CATALOG_ITEMS');
+    expect(script).toContain('onShow()');
+    expect(script).toContain('refreshCustomSummary');
+    expect(script).toContain("/pages/game/index?dataset=custom");
+    expect(script).toContain("/pages/settings/index");
   });
 });

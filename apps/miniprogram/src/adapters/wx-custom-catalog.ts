@@ -1,4 +1,8 @@
-import type { CatalogItem } from './wx-catalog';
+import {
+  loadCatalog,
+  type CatalogItem,
+  type CatalogSelection,
+} from './wx-catalog';
 import {
   isCustomCatalogSelection as isCoreCustomCatalogSelection,
   MIN_CUSTOM_CATALOG_ITEMS as CORE_MIN_CUSTOM_CATALOG_ITEMS,
@@ -26,6 +30,30 @@ export function readCustomCatalog(): CustomCatalogSelection | null {
   } catch {
     return null;
   }
+}
+
+export async function loadLocalCustomCatalogSelection(baseUrl: string): Promise<CatalogSelection> {
+  const saved = readCustomCatalog();
+  if (!saved) throw new Error('尚未配置自定义菜品，请先去设置');
+
+  const catalog = await loadCatalog(baseUrl);
+  if (
+    catalog.catalogVersion !== saved.catalogVersion ||
+    catalog.catalogHash !== saved.catalogHash
+  ) {
+    throw new Error('自定义菜品版本已变化，请重新配置');
+  }
+
+  const items = filterCatalogItemsByIds(catalog.items, saved.itemIds);
+  if (items.length !== saved.itemIds.length) {
+    throw new Error('自定义菜品中有菜品已失效，请重新配置');
+  }
+  return {
+    catalogVersion: saved.catalogVersion,
+    catalogHash: saved.catalogHash,
+    datasetType: 'custom',
+    items,
+  };
 }
 
 export function saveCustomCatalog(selection: CustomCatalogSelection): void {

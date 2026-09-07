@@ -19,7 +19,7 @@ export function readStoredSingleRound(): StoredSingleRound | null {
     if (!value || typeof value !== 'object') return null;
     const stored = value as Partial<StoredSingleRound>;
     if (
-      (stored.datasetType !== 'large' && stored.datasetType !== 'small') ||
+      (stored.datasetType !== 'large' && stored.datasetType !== 'small' && stored.datasetType !== 'custom') ||
       typeof stored.catalogVersion !== 'string' ||
       typeof stored.catalogHash !== 'string' ||
       !Array.isArray(stored.itemIds) ||

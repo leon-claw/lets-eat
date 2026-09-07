@@ -1,5 +1,8 @@
 import { loadCatalogSelection, type CatalogItem } from '../../adapters/wx-catalog';
-import { filterCatalogItemsByIds } from '../../adapters/wx-custom-catalog';
+import {
+  filterCatalogItemsByIds,
+  loadLocalCustomCatalogSelection,
+} from '../../adapters/wx-custom-catalog';
 import { API_BASE_URL } from '../../config/runtime';
 import {
   clearStoredSingleRound,
@@ -78,7 +81,10 @@ Page<SingleResultPageData, SingleResultPageMethods>({
       return;
     }
 
-    void loadCatalogSelection(API_BASE_URL, storedRound.datasetType)
+    const selectionPromise = storedRound.datasetType === 'custom'
+      ? loadLocalCustomCatalogSelection(API_BASE_URL)
+      : loadCatalogSelection(API_BASE_URL, storedRound.datasetType);
+    void selectionPromise
       .then((selection) => {
         if (currentLoadToken !== loadToken || !storedRound) return;
         if (
