@@ -9,7 +9,7 @@ import {
 
 export type FastTextPredictionVector = {
   size(): number;
-  get(index: number): { first: number; second: string };
+  get(index: number): readonly [number, string];
 };
 
 export type FastTextModelLike = {
@@ -23,7 +23,6 @@ export type NearbyFastTextClassifier = {
   classify(name: string, amapType: string): Promise<NearbyRestaurantClassification>;
 };
 
-const FASTTEXT_RUNTIME_URL = '/models/nearby-classifier/fasttext.js';
 const FASTTEXT_MODEL_URL = '/models/nearby-classifier/nearby-restaurant-classifier.ftz';
 
 type FastTextBrowserRuntime = {
@@ -32,7 +31,7 @@ type FastTextBrowserRuntime = {
 };
 
 const loadModelFromBrowserAssets: FastTextModelLoader = async () => {
-  const runtime = await import(/* @vite-ignore */ FASTTEXT_RUNTIME_URL) as FastTextBrowserRuntime;
+  const runtime = await import('./fasttext-runtime/fasttext.js') as FastTextBrowserRuntime;
   await new Promise<void>((resolve) => runtime.addOnPostRun(resolve));
   return new runtime.FastText().loadModel(FASTTEXT_MODEL_URL);
 };
@@ -44,9 +43,9 @@ function fallbackClassification(name: string, amapType: string): NearbyRestauran
 function readTopPrediction(predictions: FastTextPredictionVector): { label: string; probability: number } | undefined {
   if (predictions.size() < 1) return undefined;
   const prediction = predictions.get(0);
-  if (!prediction || typeof prediction.second !== 'string' || typeof prediction.first !== 'number') return undefined;
-  if (!Number.isFinite(prediction.first)) return undefined;
-  return { label: prediction.second, probability: Math.max(0, Math.min(1, prediction.first)) };
+  if (!Array.isArray(prediction) || typeof prediction[1] !== 'string' || typeof prediction[0] !== 'number') return undefined;
+  if (!Number.isFinite(prediction[0])) return undefined;
+  return { label: prediction[1], probability: Math.max(0, Math.min(1, prediction[0])) };
 }
 
 export function createNearbyFastTextClassifier(options: { loadModel?: FastTextModelLoader } = {}): NearbyFastTextClassifier {

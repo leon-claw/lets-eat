@@ -48,6 +48,12 @@ export function useNearbyRestaurantClassifications(
   useEffect(() => {
     let cancelled = false;
 
+    if (visibleRestaurants.length === 0) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const classify = async () => {
       await readyOnce(classifier);
       if (cancelled) return;

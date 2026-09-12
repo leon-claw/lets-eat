@@ -5,7 +5,7 @@ function model(label: string, probability = 0.92) {
   return {
     predict: vi.fn(() => ({
       size: () => 1,
-      get: () => ({ first: probability, second: `__label__${label}` }),
+      get: () => [probability, `__label__${label}`] as const,
     })),
   };
 }

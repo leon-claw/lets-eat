@@ -17,6 +17,18 @@ function restaurant(index: number): NearbyRestaurant {
 }
 
 describe('useNearbyRestaurantClassifications', () => {
+  it('does not initialize the model when there are no visible restaurants', () => {
+    const classifier = {
+      ready: vi.fn().mockResolvedValue(undefined),
+      classify: vi.fn(),
+    };
+
+    renderHook(() => useNearbyRestaurantClassifications([], classifier));
+
+    expect(classifier.ready).not.toHaveBeenCalled();
+    expect(classifier.classify).not.toHaveBeenCalled();
+  });
+
   it('shows rule results immediately and replaces the first 20 with model results', async () => {
     const classifier = {
       ready: vi.fn().mockResolvedValue(undefined),
