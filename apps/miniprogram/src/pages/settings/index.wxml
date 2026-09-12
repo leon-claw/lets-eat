@@ -57,6 +57,8 @@
       disabled="{{draftSelectedCount < minItems}}"
       bindtap="onSave"
     >保存自定义菜品</button>
+
+    <text class="build-info">{{buildLabel}}</text>
   </view>
 
   <view wx:if="{{confirmVisible}}" class="modal-mask" catchtap="onCancelConfirm">

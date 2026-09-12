@@ -8,6 +8,7 @@ import {
   readCustomCatalog,
   saveCustomCatalog,
 } from '../../adapters/wx-custom-catalog';
+import { BUILD_LABEL } from '../../config/build-info';
 import { API_BASE_URL } from '../../config/runtime';
 import { createShareConfig } from '../../shared/share-config';
 
@@ -19,6 +20,7 @@ interface SettingsItemView extends CatalogItem {
 }
 
 interface SettingsPageData {
+  buildLabel: string;
   status: SettingsPageStatus;
   filter: CatalogFilter;
   minItems: number;
@@ -64,6 +66,7 @@ Page<SettingsPageData, SettingsPageMethods>({
   ...createShareConfig(),
 
   data: {
+    buildLabel: BUILD_LABEL,
     status: 'loading',
     filter: 'all',
     minItems: MIN_CUSTOM_CATALOG_ITEMS,

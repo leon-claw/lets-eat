@@ -7,6 +7,24 @@ import type { CustomCatalogStore } from '@/features/custom-catalog/custom-catalo
 import { ModePage } from './ModePage';
 
 describe('ModePage motion hooks', () => {
+  it('does not show the removed intro copy', () => {
+    render(<MemoryRouter><ModePage /></MemoryRouter>);
+
+    expect(screen.queryByText('一个人也可以认真吃饭，和朋友一起更有趣')).not.toBeInTheDocument();
+  });
+
+  it('enlarges the mascots inside the unchanged 48px image slots', () => {
+    render(<MemoryRouter><ModePage /></MemoryRouter>);
+
+    for (const label of ['单人游戏', '组队游戏']) {
+      const image = screen.getByRole('button', { name: label }).querySelector('img');
+      const frame = image?.parentElement;
+
+      expect(frame).toHaveClass('mode-image-frame', 'h-12', 'w-12', 'overflow-hidden', 'shrink-0');
+      expect(image).toHaveClass('h-full', 'w-full', 'scale-[1.45]', 'object-contain');
+    }
+  });
+
   it('shows an explicit pending state while creating a room', async () => {
     const user = userEvent.setup();
     const createRoom = vi.fn(() => new Promise<never>(() => {}));

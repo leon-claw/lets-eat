@@ -6,6 +6,10 @@ export interface MiniProgramShareConfig {
     title: string;
     path: string;
   };
+  onShareTimeline(): {
+    title: string;
+    query: string;
+  };
 }
 
 export function createShareConfig(): MiniProgramShareConfig {
@@ -14,6 +18,12 @@ export function createShareConfig(): MiniProgramShareConfig {
       return {
         title: SHARE_TITLE,
         path: HOME_SHARE_PATH,
+      };
+    },
+    onShareTimeline() {
+      return {
+        title: SHARE_TITLE,
+        query: '',
       };
     },
   };

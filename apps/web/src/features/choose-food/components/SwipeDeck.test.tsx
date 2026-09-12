@@ -15,6 +15,22 @@ const nextChoice: FoodChoice = {
 };
 
 describe('SwipeDeck', () => {
+  it('places the like and dislike overlays on the opposite sides of the card', () => {
+    render(<SwipeDeck choice={choice} current={1} total={1} canUndo={false} onDislike={vi.fn()} onLike={vi.fn()} onUndo={vi.fn()} onInteractionLockChange={vi.fn()} />);
+
+    const likeOverlay = screen.getAllByText('喜欢').find((element) => element.className.includes('absolute'));
+    const dislikeOverlay = screen.getAllByText('不喜欢').find((element) => element.className.includes('absolute'));
+
+    expect(likeOverlay).toHaveClass('left-6');
+    expect(likeOverlay).not.toHaveClass('right-6');
+    expect(likeOverlay).toHaveClass('border-emerald-500', 'bg-white', 'text-emerald-600');
+    expect(likeOverlay).not.toHaveClass('bg-emerald-500', 'text-white');
+    expect(dislikeOverlay).toHaveClass('right-6');
+    expect(dislikeOverlay).not.toHaveClass('left-6');
+    expect(dislikeOverlay).toHaveClass('border-rose-500', 'bg-white', 'text-rose-600');
+    expect(dislikeOverlay).not.toHaveClass('bg-rose-500', 'text-white');
+  });
+
   it('keeps horizontal binary controls and removes old decision controls', async () => {
     const user = userEvent.setup();
     const onDislike = vi.fn();

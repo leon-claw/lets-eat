@@ -13,15 +13,6 @@
   animation: page-shell-enter 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
-.intro {
-  display: block;
-  margin-bottom: 28px;
-  color: #64748b;
-  font-size: 14px;
-  line-height: 1.5;
-  text-align: center;
-}
-
 .mode-button {
   width: 100% !important;
   min-width: 0 !important;
@@ -61,16 +52,22 @@
   background: #1e293b;
 }
 
-.mode-icon {
+.mode-image-frame {
   width: 32px;
   min-width: 32px;
-  font-size: 30px;
-  line-height: 1;
-  text-align: center;
+  height: 32px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.mode-icon--team {
-  font-size: 28px;
+.mode-image {
+  width: 32px;
+  height: 32px;
+  display: block;
+  transform: scale(1.45);
+  transform-origin: center;
 }
 
 .mode-copy {

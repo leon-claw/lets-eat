@@ -1,14 +1,14 @@
 <view class="page-shell">
   <view class="page-main">
     <view class="mode-content">
-      <text class="intro entry-fade-up">一个人也可以认真吃饭，和朋友一起更有趣</text>
-
       <button
         class="mode-button mode-button--single pressable entry-fade-up entry-delay-40"
         hover-class="mode-button--single-hover"
         bindtap="onSingleTap"
       >
-        <text class="mode-icon">👤</text>
+        <view class="mode-image-frame">
+          <image class="mode-image" src="/assets/rice-ball-single.png" mode="aspectFit" />
+        </view>
         <view class="mode-copy">
           <text class="mode-title">单人游戏</text>
           <text class="mode-description">按自己的口味做决定</text>
@@ -20,7 +20,9 @@
         hover-class="mode-button--team-hover"
         bindtap="onTeamTap"
       >
-        <text class="mode-icon mode-icon--team">👥</text>
+        <view class="mode-image-frame">
+          <image class="mode-image" src="/assets/rice-ball-pair.png" mode="aspectFit" />
+        </view>
         <view class="mode-copy">
           <text class="mode-title">组队游戏</text>
           <text class="mode-description">和朋友一起决定今天吃什么</text>

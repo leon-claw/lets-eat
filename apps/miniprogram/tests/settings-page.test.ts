@@ -19,6 +19,8 @@ describe('settings page', () => {
     expect(markup).toContain('大类');
     expect(markup).toContain('小类');
     expect(markup).toContain('保存自定义菜品');
+    expect(markup).toContain('class="build-info"');
+    expect(markup).toContain('{{buildLabel}}');
     expect(markup).toContain('bindtap="onToggleItem"');
     expect(markup).toContain('bindtap="onSave"');
     expect(markup).not.toContain('设置页待迁移');
@@ -29,5 +31,6 @@ describe('settings page', () => {
     expect(script).toContain('saveCustomCatalog');
     expect(script).toContain('loadCatalog');
     expect(script).toContain('confirmVisible');
+    expect(script).toContain("import { BUILD_LABEL } from '../../config/build-info'");
   });
 });

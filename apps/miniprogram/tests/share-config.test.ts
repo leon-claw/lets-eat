@@ -25,6 +25,13 @@ describe('mini program share configuration', () => {
     });
   });
 
+  it('shares to the timeline with a stable title and home-page query', () => {
+    expect(createShareConfig().onShareTimeline()).toEqual({
+      title: '今天吃什么',
+      query: '',
+    });
+  });
+
   it('adds the same friend-share behavior to every registered page', async () => {
     const page = vi.fn();
     vi.stubGlobal('Page', page);
@@ -40,6 +47,25 @@ describe('mini program share configuration', () => {
       expect(definition?.onShareAppMessage?.(), modulePath).toEqual({
         title: '今天吃什么',
         path: '/pages/home/index',
+      });
+    }
+  });
+
+  it('adds the same timeline-share behavior to every registered page', async () => {
+    const page = vi.fn();
+    vi.stubGlobal('Page', page);
+
+    for (const modulePath of pageModules) {
+      page.mockClear();
+      await import(modulePath);
+      const definition = page.mock.calls[0]?.[0] as {
+        onShareTimeline?: () => { title: string; query: string };
+      } | undefined;
+
+      expect(definition?.onShareTimeline, modulePath).toBeTypeOf('function');
+      expect(definition?.onShareTimeline?.(), modulePath).toEqual({
+        title: '今天吃什么',
+        query: '',
       });
     }
   });

@@ -38,8 +38,6 @@
       hover-class="start-button--hover"
       bindtap="onStartTap"
     >开始游戏</button>
-
-    <text class="build-info">{{buildLabel}}</text>
   </view>
 
   <view wx:if="{{toastVisible}}" class="toast">{{toastMessage}}</view>

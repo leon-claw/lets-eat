@@ -193,8 +193,8 @@ export function SwipeDeck({
           onDragEnd={handleDragEnd}
           className="absolute z-10 flex h-full w-full cursor-grab flex-col justify-between overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-xl active:cursor-grabbing touch-pan-y"
         >
-          <motion.div style={{ opacity: likeOpacity }} className="pointer-events-none absolute right-6 top-6 z-20 flex rotate-12 items-center gap-1 rounded-2xl border-2 border-white bg-emerald-500 px-3.5 py-1 text-lg font-black text-white shadow-lg"><Heart className="h-5 w-5 fill-white" />喜欢</motion.div>
-          <motion.div style={{ opacity: dislikeOpacity }} className="pointer-events-none absolute left-6 top-6 z-20 flex -rotate-12 items-center gap-1 rounded-2xl border-2 border-white bg-rose-500 px-3.5 py-1 text-lg font-black text-white shadow-lg"><X className="h-5 w-5 stroke-[3]" />不喜欢</motion.div>
+          <motion.div style={{ opacity: likeOpacity }} className="pointer-events-none absolute left-6 top-6 z-20 flex -rotate-12 items-center gap-1 rounded-2xl border-2 border-emerald-500 bg-white px-3.5 py-1 text-lg font-black text-emerald-600 shadow-lg"><Heart className="h-5 w-5 fill-emerald-600" />喜欢</motion.div>
+          <motion.div style={{ opacity: dislikeOpacity }} className="pointer-events-none absolute right-6 top-6 z-20 flex rotate-12 items-center gap-1 rounded-2xl border-2 border-rose-500 bg-white px-3.5 py-1 text-lg font-black text-rose-600 shadow-lg"><X className="h-5 w-5 stroke-[3]" />不喜欢</motion.div>
           <ChoiceCard choice={choice} representativeFoodsLabel={representativeFoodsLabel} emphasizeRepresentativeFoods={emphasizeRepresentativeFoods} />
         </motion.article>
       </div>

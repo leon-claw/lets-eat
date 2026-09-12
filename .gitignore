@@ -17,3 +17,6 @@ apps/miniprogram/project.private.config.json
 .env.production
 backup-*.sql
 logs/
+
+# Local poster reference images
+/design/posters/references/

@@ -14,8 +14,8 @@ describe('home page brand logo', () => {
     expect(homeMarkup).not.toContain('>🍜</');
   });
 
-  it('renders the fixed build label at the bottom of the page', () => {
-    expect(homeMarkup).toContain('class="build-info"');
-    expect(homeMarkup).toContain('{{buildLabel}}');
+  it('keeps build information off the home page', () => {
+    expect(homeMarkup).not.toContain('class="build-info"');
+    expect(homeMarkup).not.toContain('{{buildLabel}}');
   });
 });

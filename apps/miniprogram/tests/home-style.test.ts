@@ -18,11 +18,7 @@ describe('home page button sizing', () => {
     expect(settingsRule).toMatch(/padding:\s*0\s*!important/);
   });
 
-  it('keeps the build label small and anchored to the card bottom', () => {
-    const buildInfoRule = homeStyles.match(/\.build-info\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
-
-    expect(buildInfoRule).toMatch(/position:\s*absolute/);
-    expect(buildInfoRule).toMatch(/bottom:\s*16px/);
-    expect(buildInfoRule).toMatch(/font-size:\s*10px/);
+  it('does not reserve home-page styles for build information', () => {
+    expect(homeStyles).not.toContain('.build-info');
   });
 });
