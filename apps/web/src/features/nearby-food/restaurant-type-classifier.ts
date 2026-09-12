@@ -1,7 +1,7 @@
 export type NearbyRestaurantClassification = {
   category: string;
   confidence: number;
-  source: 'local-model' | 'fallback';
+  source: 'fasttext' | 'local-model' | 'fallback';
 };
 
 type Feature = {
@@ -11,7 +11,7 @@ type Feature = {
 
 const FALLBACK_CATEGORY = '其他';
 
-// 这是一个很小的本地线性分类器：用商家名称中的短语作为特征，
+// 这是一个很小的本地线性分类器：用商家名称和高德分类中的短语作为特征，
 // 特征权重越高，代表它对菜系的区分度越强。它不改变高德原始分类。
 const CATEGORY_FEATURES: Record<string, Feature[]> = {
   粤菜: [
@@ -201,13 +201,69 @@ const CHARACTER_NGRAM_FEATURES: Record<string, Feature[]> = {
   ],
 };
 
+const AMAP_CATEGORY_FEATURES: Record<string, Feature[]> = {
+  粤菜: [
+    { phrase: '广东菜', weight: 4.2 },
+    { phrase: '粤菜', weight: 4.2 },
+    { phrase: '潮州菜', weight: 4.2 },
+    { phrase: '综合酒楼', weight: 3.8 },
+    { phrase: '海鲜酒楼', weight: 5.6 },
+  ],
+  川菜: [
+    { phrase: '四川菜', weight: 4.2 },
+    { phrase: '川菜', weight: 4.2 },
+  ],
+  湘菜: [
+    { phrase: '湖南菜', weight: 4.2 },
+    { phrase: '湘菜', weight: 4.2 },
+  ],
+  火锅: [{ phrase: '火锅店', weight: 4.2 }],
+  烧烤: [{ phrase: '烧烤', weight: 4.2 }],
+  螺蛳粉: [
+    { phrase: '螺蛳粉', weight: 4.2 },
+    { phrase: '螺丝粉', weight: 4.2 },
+  ],
+  日料: [{ phrase: '日本料理', weight: 4.2 }],
+  韩餐: [{ phrase: '韩国料理', weight: 4.2 }],
+  西餐: [
+    { phrase: '西餐厅', weight: 3.8 },
+    { phrase: '法式菜品餐厅', weight: 4.2 },
+    { phrase: '意式菜品餐厅', weight: 4.2 },
+    { phrase: '美式风味', weight: 4.2 },
+    { phrase: '牛扒店', weight: 4.2 },
+  ],
+  东南亚菜: [
+    { phrase: '泰国', weight: 4.2 },
+    { phrase: '越南', weight: 4.2 },
+    { phrase: '东南亚', weight: 4.2 },
+  ],
+  东北菜: [{ phrase: '东北菜', weight: 4.2 }],
+  云南菜: [
+    { phrase: '云南菜', weight: 4.2 },
+    { phrase: '云贵菜', weight: 4.2 },
+  ],
+  面食: [{ phrase: '面食', weight: 3.8 }],
+  轻食: [{ phrase: '轻食', weight: 4.2 }],
+  甜品奶茶: [
+    { phrase: '咖啡厅', weight: 3.8 },
+    { phrase: '冷饮店', weight: 3.8 },
+    { phrase: '糕饼店', weight: 3.8 },
+    { phrase: '甜品店', weight: 3.8 },
+    { phrase: '星巴克咖啡', weight: 4.2 },
+  ],
+  海鲜: [
+    { phrase: '海鲜', weight: 3.8 },
+    { phrase: '海产', weight: 3.8 },
+  ],
+};
+
 const CATEGORY_NAMES = Object.keys(CATEGORY_FEATURES);
 
 function normalizeName(name: string): string {
   return name
     .trim()
     .toLocaleLowerCase()
-    .replace(/[、，。！？；：/\\|()[\]{}<>《》“”‘’'"`·•_-]+/g, ' ')
+    .replace(/[、，。！？；;：/\\|()[\]{}<>《》“”‘’'"`·•_-]+/g, ' ')
     .replace(/\s+/g, ' ');
 }
 
@@ -242,16 +298,19 @@ function fallback(confidence = 0): NearbyRestaurantClassification {
   };
 }
 
-export function classifyNearbyRestaurantName(name: string): NearbyRestaurantClassification {
+export function classifyNearbyRestaurantName(name: string, amapType = ''): NearbyRestaurantClassification {
   const normalizedName = normalizeName(name);
   if (!normalizedName) {
     return fallback();
   }
 
+  const normalizedAmapType = normalizeName(amapType);
   const ngrams = nameNgrams(normalizedName);
   const scores = CATEGORY_NAMES.map((category) => {
-    const score = scoreFeatures(normalizedName, CATEGORY_FEATURES[category])
+    const nameScore = scoreFeatures(normalizedName, CATEGORY_FEATURES[category])
       + scoreFeatures(ngrams, CHARACTER_NGRAM_FEATURES[category] ?? []);
+    const amapScore = scoreFeatures(normalizedAmapType, AMAP_CATEGORY_FEATURES[category] ?? []);
+    const score = nameScore + amapScore * 0.9;
 
     return { category, score };
   }).sort((left, right) => right.score - left.score);
