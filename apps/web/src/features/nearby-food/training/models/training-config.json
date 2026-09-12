@@ -1,0 +1,50 @@
+{
+  "seed": 20260912,
+  "inputPath": "/Users/leon.w/Documents/lets-eat/apps/web/src/features/nearby-food/training/data/train.txt",
+  "outputPrefix": "/Users/leon.w/Documents/lets-eat/apps/web/src/features/nearby-food/training/models/nearby-restaurant-classifier",
+  "options": {
+    "dim": 32,
+    "epoch": 50,
+    "lr": 0.5,
+    "wordNgrams": 2,
+    "minn": 2,
+    "maxn": 5,
+    "bucket": 20000,
+    "minCount": 1,
+    "loss": "softmax"
+  },
+  "trainArgs": [
+    "supervised",
+    "-input",
+    "/Users/leon.w/Documents/lets-eat/apps/web/src/features/nearby-food/training/data/train.txt",
+    "-output",
+    "/Users/leon.w/Documents/lets-eat/apps/web/src/features/nearby-food/training/models/nearby-restaurant-classifier",
+    "-dim",
+    "32",
+    "-epoch",
+    "50",
+    "-lr",
+    "0.5",
+    "-wordNgrams",
+    "2",
+    "-minn",
+    "2",
+    "-maxn",
+    "5",
+    "-bucket",
+    "20000",
+    "-minCount",
+    "1",
+    "-loss",
+    "softmax"
+  ],
+  "quantizeArgs": [
+    "quantize",
+    "-input",
+    "/Users/leon.w/Documents/lets-eat/apps/web/src/features/nearby-food/training/data/train.txt",
+    "-output",
+    "/Users/leon.w/Documents/lets-eat/apps/web/src/features/nearby-food/training/models/nearby-restaurant-classifier",
+    "-qnorm",
+    "-retrain"
+  ]
+}

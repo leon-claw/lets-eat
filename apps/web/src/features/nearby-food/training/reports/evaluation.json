@@ -10,9 +10,9 @@
     "accuracy": 0.97,
     "macroPrecision": 0.9734,
     "macroRecall": 0.9667,
-    "macroF1": 0.9673,
-    "lowConfidenceCount": 16,
-    "lowConfidenceRate": 0.16,
+    "macroF1": 0.9657,
+    "lowConfidenceCount": 15,
+    "lowConfidenceRate": 0.15,
     "perLabel": {
       "粤菜": {
         "support": 5,
@@ -24,35 +24,35 @@
       },
       "川菜": {
         "support": 5,
-        "predicted": 7,
+        "predicted": 5,
         "correct": 5,
-        "precision": 0.7143,
+        "precision": 1,
         "recall": 1,
-        "f1": 0.8333
+        "f1": 1
       },
       "湘菜": {
-        "support": 5,
-        "predicted": 4,
-        "correct": 4,
-        "precision": 1,
-        "recall": 0.8,
-        "f1": 0.8889
-      },
-      "火锅": {
-        "support": 5,
-        "predicted": 4,
-        "correct": 4,
-        "precision": 1,
-        "recall": 0.8,
-        "f1": 0.8889
-      },
-      "烧烤": {
         "support": 5,
         "predicted": 5,
         "correct": 5,
         "precision": 1,
         "recall": 1,
         "f1": 1
+      },
+      "火锅": {
+        "support": 5,
+        "predicted": 3,
+        "correct": 3,
+        "precision": 1,
+        "recall": 0.6,
+        "f1": 0.75
+      },
+      "烧烤": {
+        "support": 5,
+        "predicted": 7,
+        "correct": 5,
+        "precision": 0.7143,
+        "recall": 1,
+        "f1": 0.8333
       },
       "螺蛳粉": {
         "support": 5,
@@ -192,8 +192,8 @@
       },
       "湘菜": {
         "粤菜": 0,
-        "川菜": 1,
-        "湘菜": 4,
+        "川菜": 0,
+        "湘菜": 5,
         "火锅": 0,
         "烧烤": 0,
         "螺蛳粉": 0,
@@ -213,8 +213,8 @@
         "粤菜": 0,
         "川菜": 0,
         "湘菜": 0,
-        "火锅": 4,
-        "烧烤": 0,
+        "火锅": 3,
+        "烧烤": 1,
         "螺蛳粉": 0,
         "日料": 0,
         "韩餐": 0,
@@ -439,10 +439,10 @@
       },
       "海鲜": {
         "粤菜": 0,
-        "川菜": 1,
+        "川菜": 0,
         "湘菜": 0,
         "火锅": 0,
-        "烧烤": 0,
+        "烧烤": 1,
         "螺蛳粉": 0,
         "日料": 0,
         "韩餐": 0,
