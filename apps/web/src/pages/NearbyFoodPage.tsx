@@ -3,9 +3,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation as useRouterLocation, useNavigate } from 'react-router-dom';
 import { prepareRoundChoices } from '@/features/choose-food/round-choice-order';
 import { nearbyRestaurantsToFoodChoices } from '@/features/nearby-food/nearby-food-adapter';
+import { type NearbyFastTextClassifier } from '@/features/nearby-food/fasttext-browser-classifier';
 import { createNearbyRoundStore } from '@/features/nearby-food/nearby-storage';
 import type { NearbyRoundStore } from '@/features/nearby-food/nearby-round';
-import { classifyNearbyRestaurantName } from '@/features/nearby-food/restaurant-type-classifier';
+import { useNearbyRestaurantClassifications } from '@/features/nearby-food/useNearbyRestaurantClassifications';
 import type { GeoPoint } from '@/features/nearby-food/types';
 import {
   DEFAULT_NEARBY_RADIUS_METERS,
@@ -20,6 +21,7 @@ import { useFeedback } from '@/shared/components/FeedbackProvider';
 interface NearbyFoodPageProps {
   searchDependencies?: NearbyFoodSearchDependencies;
   roundStore?: NearbyRoundStore;
+  classifier?: NearbyFastTextClassifier;
 }
 
 const browserRoundStore = createNearbyRoundStore();
@@ -37,7 +39,7 @@ function radiusLabel(radiusMeters: number): string {
   return radiusMeters >= 1000 ? `${radiusMeters / 1000} 公里` : `${radiusMeters} 米`;
 }
 
-export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundStore }: NearbyFoodPageProps) {
+export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundStore, classifier }: NearbyFoodPageProps) {
   const location = useRouterLocation();
   const navigate = useNavigate();
   const { toast } = useFeedback();
@@ -49,14 +51,7 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
   );
   const search = useNearbyFoodSearch(effectiveDependencies);
   const shownError = useRef<string | null>(null);
-  const smartClassifications = useMemo(
-    () => new Map(
-      search.state.restaurants
-        .slice(0, 20)
-        .map((restaurant) => [restaurant.id, classifyNearbyRestaurantName(restaurant.name)]),
-    ),
-    [search.state.restaurants],
-  );
+  const smartClassifications = useNearbyRestaurantClassifications(search.state.restaurants, classifier);
 
   useEffect(() => {
     if (!selectedLocation) return;
@@ -163,10 +158,10 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
             {search.state.restaurants.map((restaurant) => {
               const smartClassification = smartClassifications.get(restaurant.id);
               return (
-              <article key={restaurant.id} className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600"><UtensilsIcon /></div>
-                <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h3 className="truncate font-black text-slate-900">{restaurant.name}</h3>{restaurant.rating !== undefined && <span className="shrink-0 text-xs font-black text-amber-600">评分 {restaurant.rating.toFixed(1)}</span>}</div><p className="mt-1 truncate text-xs text-slate-500">{restaurant.type || '餐饮服务'}</p>{smartClassification && <p className="mt-1 truncate text-xs text-sky-700">智能分类：{smartClassification.category}</p>}</div>
-              </article>
+                <article key={restaurant.id} className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600"><UtensilsIcon /></div>
+                  <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h3 className="truncate font-black text-slate-900">{restaurant.name}</h3>{restaurant.rating !== undefined && <span className="shrink-0 text-xs font-black text-amber-600">评分 {restaurant.rating.toFixed(1)}</span>}</div><p className="mt-1 truncate text-xs text-slate-500">{restaurant.type || '餐饮服务'}</p>{smartClassification && <p className="mt-1 truncate text-xs text-sky-700">智能分类：{smartClassification.category}</p>}</div>
+                </article>
               );
             })}
           </div>

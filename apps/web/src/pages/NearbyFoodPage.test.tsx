@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { AmapSearchError } from '@/features/nearby-food/amap-client';
+import type { NearbyFastTextClassifier } from '@/features/nearby-food/fasttext-browser-classifier';
 import type { AmapConfig, GeoPoint, NearbyRestaurant, NearbyRoundSession, NearbySearchSession } from '@/features/nearby-food/types';
 import type { NearbyRoundStore } from '@/features/nearby-food/nearby-round';
 import { FeedbackProvider } from '@/shared/components/FeedbackProvider';
@@ -52,12 +53,13 @@ function renderNearby(
   searchDependencies: ReturnType<typeof dependencies>,
   initialEntry: string | { pathname: string; state?: unknown } = '/nearby',
   roundStore?: NearbyRoundStore,
+  classifier?: NearbyFastTextClassifier,
 ) {
   return render(
     <FeedbackProvider>
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
-          <Route path="/nearby" element={<NearbyFoodPage searchDependencies={searchDependencies} roundStore={roundStore} />} />
+          <Route path="/nearby" element={<NearbyFoodPage searchDependencies={searchDependencies} roundStore={roundStore} classifier={classifier} />} />
           <Route path="*" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
@@ -91,6 +93,36 @@ describe('NearbyFoodPage', () => {
     expect(screen.getByText('智能分类：日料')).toBeInTheDocument();
     expect(screen.getAllByText(/^智能分类：/)).toHaveLength(20);
     expect(screen.getAllByText('餐饮服务;中餐厅')).toHaveLength(20);
+  });
+
+  it('模型加载后替换规则分类，并保留高德分类', async () => {
+    let releaseModel: (() => void) | undefined;
+    const classifier: NearbyFastTextClassifier = {
+      ready: vi.fn(() => new Promise<void>((resolve) => { releaseModel = resolve; })),
+      classify: vi.fn().mockResolvedValue({ category: '火锅', confidence: 0.91, source: 'fasttext' }),
+    };
+    const deps = dependencies([{ ...restaurant(1), name: '本地餐馆', type: '餐饮服务;中餐厅' }]);
+    renderNearby(deps, '/nearby', undefined, classifier);
+
+    expect(await screen.findByText('智能分类：其他')).toBeInTheDocument();
+    expect(screen.getByText('餐饮服务;中餐厅')).toBeInTheDocument();
+    releaseModel?.();
+    await waitFor(() => expect(screen.getByText('智能分类：火锅')).toBeInTheDocument());
+    expect(classifier.classify).toHaveBeenCalledWith('本地餐馆', '餐饮服务;中餐厅');
+  });
+
+  it('将高德分类作为智能分类的辅助输入', async () => {
+    const deps = dependencies([
+      { ...restaurant(1), name: '本地餐馆甲', type: '餐饮服务;外国餐厅;日本料理' },
+      { ...restaurant(2), name: '本地餐馆乙', type: '餐饮服务;中餐厅;四川菜(川菜)' },
+      { ...restaurant(3), name: '本地餐馆丙', type: '餐饮服务;咖啡厅' },
+    ]);
+    renderNearby(deps);
+
+    expect(await screen.findByText('找到 3 家餐厅')).toBeInTheDocument();
+    expect(screen.getByText('智能分类：日料')).toBeInTheDocument();
+    expect(screen.getByText('智能分类：川菜')).toBeInTheDocument();
+    expect(screen.getByText('智能分类：甜品奶茶')).toBeInTheDocument();
   });
 
   it('只为当前展示的前 20 家门店展示智能分类', async () => {
