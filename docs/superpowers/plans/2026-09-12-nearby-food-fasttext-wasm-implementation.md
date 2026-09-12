@@ -59,7 +59,7 @@ import {
 describe('fastText input protocol', () => {
   it('matches the training feature format', () => {
     expect(formatNearbyRestaurantForFastText('广州 酒家', '餐饮服务|中餐厅|广东菜(粤菜)'))
-      .toBe('name_广州_酒家 amap_餐饮服务 amap_中餐厅 amap_广东菜_粤菜');
+      .toBe('name_广州_酒家 amap_餐饮服务 amap_中餐厅 amap_广东菜_粤菜_');
   });
 
   it('accepts only labels known by the application', () => {
