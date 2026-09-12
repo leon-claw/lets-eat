@@ -1,0 +1,100 @@
+__label__轻食 name_好色派沙拉武汉2 amap_餐饮服务 amap_休闲餐饮场所 amap_轻食
+__label__西餐 name_牛排工坊北京店 amap_餐饮服务 amap_外国餐厅 amap_牛扒店_扒房_
+__label__川菜 name_眉州东坡锦城餐厅 amap_餐饮服务 amap_中餐厅 amap_特色_地方风味餐厅
+__label__其他 name_城西家常小馆食坊 amap_餐饮服务 amap_休闲餐饮场所
+__label__轻食 name_一品三明治料理店 amap_餐饮服务 amap_休闲餐饮场所
+__label__其他 name_城西福满堂餐厅 amap_餐饮相关场所 amap_餐饮相关
+__label__其他 name_城西好日子小馆 amap_餐饮服务 amap_快餐厅
+__label__螺蛳粉 name_广西柳味坊餐厅 amap_餐饮服务 amap_快餐厅 amap_米粉店
+__label__日料 name_日和料理北京店 amap_餐饮服务 amap_日本料理
+__label__湘菜 name_城市湘菜餐饮店 amap_餐饮服务 amap_中餐厅 amap_湖南菜
+__label__川菜 name_小米椒川菜上海2 amap_餐饮服务 amap_中餐厅 amap_四川菜
+__label__西餐 name_法式石窑披萨小馆 amap_餐饮服务 amap_外国餐厅 amap_意式菜品餐厅
+__label__湘菜 name_辣椒树长沙店 amap_餐饮服务 amap_中餐厅 amap_特色_地方风味餐厅
+__label__其他 name_城北美食城食坊 amap_餐饮服务 amap_快餐厅
+__label__面食 name_陕西面馆里餐厅 amap_餐饮服务 amap_快餐厅
+__label__烧烤 name_东北炭火里餐厅深圳2 amap_餐饮服务 amap_中餐厅 amap_烧烤
+__label__面食 name_中国兰州牛肉面 amap_餐饮服务 amap_面馆
+__label__韩餐 name_城市泡菜锅馆 amap_餐饮服务 amap_外国餐厅 amap_韩国料理
+__label__日料 name_海町居酒屋成都馆 amap_餐饮服务 amap_外国餐厅
+__label__海鲜 name_一品渔港食府 amap_餐饮服务 amap_中餐厅 amap_海鲜
+__label__火锅 name_蜀大侠潮汕餐厅 amap_餐饮服务 amap_中餐厅 amap_特色_地方风味餐厅
+__label__东北菜 name_老昌春饼东北餐厅 amap_餐饮服务 amap_中餐厅 amap_东北菜
+__label__火锅 name_蜀大侠 amap_餐饮服务 amap_火锅店
+__label__湘菜 name_湘阁里辣 amap_餐饮服务 amap_中餐厅 amap_湖南菜_湘菜_
+__label__日料 name_板前寿司北海道店 amap_餐饮服务 amap_日本料理
+__label__东北菜 name_东北人家沈阳餐厅 amap_餐饮服务 amap_中餐厅 amap_特色_地方风味餐厅
+__label__韩餐 name_泡菜之家北京店杭州2 amap_餐饮服务 amap_外国餐厅
+__label__日料 name_一品刺身食府 amap_餐饮服务 amap_外国餐厅 amap_日本料理
+__label__湘菜 name_辣椒树广州 amap_餐饮服务 amap_中餐厅 amap_特色_地方风味餐厅
+__label__云南菜 name_彩云食府武汉馆 amap_餐饮服务 amap_中餐厅 amap_云贵菜
+__label__海鲜 name_海底捞海鲜上海2 amap_餐饮服务 amap_海鲜餐厅
+__label__日料 name_樱花里成都馆杭州2 amap_餐饮服务 amap_日本料理
+__label__烧烤 name_延边烟火人间餐厅 amap_餐饮服务 amap_中餐厅 amap_特色_地方风味餐厅
+__label__螺蛳粉 name_柳州人家桂中餐厅 amap_餐饮服务 amap_快餐厅
+__label__粤菜 name_珠江食府北京店 amap_餐饮服务 amap_中餐厅 amap_海鲜酒楼
+__label__海鲜 name_鲜活海产渔港店 amap_餐饮服务 amap_中餐厅 amap_海鲜
+__label__其他 name_城西食客来食坊 amap_餐饮服务 amap_中餐厅
+__label__甜品奶茶 name_咖啡糖水铺餐厅 amap_餐饮服务 amap_咖啡厅 amap_咖啡厅
+__label__川菜 name_巴蜀麻香居餐厅 amap_餐饮服务 amap_中餐厅 amap_四川菜
+__label__韩餐 name_韩宫宴仁川餐厅 amap_餐饮服务 amap_外国餐厅
+__label__其他 name_城西美食城食堂 amap_餐饮服务 amap_快餐厅
+__label__其他 name_城北小聚馆小馆 amap_餐饮服务 amap_外国餐厅
+__label__湘菜 name_望湘园岳阳店 amap_餐饮服务 amap_中餐厅 amap_湖南菜
+__label__粤菜 name_潮上潮广州餐厅 amap_餐饮服务 amap_中餐厅 amap_广东菜_粤菜_
+__label__日料 name_小樽寿司大阪店 amap_餐饮服务 amap_外国餐厅
+__label__东南亚菜 name_暹罗厨房西安馆 amap_餐饮服务 amap_东南亚菜
+__label__东北菜 name_北国食府武汉馆杭州2 amap_餐饮服务 amap_中餐厅 amap_东北菜
+__label__粤菜 name_佛山茶点里小馆 amap_餐饮服务 amap_中餐厅 amap_海鲜酒楼
+__label__甜品奶茶 name_喜茶奶香店 amap_餐饮服务 amap_甜品店
+__label__烧烤 name_火星烧烤北京店 amap_餐饮服务 amap_烧烤店
+__label__东南亚菜 name_南洋风味西安馆南京2 amap_餐饮服务 amap_外国餐厅 amap_其它亚洲菜
+__label__面食 name_陈香贵 amap_餐饮服务 amap_快餐厅 amap_面馆
+__label__烧烤 name_烟火人间北京店南京2 amap_餐饮服务 amap_中餐厅 amap_特色_地方风味餐厅
+__label__云南菜 name_昆明云岭厨房餐厅 amap_餐饮服务 amap_中餐厅 amap_云贵菜
+__label__川菜 name_小米椒川菜蜀地店 amap_餐饮服务 amap_中餐厅 amap_四川菜_川菜_
+__label__螺蛳粉 name_粉面江湖武汉馆 amap_餐饮服务 amap_快餐厅
+__label__海鲜 name_渔港潮汐海鲜餐厅 amap_餐饮服务 amap_中餐厅 amap_海鲜
+__label__其他 name_城北饭点见食坊 amap_餐饮相关场所 amap_餐饮相关
+__label__火锅 name_一锅江湖北京店杭州2 amap_餐饮服务 amap_中餐厅 amap_特色_地方风味餐厅
+__label__川菜 name_小米椒川菜 amap_餐饮服务 amap_中餐厅 amap_四川菜_川菜_
+__label__甜品奶茶 name_烘焙奶油研究所小馆厦门2 amap_餐饮服务 amap_冷饮店 amap_奶茶店
+__label__轻食 name_一品能量碗食府 amap_餐饮服务 amap_休闲餐饮场所 amap_轻食
+__label__粤菜 name_岭南珠江食府餐厅 amap_餐饮服务 amap_中餐厅 amap_海鲜酒楼
+__label__烧烤 name_很久以前羊肉串 amap_餐饮服务 amap_烧烤店
+__label__轻食 name_阳光轻食成都馆南京2 amap_餐饮服务 amap_休闲餐饮场所
+__label__韩餐 name_韩城炭火韩舍餐厅 amap_餐饮服务 amap_韩国料理
+__label__火锅 name_一品涮肉料理店 amap_餐饮服务 amap_中餐厅 amap_特色_地方风味餐厅
+__label__云南菜 name_拾味云南米线餐厅 amap_餐饮服务 amap_中餐厅 amap_特色_地方风味餐厅
+__label__螺蛳粉 name_拾味螺丝粉餐厅 amap_餐饮服务 amap_快餐厅
+__label__云南菜 name_菌彩云南武汉2 amap_餐饮服务 amap_中餐厅 amap_云南菜
+__label__其他 name_城南大食堂餐厅 amap_餐饮服务 amap_中餐厅
+__label__东南亚菜 name_泰妃殿 amap_餐饮服务 amap_外国餐厅 amap_泰国_越南菜品餐厅
+__label__云南菜 name_小满傣味小馆 amap_餐饮服务 amap_中餐厅 amap_云南菜
+__label__其他 name_城西好味道食坊 amap_餐饮服务 amap_休闲餐饮场所
+__label__西餐 name_城市西餐餐饮店 amap_餐饮服务 amap_外国餐厅 amap_意式菜品餐厅
+__label__烧烤 name_木屋烧烤 amap_餐饮服务 amap_中餐厅 amap_烧烤
+__label__川菜 name_城市冒菜馆 amap_餐饮服务 amap_中餐厅 amap_四川菜_川菜_
+__label__东北菜 name_吉林北方人家餐厅 amap_餐饮服务 amap_中餐厅
+__label__韩餐 name_火炉火 amap_餐饮服务 amap_韩国料理
+__label__其他 name_城北一桌菜食堂 amap_餐饮服务 amap_中餐厅
+__label__西餐 name_萨莉亚武汉2 amap_餐饮服务 amap_外国餐厅 amap_意式菜品餐厅
+__label__火锅 name_重庆沸腾里餐厅 amap_餐饮服务 amap_中餐厅 amap_火锅店
+__label__螺蛳粉 name_柳州人家广西店 amap_餐饮服务 amap_快餐厅 amap_米粉店
+__label__螺蛳粉 name_螺霸王龙城餐厅 amap_餐饮服务 amap_快餐厅 amap_米粉店
+__label__轻食 name_薄荷健康活力店 amap_餐饮服务 amap_轻食
+__label__西餐 name_欧陆食光成都馆杭州2 amap_餐饮服务 amap_外国餐厅 amap_西餐厅_综合风味_
+__label__东南亚菜 name_曼谷香茅里餐厅厦门2 amap_餐饮服务 amap_东南亚菜
+__label__湘菜 name_一品腊味合蒸食府 amap_餐饮服务 amap_中餐厅 amap_湖南菜_湘菜_
+__label__东南亚菜 name_越小馆泰国店 amap_餐饮服务 amap_外国餐厅 amap_泰国_越南菜品餐厅
+__label__粤菜 name_一品潮州菜小馆 amap_餐饮服务 amap_中餐厅 amap_综合酒楼
+__label__其他 name_城东广场美食小馆 amap_餐饮服务 amap_休闲餐饮场所
+__label__东北菜 name_家乡锅台武汉馆杭州2 amap_餐饮服务 amap_中餐厅 amap_特色_地方风味餐厅
+__label__面食 name_城市面食餐饮店 amap_餐饮服务 amap_面馆
+__label__甜品奶茶 name_糖水铺广州店 amap_餐饮服务 amap_咖啡厅 amap_咖啡厅
+__label__甜品奶茶 name_老城下午茶餐厅 amap_餐饮服务 amap_冷饮店 amap_奶茶店
+__label__面食 name_山西面香居小馆 amap_餐饮服务 amap_面馆
+__label__粤菜 name_点都德广州餐厅 amap_餐饮服务 amap_中餐厅 amap_广东菜_粤菜_
+__label__火锅 name_大龙燚重庆店 amap_餐饮服务 amap_中餐厅 amap_火锅店
+__label__韩餐 name_权金城首尔店 amap_餐饮服务 amap_外国餐厅 amap_韩国料理
+__label__海鲜 name_海之鲜广州 amap_餐饮服务 amap_中餐厅 amap_特色_地方风味餐厅

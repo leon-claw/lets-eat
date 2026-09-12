@@ -19,6 +19,10 @@
     "latency:on": "node scripts/network-latency.mjs on",
     "latency:off": "node scripts/network-latency.mjs off",
     "latency:status": "node scripts/network-latency.mjs status",
+    "nearby:classifier:generate": "node scripts/nearby-classifier/generate-dataset.mjs",
+    "nearby:classifier:validate": "node scripts/nearby-classifier/validate-dataset.mjs",
+    "nearby:classifier:train": "node scripts/nearby-classifier/train.mjs",
+    "nearby:classifier:evaluate": "node scripts/nearby-classifier/evaluate.mjs",
     "db:up": "docker compose up -d postgres",
     "db:test:up": "docker compose --profile test up -d postgres-test"
   },
