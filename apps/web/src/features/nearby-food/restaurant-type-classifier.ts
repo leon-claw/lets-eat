@@ -141,6 +141,66 @@ const CATEGORY_FEATURES: Record<string, Feature[]> = {
   ],
 };
 
+const CHARACTER_NGRAM_FEATURES: Record<string, Feature[]> = {
+  粤菜: [
+    { phrase: '粤', weight: 3.2 },
+    { phrase: '潮', weight: 2.8 },
+  ],
+  川菜: [
+    { phrase: '蜀', weight: 3.4 },
+    { phrase: '川', weight: 3.2 },
+  ],
+  湘菜: [{ phrase: '湘', weight: 3.2 }],
+  火锅: [{ phrase: '涮', weight: 3.2 }],
+  烧烤: [
+    { phrase: '烤', weight: 3.2 },
+    { phrase: '炭', weight: 2.8 },
+  ],
+  螺蛳粉: [
+    { phrase: '螺', weight: 3.2 },
+    { phrase: '蛳', weight: 3.2 },
+  ],
+  日料: [
+    { phrase: '寿', weight: 3.2 },
+    { phrase: '刺', weight: 3.2 },
+    { phrase: '和食', weight: 3.2 },
+  ],
+  韩餐: [
+    { phrase: '韩', weight: 3.2 },
+    { phrase: '泡', weight: 2.4 },
+  ],
+  西餐: [
+    { phrase: '披萨', weight: 3.2 },
+    { phrase: '牛排', weight: 3.2 },
+  ],
+  东南亚菜: [
+    { phrase: '泰', weight: 3.2 },
+    { phrase: '越', weight: 3.2 },
+  ],
+  东北菜: [{ phrase: '东北', weight: 3.2 }],
+  云南菜: [
+    { phrase: '云南', weight: 3.2 },
+    { phrase: '米线', weight: 3.2 },
+  ],
+  面食: [
+    { phrase: '面馆', weight: 3.2 },
+    { phrase: '拉面', weight: 3.2 },
+  ],
+  轻食: [
+    { phrase: '轻食', weight: 3.2 },
+    { phrase: '沙拉', weight: 3.2 },
+  ],
+  甜品奶茶: [
+    { phrase: '奶茶', weight: 3.2 },
+    { phrase: '咖啡', weight: 3.2 },
+    { phrase: '蛋糕', weight: 3.2 },
+  ],
+  海鲜: [
+    { phrase: '海鲜', weight: 3.2 },
+    { phrase: '生蚝', weight: 3.2 },
+  ],
+};
+
 const CATEGORY_NAMES = Object.keys(CATEGORY_FEATURES);
 
 function normalizeName(name: string): string {
@@ -153,6 +213,25 @@ function normalizeName(name: string): string {
 
 function clamp(value: number): number {
   return Math.max(0, Math.min(1, value));
+}
+
+function nameNgrams(name: string): Set<string> {
+  const characters = Array.from(name.replace(/\s/g, ''));
+  const ngrams = new Set(characters);
+  for (let index = 0; index < characters.length - 1; index += 1) {
+    ngrams.add(characters.slice(index, index + 2).join(''));
+  }
+  return ngrams;
+}
+
+function scoreFeatures(value: string | Set<string>, features: Feature[]): number {
+  return features.reduce(
+    (total, feature) => {
+      const matches = value instanceof Set ? value.has(feature.phrase) : value.includes(feature.phrase);
+      return matches ? total + feature.weight : total;
+    },
+    0,
+  );
 }
 
 function fallback(confidence = 0): NearbyRestaurantClassification {
@@ -169,11 +248,10 @@ export function classifyNearbyRestaurantName(name: string): NearbyRestaurantClas
     return fallback();
   }
 
+  const ngrams = nameNgrams(normalizedName);
   const scores = CATEGORY_NAMES.map((category) => {
-    const score = CATEGORY_FEATURES[category].reduce(
-      (total, feature) => (normalizedName.includes(feature.phrase) ? total + feature.weight : total),
-      0,
-    );
+    const score = scoreFeatures(normalizedName, CATEGORY_FEATURES[category])
+      + scoreFeatures(ngrams, CHARACTER_NGRAM_FEATURES[category] ?? []);
 
     return { category, score };
   }).sort((left, right) => right.score - left.score);

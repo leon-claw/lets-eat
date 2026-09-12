@@ -12,6 +12,13 @@ describe('classifyNearbyRestaurantName', () => {
     expect(classifyNearbyRestaurantName(name).category).toBe(category);
   });
 
+  it('使用具有辨识度的字符片段识别品牌化名称', () => {
+    expect(classifyNearbyRestaurantName('蜀味小馆')).toMatchObject({
+      category: '川菜',
+      source: 'local-model',
+    });
+  });
+
   it.each(['老地方食府', '某某餐饮', '', '   '])('将信息不足的名称归入其他：%s', (name) => {
     expect(classifyNearbyRestaurantName(name)).toMatchObject({ category: '其他', source: 'fallback' });
   });
