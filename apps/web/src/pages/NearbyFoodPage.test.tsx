@@ -78,6 +78,33 @@ describe('NearbyFoodPage', () => {
     expect(screen.queryByText('地址')).not.toBeInTheDocument();
   });
 
+  it('在前 20 家门店下方展示本地智能分类，并保留高德分类', async () => {
+    const deps = dependencies([
+      { ...restaurant(1), name: '蜀香老妈火锅' },
+      { ...restaurant(2), name: '京都寿司屋' },
+      ...Array.from({ length: 19 }, (_, index) => restaurant(index + 3)),
+    ]);
+    renderNearby(deps);
+
+    expect(await screen.findByText('找到 20 家餐厅')).toBeInTheDocument();
+    expect(screen.getByText('智能分类：火锅')).toBeInTheDocument();
+    expect(screen.getByText('智能分类：日料')).toBeInTheDocument();
+    expect(screen.getAllByText(/^智能分类：/)).toHaveLength(20);
+    expect(screen.getAllByText('餐饮服务;中餐厅')).toHaveLength(20);
+  });
+
+  it('只为当前展示的前 20 家门店展示智能分类', async () => {
+    const deps = dependencies([
+      ...Array.from({ length: 20 }, (_, index) => restaurant(index + 1)),
+      { ...restaurant(21), name: '第二十一家火锅' },
+    ]);
+    renderNearby(deps);
+
+    expect(await screen.findByText('找到 20 家餐厅')).toBeInTheDocument();
+    expect(screen.queryByText('第二十一家火锅')).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^智能分类：/)).toHaveLength(20);
+  });
+
   it('显示高德评分，并允许从有效门店开始游戏', async () => {
     const deps = dependencies([restaurant(1, 4.8), restaurant(2, 4.2), restaurant(3, 3.9)]);
     renderNearby(deps);
