@@ -2,11 +2,11 @@ import { LocateFixed, MapPin, RefreshCw, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation as useRouterLocation, useNavigate } from 'react-router-dom';
 import { prepareRoundChoices } from '@/features/choose-food/round-choice-order';
-import { nearbyRestaurantsToFoodChoices } from '@/features/nearby-food/nearby-food-adapter';
+import { aggregateNearbyRestaurantsToFoodChoices, NEARBY_FALLBACK_TEMPLATES } from '@/features/nearby-food/nearby-food-adapter';
 import { type NearbyFastTextClassifier } from '@/features/nearby-food/fasttext-browser-classifier';
 import { createNearbyRoundStore } from '@/features/nearby-food/nearby-storage';
 import type { NearbyRoundStore } from '@/features/nearby-food/nearby-round';
-import { useNearbyRestaurantClassifications } from '@/features/nearby-food/useNearbyRestaurantClassifications';
+import { defaultNearbyRestaurantClassifier, useNearbyRestaurantClassifications } from '@/features/nearby-food/useNearbyRestaurantClassifications';
 import type { GeoPoint } from '@/features/nearby-food/types';
 import {
   DEFAULT_NEARBY_RADIUS_METERS,
@@ -17,11 +17,14 @@ import {
 } from '@/features/nearby-food/useNearbyFoodSearch';
 import { PageShell } from '@/shared/components/PageShell';
 import { useFeedback } from '@/shared/components/FeedbackProvider';
+import type { FoodChoice } from '@/entities/food-choice/types';
+import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
 
 interface NearbyFoodPageProps {
   searchDependencies?: NearbyFoodSearchDependencies;
   roundStore?: NearbyRoundStore;
   classifier?: NearbyFastTextClassifier;
+  repository: FoodChoiceRepository;
 }
 
 const browserRoundStore = createNearbyRoundStore();
@@ -39,7 +42,18 @@ function radiusLabel(radiusMeters: number): string {
   return radiusMeters >= 1000 ? `${radiusMeters / 1000} 公里` : `${radiusMeters} 米`;
 }
 
-export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundStore, classifier }: NearbyFoodPageProps) {
+async function loadNearbyFoodTemplates(repository: FoodChoiceRepository): Promise<FoodChoice[]> {
+  try {
+    if (repository.loadCatalog) return (await repository.loadCatalog()).choices;
+    const [large, small] = await Promise.all([repository.list('large'), repository.list('small')]);
+    return [...large, ...small];
+  } catch (cause) {
+    console.warn('[nearby-food] 使用本地内置卡片模板', cause);
+    return NEARBY_FALLBACK_TEMPLATES;
+  }
+}
+
+export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundStore, classifier, repository }: NearbyFoodPageProps) {
   const location = useRouterLocation();
   const navigate = useNavigate();
   const { toast } = useFeedback();
@@ -51,7 +65,9 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
   );
   const search = useNearbyFoodSearch(effectiveDependencies);
   const shownError = useRef<string | null>(null);
-  const smartClassifications = useNearbyRestaurantClassifications(search.state.restaurants, classifier);
+  const activeClassifier = classifier ?? defaultNearbyRestaurantClassifier;
+  const smartClassifications = useNearbyRestaurantClassifications(search.state.restaurants, activeClassifier);
+  const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
     if (!selectedLocation) return;
@@ -70,22 +86,49 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
 
   const isBusy = search.state.status === 'locating' || search.state.status === 'searching';
   const hasPendingSearchChange = search.state.hasPendingRadiusChange || search.state.hasPendingResultLimitChange;
-  const canStart = search.state.restaurants.length >= 3
+  const candidateRestaurants = search.state.candidateRestaurants.length > 0
+    ? search.state.candidateRestaurants
+    : search.state.restaurants;
+  const canStart = candidateRestaurants.length >= 3
     && !hasPendingSearchChange
-    && !isBusy;
-  const startGame = () => {
+    && !isBusy
+    && !isStarting;
+  const startGame = async () => {
     if (!canStart) return;
-    const choices = nearbyRestaurantsToFoodChoices(search.state.restaurants);
-    const itemIds = prepareRoundChoices(choices).map(({ id }) => id);
-    roundStore.save({
-      restaurants: search.state.restaurants,
-      choices,
-      itemIds,
-      decisions: {},
-      history: [],
-      completedAt: null,
-    });
-    navigate('/game/single?dataset=nearby');
+    setIsStarting(true);
+    try {
+      await activeClassifier.ready();
+      const classifications = new Map(
+        await Promise.all(candidateRestaurants.map(async (restaurant) => [
+          restaurant.id,
+          await activeClassifier.classify(restaurant.name, restaurant.type),
+        ] as const)),
+      );
+      const templates = await loadNearbyFoodTemplates(repository);
+      const choices = aggregateNearbyRestaurantsToFoodChoices(candidateRestaurants, classifications, templates);
+      if (choices.length === 0) {
+        toast({ message: '附近商家暂时没有可识别的大类菜品，请扩大范围或重新搜索', tone: 'error' });
+        return;
+      }
+      const itemIds = prepareRoundChoices(choices).map(({ id }) => id);
+      roundStore.save({
+        restaurants: search.state.restaurants,
+        choices,
+        itemIds,
+        decisions: {},
+        history: [],
+        completedAt: null,
+      });
+      navigate('/game/single?dataset=nearby');
+    } catch (cause) {
+      console.error('[nearby-food] 准备游戏失败', cause);
+      toast({
+        message: cause instanceof Error ? `暂时无法准备附近菜品：${cause.message}` : '暂时无法准备附近菜品，请重试',
+        tone: 'error',
+      });
+    } finally {
+      setIsStarting(false);
+    }
   };
 
   return (
@@ -130,14 +173,14 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
         </div>
 
         <div className="space-y-2">
-          <button type="button" disabled={!canStart} onClick={startGame} className="pressable flex w-full items-center justify-center rounded-2xl bg-[#FFD100] px-4 py-4 font-black text-slate-950 shadow-lg disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none">{hasPendingSearchChange ? '请先重新搜索' : '开始游戏'}</button>
+          <button type="button" disabled={!canStart} onClick={() => void startGame()} className="pressable flex w-full items-center justify-center rounded-2xl bg-[#FFD100] px-4 py-4 font-black text-slate-950 shadow-lg disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none">{hasPendingSearchChange ? '请先重新搜索' : isStarting ? '正在准备游戏…' : '开始游戏'}</button>
           <button type="button" onClick={() => navigate('/single/dataset')} className="pressable flex w-full items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white shadow-lg hover:bg-slate-800">退出周围菜品</button>
         </div>
 
         <div className="flex items-center justify-between px-1">
           <div>
             <p className="text-sm font-black text-slate-900">{search.state.restaurants.length > 0 ? `找到 ${search.state.restaurants.length} 家餐厅` : '附近餐厅'}</p>
-            <p className="mt-1 text-xs text-slate-400">仅保留有效评分最高的 {search.state.resultLimit} 家门店</p>
+            <p className="mt-1 text-xs text-slate-400">显示评分最高的 {search.state.resultLimit} 家；开始游戏将从 {candidateRestaurants.length} 家候选门店聚合</p>
           </div>
         </div>
 

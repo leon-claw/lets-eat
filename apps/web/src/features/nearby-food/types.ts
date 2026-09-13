@@ -46,6 +46,7 @@ export type NearbySearchSession = {
   center: GeoPoint;
   radiusMeters: number;
   restaurants: NearbyRestaurant[];
+  candidateRestaurants?: NearbyRestaurant[];
   resultLimit?: NearbyResultLimit;
   searchedAt: string;
 };

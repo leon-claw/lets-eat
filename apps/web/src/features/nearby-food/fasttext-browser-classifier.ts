@@ -5,6 +5,7 @@ import {
 import {
   classifyKnownRestaurantBrand,
   classifyNearbyRestaurantName,
+  hasStrongNearbyLuosifenSignal,
   type NearbyRestaurantClassification,
 } from './restaurant-type-classifier';
 
@@ -76,6 +77,9 @@ export function createNearbyFastTextClassifier(options: { loadModel?: FastTextMo
         const prediction = readTopPrediction(model.predict(formatNearbyRestaurantForFastText(name, amapType), 1, 0));
         const category = prediction ? parseNearbyFastTextLabel(prediction.label) : undefined;
         if (!prediction || !category || prediction.probability < FASTTEXT_MIN_CONFIDENCE) {
+          return fallbackClassification(name, amapType);
+        }
+        if (category === '螺蛳粉' && !hasStrongNearbyLuosifenSignal(name, amapType)) {
           return fallbackClassification(name, amapType);
         }
         return { category, confidence: prediction.probability, source: 'fasttext' };

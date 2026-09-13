@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyKnownRestaurantBrand,
   classifyNearbyRestaurantName,
+  hasStrongNearbyLuosifenSignal,
 } from './restaurant-type-classifier';
 
 describe('classifyKnownRestaurantBrand', () => {
   it.each([
     ['麦当劳(农林下路店)', '西餐'],
     ['星巴克(农林下路)', '甜品奶茶'],
+    ['肯德基(邦华店)', '西餐'],
+    ['达美乐比萨(龙溪店)', '西餐'],
+    ['尊宝比萨', '西餐'],
   ])('独立处理没有菜系词的连锁品牌 %s', (name, category) => {
     expect(classifyKnownRestaurantBrand(name)).toMatchObject({
       category,
@@ -81,6 +85,24 @@ describe('classifyNearbyRestaurantName', () => {
       category: '其他',
       source: 'fallback',
     });
+  });
+
+  it.each([
+    '素里螺记螺蛳粉',
+    '螺甄香柳州螺蛳粉(东山店)',
+    '仙螺姑娘·爆炒螺蛳粉',
+  ])('识别明确的螺蛳粉名称证据：%s', (name) => {
+    expect(hasStrongNearbyLuosifenSignal(name, '餐饮服务;快餐厅')).toBe(true);
+  });
+
+  it.each([
+    '达美乐比萨(龙溪店)',
+    '肯德基(邦华店)',
+    '第一面·云吞(邦华星际1期店)',
+    '汇林小食店',
+    '老北京炸酱面(洪石坊店)',
+  ])('没有螺蛳粉名称证据：%s', (name) => {
+    expect(hasStrongNearbyLuosifenSignal(name, '餐饮服务;中餐厅')).toBe(false);
   });
 
   it('返回 0 到 1 之间的置信度', () => {

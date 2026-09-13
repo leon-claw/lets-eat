@@ -135,6 +135,36 @@ describe('Amap nearby search client', () => {
     expect(restaurants.slice(0, 5).every((item) => item.rating === 4.1)).toBe(true);
   });
 
+  it('candidateLimit 为附近游戏保留评分排序后的候选门店', async () => {
+    const pages = Array.from({ length: 4 }, (_, pageIndex) => ({
+      status: 'complete',
+      result: {
+        poiList: {
+          pois: Array.from({ length: 50 }, (_, index) => ({
+            id: `page-${pageIndex}-${index}`,
+            name: `候选餐厅 ${pageIndex}-${index}`,
+            type: '餐饮服务;中餐厅',
+            dining: { rating: String(4.0 + (pageIndex * 50 + index) / 1000) },
+          })),
+        },
+      },
+    }));
+    const sdk = placeSearchSdk(pages);
+
+    const restaurants = await searchNearbyRestaurants({
+      config,
+      center,
+      radiusMeters: 2000,
+      resultLimit: 20,
+      candidateLimit: 200,
+      loadAmap: vi.fn().mockResolvedValue(sdk.amap),
+    });
+
+    expect(restaurants).toHaveLength(200);
+    expect(restaurants[0]?.rating).toBe(4.199);
+    expect(restaurants[199]?.rating).toBe(4);
+  });
+
   it('排除缺少有效评分的门店', async () => {
     const sdk = placeSearchSdk('complete', { poiList: { pois: [
       { id: 'valid', name: '有评分餐厅', type: '餐饮服务;中餐厅', dining: { rating: '4.5' } },

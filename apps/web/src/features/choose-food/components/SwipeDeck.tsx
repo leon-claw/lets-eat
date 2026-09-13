@@ -23,11 +23,18 @@ const SWIPE_OFFSET = 80;
 const SWIPE_VELOCITY = 250;
 const SWIPE_DURATION = 220;
 
-function ChoicePreview({ choice, fallbackSrc }: { choice: FoodChoice; fallbackSrc?: string }) {
+function nearbyCatalogCoverImage(choice: FoodChoice): string {
+  if (!choice.id.startsWith('nearby-category:')) return choice.coverImage;
+  const catalogItemId = choice.id.slice('nearby-category:'.length);
+  const catalogVersion = choice.coverImage.match(/\/api\/catalog-assets\/(v\d+)\/images\//)?.[1] ?? 'v3';
+  return `/api/catalog-assets/${catalogVersion}/images/${catalogItemId}.webp`;
+}
+
+function ChoicePreview({ choice, useNearbyCover = false }: { choice: FoodChoice; useNearbyCover?: boolean }) {
   return (
     <div className="h-full overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
       <div className="relative h-60 w-full overflow-hidden bg-gray-100">
-        <ImageWithFallback src={choice.coverImage} alt="" fallbackSrc={fallbackSrc} className="h-full w-full object-cover" />
+        <ImageWithFallback src={useNearbyCover ? nearbyCatalogCoverImage(choice) : choice.coverImage} alt="" className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <div className="absolute bottom-3 left-3 right-3 text-white">
           <div className="text-[10px] font-bold text-amber-300">下一道菜系灵感</div>
@@ -56,11 +63,11 @@ function ChoiceCard({
   choice: FoodChoice;
   representativeFoodsLabel?: string;
   emphasizeRepresentativeFoods?: boolean;
-}) {
+  }) {
   return (
     <>
       <div className="relative h-60 w-full shrink-0 overflow-hidden bg-gray-100">
-        <ImageWithFallback src={choice.coverImage} alt={choice.name} fallbackSrc={emphasizeRepresentativeFoods ? '/brand-logo.png' : undefined} className="h-full w-full object-cover" />
+        <ImageWithFallback src={emphasizeRepresentativeFoods ? nearbyCatalogCoverImage(choice) : choice.coverImage} alt={choice.name} className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
         <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
           <span className="flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2.5 py-0.5 text-[11px] font-extrabold text-gray-900 shadow-xs">
@@ -95,7 +102,7 @@ function ChoiceCard({
                 <span className="text-xs font-bold text-gray-500">{representativeFoodsLabel}</span>
                 <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700">菜系详情</span>
               </div>
-              <p className="mt-2 break-words text-base font-black leading-6 text-red-600">{choice.representativeFoods.join(' · ')}</p>
+              <p className="mt-2 line-clamp-2 overflow-hidden text-ellipsis text-base font-black leading-6 text-red-600">{choice.representativeFoods.join(' · ')}</p>
             </>
           ) : (
             <>
@@ -181,7 +188,7 @@ export function SwipeDeck({
       <div className="relative flex h-[480px] w-full max-w-sm items-center justify-center">
         {nextChoice && (
           <motion.div animate={{ scale: isSwiping ? 1 : 0.95, y: isSwiping ? 0 : 12, opacity: isSwiping ? 1 : 0.7 }} transition={{ duration: 0.2 }} className="pointer-events-none absolute h-full w-full">
-            <ChoicePreview choice={nextChoice} fallbackSrc={emphasizeRepresentativeFoods ? '/brand-logo.png' : undefined} />
+            <ChoicePreview choice={nextChoice} useNearbyCover={emphasizeRepresentativeFoods} />
           </motion.div>
         )}
         <motion.article

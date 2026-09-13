@@ -12,6 +12,7 @@ export const DEFAULT_NEARBY_RADIUS_METERS = 2000;
 export const NEARBY_RADIUS_OPTIONS = [500, 1000, 2000, 3000, 5000] as const;
 export const DEFAULT_NEARBY_RESULT_LIMIT: NearbyResultLimit = 20;
 export const NEARBY_RESULT_LIMIT_OPTIONS = [10, 20, 30] as const;
+export const NEARBY_AGGREGATION_CANDIDATE_LIMIT = 200;
 
 export type NearbySearchStatus =
   | 'restoring'
@@ -30,6 +31,7 @@ export interface NearbyFoodSearchState {
   resultLimit: NearbyResultLimit;
   center: GeoPoint | null;
   restaurants: NearbyRestaurant[];
+  candidateRestaurants: NearbyRestaurant[];
   errorMessage: string | null;
   errorCode: string | null;
   hasPendingRadiusChange: boolean;
@@ -57,7 +59,7 @@ export interface NearbyFoodSearchDependencies {
   searchSessionStore?: Store<NearbySearchSession>;
   initialLocation?: GeoPoint;
   getLocation?: () => Promise<GeoPoint>;
-  searchRestaurants?: (input: { config: AmapConfig; center: GeoPoint; radiusMeters: number; resultLimit: NearbyResultLimit }) => Promise<NearbyRestaurant[]>;
+  searchRestaurants?: (input: { config: AmapConfig; center: GeoPoint; radiusMeters: number; resultLimit: NearbyResultLimit; candidateLimit?: number }) => Promise<NearbyRestaurant[]>;
 }
 
 const initialState: NearbyFoodSearchState = {
@@ -66,6 +68,7 @@ const initialState: NearbyFoodSearchState = {
   resultLimit: DEFAULT_NEARBY_RESULT_LIMIT,
   center: null,
   restaurants: [],
+  candidateRestaurants: [],
   errorMessage: null,
   errorCode: null,
   hasPendingRadiusChange: false,
@@ -124,13 +127,21 @@ export function useNearbyFoodSearch(dependencies: NearbyFoodSearchDependencies =
     }));
 
     const request = Promise.resolve()
-      .then(() => searchRestaurants({ config, center, radiusMeters, resultLimit }))
+      .then(() => searchRestaurants({
+        config,
+        center,
+        radiusMeters,
+        resultLimit,
+        candidateLimit: NEARBY_AGGREGATION_CANDIDATE_LIMIT,
+      }))
       .then((items) => {
-        const restaurants = items.slice(0, resultLimit);
+        const candidateRestaurants = items.slice(0, NEARBY_AGGREGATION_CANDIDATE_LIMIT);
+        const restaurants = candidateRestaurants.slice(0, resultLimit);
         const session: NearbySearchSession = {
           center,
           radiusMeters,
           restaurants,
+          candidateRestaurants,
           resultLimit,
           searchedAt: new Date().toISOString(),
         };
@@ -143,6 +154,7 @@ export function useNearbyFoodSearch(dependencies: NearbyFoodSearchDependencies =
           radiusMeters,
           resultLimit,
           restaurants,
+          candidateRestaurants,
           errorMessage: null,
           errorCode: null,
           hasPendingRadiusChange: false,
@@ -241,6 +253,7 @@ export function useNearbyFoodSearch(dependencies: NearbyFoodSearchDependencies =
             resultLimit: resultLimitRef.current,
             center: session.center,
             restaurants: session.restaurants,
+            candidateRestaurants: session.candidateRestaurants ?? session.restaurants,
             errorMessage: null,
             errorCode: null,
             hasPendingRadiusChange: false,

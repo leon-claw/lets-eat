@@ -41,6 +41,38 @@ describe('browser fastText classifier', () => {
     expect(loaded.predict).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['肯德基(邦华店)', '餐饮服务|快餐厅'],
+    ['达美乐比萨(龙溪店)', '餐饮服务|西餐厅'],
+    ['尊宝比萨', '餐饮服务|西餐厅'],
+  ])('保留已知连锁品牌的明确分类：%s', async (name, amapType) => {
+    const loaded = model('螺蛳粉');
+    const loadModel = vi.fn().mockResolvedValue(loaded);
+    const classifier = createNearbyFastTextClassifier({ loadModel });
+
+    await expect(classifier.classify(name, amapType)).resolves.toMatchObject({
+      category: '西餐',
+      source: 'local-model',
+    });
+    expect(loadModel).not.toHaveBeenCalled();
+  });
+
+  it('不会接受缺少螺蛳粉证据的模型误判，但保留明确的螺蛳粉门店', async () => {
+    const loaded = model('螺蛳粉');
+    const classifier = createNearbyFastTextClassifier({
+      loadModel: vi.fn().mockResolvedValue(loaded),
+    });
+
+    await expect(classifier.classify('汇林小食店', '餐饮服务;中餐厅')).resolves.toMatchObject({
+      category: '其他',
+      source: 'fallback',
+    });
+    await expect(classifier.classify('龙螺鲜·柳州螺蛳粉(高岗街店)', '餐饮服务;快餐厅')).resolves.toMatchObject({
+      category: '螺蛳粉',
+      source: 'fasttext',
+    });
+  });
+
   it('falls back to other for low-confidence predictions on neutral names', async () => {
     const loaded = model('粤菜', 0.34);
     const loadModel = vi.fn().mockResolvedValue(loaded);

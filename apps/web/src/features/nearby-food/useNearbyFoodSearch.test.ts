@@ -63,7 +63,18 @@ describe('useNearbyFoodSearch', () => {
     await waitFor(() => expect(result.current.state.status).toBe('ready'));
 
     expect(deps.getLocation).toHaveBeenCalledTimes(1);
-    expect(deps.searchRestaurants).toHaveBeenCalledWith({ config, center: position, radiusMeters: 2000, resultLimit: 20 });
+    expect(deps.searchRestaurants).toHaveBeenCalledWith({ config, center: position, radiusMeters: 2000, resultLimit: 20, candidateLimit: 200 });
+  });
+
+  it('保留最多 200 家候选门店供附近游戏聚合，同时只展示当前数量', async () => {
+    const candidates = Array.from({ length: 200 }, (_, index) => restaurant(index + 1));
+    const deps = dependencies({ searchRestaurants: vi.fn().mockResolvedValue(candidates) });
+    const { result } = renderHook(() => useNearbyFoodSearch(deps));
+
+    await waitFor(() => expect(result.current.state.status).toBe('ready'));
+
+    expect(result.current.state.restaurants).toHaveLength(20);
+    expect(result.current.state.candidateRestaurants).toHaveLength(200);
   });
 
   it('有地图返回的初始位置时直接搜索，不重复请求浏览器定位', async () => {
@@ -74,7 +85,7 @@ describe('useNearbyFoodSearch', () => {
     await waitFor(() => expect(result.current.state.status).toBe('ready'));
 
     expect(deps.getLocation).not.toHaveBeenCalled();
-    expect(deps.searchRestaurants).toHaveBeenCalledWith({ config, center: selectedPosition, radiusMeters: 2000, resultLimit: 20 });
+    expect(deps.searchRestaurants).toHaveBeenCalledWith({ config, center: selectedPosition, radiusMeters: 2000, resultLimit: 20, candidateLimit: 200 });
   });
 
   it('地图返回的新位置优先于旧的搜索会话', async () => {
@@ -93,7 +104,7 @@ describe('useNearbyFoodSearch', () => {
 
     await waitFor(() => expect(result.current.state.status).toBe('ready'));
 
-    expect(deps.searchRestaurants).toHaveBeenCalledWith({ config, center: selectedPosition, radiusMeters: 1000, resultLimit: 20 });
+    expect(deps.searchRestaurants).toHaveBeenCalledWith({ config, center: selectedPosition, radiusMeters: 1000, resultLimit: 20, candidateLimit: 200 });
     expect(result.current.state.center).toEqual(selectedPosition);
     expect(deps.getLocation).not.toHaveBeenCalled();
   });
@@ -109,7 +120,7 @@ describe('useNearbyFoodSearch', () => {
     await waitFor(() => expect(result.current.state.status).toBe('ready'));
 
     expect(result.current.state.center).toEqual(cachedPosition);
-    expect(deps.searchRestaurants).toHaveBeenCalledWith({ config, center: cachedPosition, radiusMeters: 2000, resultLimit: 20 });
+    expect(deps.searchRestaurants).toHaveBeenCalledWith({ config, center: cachedPosition, radiusMeters: 2000, resultLimit: 20, candidateLimit: 200 });
   });
 
   it('浏览器定位失败且没有缓存位置时进入 location-fallback', async () => {
@@ -144,7 +155,7 @@ describe('useNearbyFoodSearch', () => {
 
     expect(result.current.state.center).toEqual(selectedPosition);
     expect(result.current.state.restaurants).toEqual([restaurant(4), restaurant(5), restaurant(6)]);
-    expect(searchRestaurants).toHaveBeenCalledWith({ config, center: selectedPosition, radiusMeters: 3000, resultLimit: 20 });
+    expect(searchRestaurants).toHaveBeenCalledWith({ config, center: selectedPosition, radiusMeters: 3000, resultLimit: 20, candidateLimit: 200 });
   });
 
   it('主动重新定位失败时保留当前位置和餐厅，不使用缓存位置搜索', async () => {
@@ -215,7 +226,7 @@ describe('useNearbyFoodSearch', () => {
     expect(searchRestaurants).toHaveBeenCalledTimes(callsBefore);
 
     await act(async () => { await result.current.search(); });
-    expect(searchRestaurants).toHaveBeenLastCalledWith({ config, center: position, radiusMeters: 2000, resultLimit: 30 });
+    expect(searchRestaurants).toHaveBeenLastCalledWith({ config, center: position, radiusMeters: 2000, resultLimit: 30, candidateLimit: 200 });
     expect(result.current.state.restaurants).toHaveLength(30);
     expect(result.current.state.hasPendingResultLimitChange).toBe(false);
   });

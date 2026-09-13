@@ -4,7 +4,7 @@ import { classifyNearbyRestaurantName, type NearbyRestaurantClassification } fro
 import type { NearbyRestaurant } from './types';
 
 const VISIBLE_RESTAURANT_LIMIT = 20;
-const defaultClassifier = createNearbyFastTextClassifier();
+export const defaultNearbyRestaurantClassifier = createNearbyFastTextClassifier();
 const readyPromises = new WeakMap<NearbyFastTextClassifier, Promise<void>>();
 
 function readyOnce(classifier: NearbyFastTextClassifier): Promise<void> {
@@ -35,7 +35,7 @@ type AsyncClassificationState = {
 
 export function useNearbyRestaurantClassifications(
   restaurants: NearbyRestaurant[],
-  classifier: NearbyFastTextClassifier = defaultClassifier,
+  classifier: NearbyFastTextClassifier = defaultNearbyRestaurantClassifier,
 ): Map<string, NearbyRestaurantClassification> {
   const visibleRestaurants = useMemo(() => restaurants.slice(0, VISIBLE_RESTAURANT_LIMIT), [restaurants]);
   const currentKey = useMemo(() => inputKey(visibleRestaurants), [visibleRestaurants]);

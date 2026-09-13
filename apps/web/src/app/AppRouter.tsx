@@ -65,7 +65,7 @@ function RouteTree({ repository, roomClient }: { repository: FoodChoiceRepositor
       <Route path="/settings" element={<SettingsPage repository={repository} />} />
       <Route path="/mode" element={<ModePage roomClient={roomClient} />} />
       <Route path="/single/dataset" element={<DatasetPage repository={repository} />} />
-      <Route path="/nearby" element={<NearbyFoodPage />} />
+      <Route path="/nearby" element={<NearbyFoodPage repository={repository} />} />
       <Route path="/nearby/location" element={<NearbyLocationPage />} />
       <Route path="/game/single" element={<GamePage repository={repository} />} />
       <Route path="/result/single" element={<SingleResultRoute repository={repository} />} />

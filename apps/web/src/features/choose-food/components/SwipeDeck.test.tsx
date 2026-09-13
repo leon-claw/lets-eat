@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { FoodChoice } from '@/entities/food-choice/types';
@@ -41,8 +41,7 @@ describe('SwipeDeck', () => {
 
     expect(screen.getByText('滑动选菜器')).toBeInTheDocument();
     expect(screen.getByText('附近门店')).toBeInTheDocument();
-    expect(screen.getByText('白切鸡 · 烧鹅')).toHaveClass('text-base');
-    expect(screen.getByText('白切鸡 · 烧鹅')).not.toHaveClass('truncate');
+    expect(screen.getByText('白切鸡 · 烧鹅')).toHaveClass('text-base', 'line-clamp-2');
     expect(screen.queryByText(/强推|必吃超赞|摇号|2人想吃/)).not.toBeInTheDocument();
     await user.click(screen.getByTitle('不喜欢'));
     await waitFor(() => expect(onDislike).toHaveBeenCalledOnce());
@@ -59,11 +58,10 @@ describe('SwipeDeck', () => {
     expect(screen.getByText('白切鸡 · 烧鹅')).toHaveClass('text-sm', 'truncate');
   });
 
-  it('附近游戏的高德图片加载失败时回退到内置封面', () => {
-    render(<SwipeDeck choice={choice} current={1} total={1} canUndo={false} representativeFoodsLabel="附近门店" emphasizeRepresentativeFoods onDislike={vi.fn()} onLike={vi.fn()} onUndo={vi.fn()} onInteractionLockChange={vi.fn()} />);
+  it('附近游戏优先使用内置大类封面，而不是默认品牌图', () => {
+    const nearbyChoice = { ...choice, id: 'nearby-category:cantonese', coverImage: '/brand-logo.png' };
+    render(<SwipeDeck choice={nearbyChoice} current={1} total={1} canUndo={false} representativeFoodsLabel="附近门店" emphasizeRepresentativeFoods onDislike={vi.fn()} onLike={vi.fn()} onUndo={vi.fn()} onInteractionLockChange={vi.fn()} />);
 
-    fireEvent.error(screen.getByRole('img', { name: choice.name }));
-
-    expect(screen.getByRole('img', { name: choice.name })).toHaveAttribute('src', '/brand-logo.png');
+    expect(screen.getByRole('img', { name: nearbyChoice.name })).toHaveAttribute('src', '/api/catalog-assets/v3/images/cantonese.webp');
   });
 });

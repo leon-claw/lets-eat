@@ -70,6 +70,10 @@ function isSearchSession(value: unknown): value is NearbySearchSession {
     && Array.isArray(value.restaurants)
     && value.restaurants.length <= 30
     && value.restaurants.every(isNearbyRestaurant)
+    && (value.candidateRestaurants === undefined
+      || (Array.isArray(value.candidateRestaurants)
+        && value.candidateRestaurants.length <= 200
+        && value.candidateRestaurants.every(isNearbyRestaurant)))
     && (value.resultLimit === undefined || isResultLimit(value.resultLimit))
     && isNonEmptyString(value.searchedAt);
 }
@@ -139,7 +143,13 @@ export function createNearbySearchSessionStore(storage: StorageLike = defaultSto
     ...store,
     save(value: NearbySearchSession): void {
       const resultLimit = value.resultLimit ?? 20;
-      store.save({ ...value, resultLimit, restaurants: value.restaurants.slice(0, resultLimit) });
+      const candidateRestaurants = value.candidateRestaurants ?? value.restaurants;
+      store.save({
+        ...value,
+        resultLimit,
+        restaurants: value.restaurants.slice(0, resultLimit),
+        candidateRestaurants: candidateRestaurants.slice(0, 200),
+      });
     },
   };
 }

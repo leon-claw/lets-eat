@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { AmapSearchError } from '@/features/nearby-food/amap-client';
+import type { FoodChoiceRepository } from '@/entities/food-choice/repository';
+import type { FoodChoice } from '@/entities/food-choice/types';
 import type { NearbyFastTextClassifier } from '@/features/nearby-food/fasttext-browser-classifier';
 import type { AmapConfig, GeoPoint, NearbyRestaurant, NearbyRoundSession, NearbySearchSession } from '@/features/nearby-food/types';
 import type { NearbyRoundStore } from '@/features/nearby-food/nearby-round';
@@ -44,6 +46,22 @@ function dependencies(restaurants: NearbyRestaurant[] = [restaurant(1), restaura
   };
 }
 
+function template(id: string, name: string): FoodChoice {
+  return {
+    id,
+    name,
+    description: `${name}说明`,
+    coverImage: `/api/catalog-assets/v3/images/${id}.webp`,
+    tags: ['内置标签'],
+    representativeFoods: ['内置代表食物'],
+    datasetType: 'large',
+  };
+}
+
+const repository: FoodChoiceRepository = {
+  list: vi.fn(async () => [template('cantonese', '粤菜'), template('sichuan', '川菜')]),
+};
+
 function LocationProbe() {
   const location = useLocation();
   return <output data-testid="location">{location.pathname}{location.search}</output>;
@@ -54,12 +72,13 @@ function renderNearby(
   initialEntry: string | { pathname: string; state?: unknown } = '/nearby',
   roundStore?: NearbyRoundStore,
   classifier?: NearbyFastTextClassifier,
+  foodChoiceRepository: FoodChoiceRepository = repository,
 ) {
   return render(
     <FeedbackProvider>
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
-          <Route path="/nearby" element={<NearbyFoodPage searchDependencies={searchDependencies} roundStore={roundStore} classifier={classifier} />} />
+          <Route path="/nearby" element={<NearbyFoodPage searchDependencies={searchDependencies} roundStore={roundStore} classifier={classifier} repository={foodChoiceRepository} />} />
           <Route path="*" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
@@ -145,11 +164,19 @@ describe('NearbyFoodPage', () => {
     expect(screen.getByRole('button', { name: '开始游戏' })).toBeEnabled();
   });
 
-  it('点击开始游戏后保存评分门店回合并进入单人游戏', async () => {
+  it('点击开始游戏后使用 fastText 按大类聚合候选门店并进入单人游戏', async () => {
     const user = userEvent.setup();
     const deps = dependencies([restaurant(1, 4.8, 'https://example.com/restaurant-1.jpg'), restaurant(2, 4.6), restaurant(3, 4.4)]);
     const roundStore = store<NearbyRoundSession>(null);
-    renderNearby(deps, '/nearby', roundStore);
+    const classifier: NearbyFastTextClassifier = {
+      ready: vi.fn().mockResolvedValue(undefined),
+      classify: vi.fn(async (name) => ({
+        category: name === '餐厅 3' ? '川菜' : '粤菜',
+        confidence: 0.95,
+        source: 'fasttext' as const,
+      })),
+    };
+    renderNearby(deps, '/nearby', roundStore, classifier);
 
     await screen.findByText('找到 3 家餐厅');
     expect(screen.getByRole('button', { name: '开始游戏' })).toBeEnabled();
@@ -158,13 +185,42 @@ describe('NearbyFoodPage', () => {
     expect(roundStore.save).toHaveBeenCalledWith(expect.objectContaining({
       restaurants: expect.arrayContaining([expect.objectContaining({ id: 'poi-1', rating: 4.8 })]),
       choices: expect.arrayContaining([
-        expect.objectContaining({ id: 'amap:poi-1', name: '餐厅 1', coverImage: 'https://example.com/restaurant-1.jpg', representativeFoods: ['餐厅 1'] }),
+        expect.objectContaining({ id: 'nearby-category:cantonese', name: '粤菜', coverImage: '/api/catalog-assets/v3/images/cantonese.webp', representativeFoods: ['餐厅 1', '餐厅 2'] }),
+        expect.objectContaining({ id: 'nearby-category:sichuan', name: '川菜', representativeFoods: ['餐厅 3'] }),
       ]),
-      itemIds: expect.arrayContaining(['amap:poi-1', 'amap:poi-2', 'amap:poi-3']),
+      itemIds: expect.arrayContaining(['nearby-category:cantonese', 'nearby-category:sichuan']),
       decisions: {},
       history: [],
       completedAt: null,
     }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/game/single?dataset=nearby');
+  });
+
+  it('内置目录请求失败时仍使用本地卡片模板开始附近游戏', async () => {
+    const user = userEvent.setup();
+    const deps = dependencies([restaurant(1), restaurant(2), restaurant(3)]);
+    const roundStore = store<NearbyRoundSession>(null);
+    const classifier: NearbyFastTextClassifier = {
+      ready: vi.fn().mockResolvedValue(undefined),
+      classify: vi.fn().mockResolvedValue({ category: '粤菜', confidence: 0.95, source: 'fasttext' }),
+    };
+    const foodChoiceRepository: FoodChoiceRepository = {
+      loadCatalog: vi.fn().mockRejectedValue(new Error('菜单接口暂不可用')),
+      list: vi.fn().mockRejectedValue(new Error('菜单接口暂不可用')),
+    };
+    renderNearby(deps, '/nearby', roundStore, classifier, foodChoiceRepository);
+
+    await screen.findByText('找到 3 家餐厅');
+    await user.click(screen.getByRole('button', { name: '开始游戏' }));
+
+    await waitFor(() => expect(roundStore.save).toHaveBeenCalledWith(expect.objectContaining({
+      choices: [expect.objectContaining({
+        id: 'nearby-category:cantonese',
+        name: '粤菜',
+        coverImage: '/api/catalog-assets/v3/images/cantonese.webp',
+        representativeFoods: ['餐厅 1', '餐厅 2', '餐厅 3'],
+      })],
+    })));
     expect(screen.getByTestId('location')).toHaveTextContent('/game/single?dataset=nearby');
   });
 

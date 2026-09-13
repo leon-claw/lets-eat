@@ -116,6 +116,26 @@ describe('nearby browser storage', () => {
     expect(loaded?.restaurants[29]?.imageUrl).toBe('https://example.com/raw-29.jpg');
   });
 
+  it('搜索会话额外保留最多 200 家候选门店用于附近游戏聚合', () => {
+    const store = createNearbySearchSessionStore(createMemoryStorage());
+    const restaurants = Array.from({ length: 30 }, (_, index) => restaurant(index));
+    const candidates = Array.from({ length: 220 }, (_, index) => restaurant(index + 100));
+
+    store.save({
+      center: { longitude: 116.4, latitude: 39.9 },
+      radiusMeters: 500,
+      restaurants,
+      candidateRestaurants: candidates,
+      resultLimit: 30,
+      searchedAt: '2026-08-31T00:00:00.000Z',
+    });
+
+    const loaded = store.load();
+    expect(loaded?.restaurants).toHaveLength(30);
+    expect(loaded?.candidateRestaurants).toHaveLength(200);
+    expect(loaded?.candidateRestaurants?.[199]).toEqual(candidates[199]);
+  });
+
   it('附近游戏回合可以保存决策和完成状态', () => {
     const store = createNearbyRoundStore(createMemoryStorage());
     const decisions: Record<string, Decision> = { 'poi-1': 'liked', 'poi-2': 'disliked' };

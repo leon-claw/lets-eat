@@ -16,6 +16,9 @@ const FALLBACK_CATEGORY = '其他';
 const KNOWN_BRAND_CLASSIFICATIONS: Array<{ brand: string; category: string }> = [
   { brand: '麦当劳', category: '西餐' },
   { brand: '星巴克', category: '甜品奶茶' },
+  { brand: '肯德基', category: '西餐' },
+  { brand: '达美乐', category: '西餐' },
+  { brand: '尊宝', category: '西餐' },
 ];
 
 // 这是一个很小的本地线性分类器：用商家名称和高德分类中的短语作为特征，
@@ -288,6 +291,12 @@ function normalizeName(name: string): string {
 
 function normalizeRestaurantName(name: string): string {
   return normalizeName(stripNearbyRestaurantNameParentheticals(name));
+}
+
+export function hasStrongNearbyLuosifenSignal(name: string, amapType = ''): boolean {
+  const normalizedName = normalizeRestaurantName(name).replace(/\s/g, '');
+  const normalizedAmapType = normalizeName(amapType).replace(/\s/g, '');
+  return /螺蛳粉|螺丝粉/.test(normalizedName) || /螺蛳粉|螺丝粉/.test(normalizedAmapType);
 }
 
 export function classifyKnownRestaurantBrand(name: string): NearbyRestaurantClassification | undefined {

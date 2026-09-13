@@ -240,15 +240,19 @@ export async function searchNearbyRestaurants(input: {
   center: GeoPoint;
   radiusMeters: number;
   resultLimit?: NearbyResultLimit;
+  candidateLimit?: number;
   loadAmap?: (config: AmapConfig) => Promise<AmapNamespace>;
   now?: () => string;
 }): Promise<NearbyRestaurant[]> {
-  const { config, center, radiusMeters, resultLimit = DEFAULT_NEARBY_RESULT_LIMIT } = input;
+  const { config, center, radiusMeters, resultLimit = DEFAULT_NEARBY_RESULT_LIMIT, candidateLimit = resultLimit } = input;
   if (!config.key.trim() || !config.securityJsCode.trim()) {
     throw new AmapSearchError('INVALID_CONFIG', '高德 Key 或 securityJsCode 未配置');
   }
   if (![10, 20, 30].includes(resultLimit)) {
     throw new AmapSearchError('INVALID_CONFIG', '附近餐厅数量无效');
+  }
+  if (!Number.isInteger(candidateLimit) || candidateLimit < resultLimit || candidateLimit > CANDIDATE_PAGE_SIZE * MAX_CANDIDATE_PAGES) {
+    throw new AmapSearchError('INVALID_CONFIG', '附近候选餐厅数量无效');
   }
   if (!Number.isFinite(center.longitude) || !Number.isFinite(center.latitude) || !Number.isFinite(radiusMeters) || radiusMeters <= 0) {
     throw new AmapSearchError('INVALID_CONFIG', '附近搜索参数无效');
@@ -277,6 +281,6 @@ export async function searchNearbyRestaurants(input: {
     .map((restaurant, index) => ({ restaurant, index }))
     .filter(({ restaurant }) => restaurant.rating !== undefined)
     .sort((left, right) => (right.restaurant.rating! - left.restaurant.rating!) || (left.index - right.index))
-    .slice(0, resultLimit)
+    .slice(0, candidateLimit)
     .map(({ restaurant }) => restaurant);
 }
