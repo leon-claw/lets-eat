@@ -28,6 +28,30 @@ describe('browser fastText classifier', () => {
     expect(result).toMatchObject({ category: '火锅', confidence: 0.92, source: 'fasttext' });
   });
 
+  it('uses the explicit brand mapping before consulting the model', async () => {
+    const loaded = model('其他');
+    const loadModel = vi.fn().mockResolvedValue(loaded);
+    const classifier = createNearbyFastTextClassifier({ loadModel });
+
+    await expect(classifier.classify('麦当劳(农林下路店)', '餐饮服务|快餐厅')).resolves.toMatchObject({
+      category: '西餐',
+      source: 'local-model',
+    });
+    expect(loadModel).not.toHaveBeenCalled();
+    expect(loaded.predict).not.toHaveBeenCalled();
+  });
+
+  it('falls back to other for low-confidence predictions on neutral names', async () => {
+    const loaded = model('粤菜', 0.34);
+    const loadModel = vi.fn().mockResolvedValue(loaded);
+    const classifier = createNearbyFastTextClassifier({ loadModel });
+
+    await expect(classifier.classify('味然香(执信店)', '餐饮服务;中餐厅')).resolves.toMatchObject({
+      category: '其他',
+      source: 'fallback',
+    });
+  });
+
   it('falls back when loading or prediction fails', async () => {
     const classifier = createNearbyFastTextClassifier({
       loadModel: vi.fn().mockRejectedValue(new Error('WASM unavailable')),

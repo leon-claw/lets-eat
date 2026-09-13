@@ -21,14 +21,21 @@ export const NEARBY_FASTTEXT_CATEGORIES = [
 const FASTTEXT_LABEL_PREFIX = '__label__';
 
 function cleanText(value: string): string {
-  return String(value).replace(/[\r\n\t|]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return String(value).replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+export function stripNearbyRestaurantNameParentheticals(value: string): string {
+  return cleanText(value)
+    .replace(/\([^()]*\)|（[^（）]*）/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export function formatNearbyRestaurantForFastText(name: string, amapType: string): string {
-  const nameFeature = cleanText(name).replace(/\s/g, '_');
+  const nameFeature = stripNearbyRestaurantNameParentheticals(name).replace(/[|]/g, ' ').replace(/\s/g, '_');
   const amapFeatures = cleanText(amapType)
-    .split(' ')
-    .flatMap((part) => part.split('|'))
+    .split(/[|;]/)
+    .flatMap((part) => part.split(/\s+/))
     .filter(Boolean)
     .map((part) => `amap_${part.replace(/[()（）/]/g, '_')}`);
 

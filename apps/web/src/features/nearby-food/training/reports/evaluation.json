@@ -2,17 +2,17 @@
   "metadata": {
     "dataSource": "synthetic",
     "modelName": "nearby-restaurant-classifier.ftz",
-    "modelBytes": 421406
+    "modelBytes": 421327
   },
   "metrics": {
     "total": 100,
-    "correct": 97,
-    "accuracy": 0.97,
-    "macroPrecision": 0.9734,
-    "macroRecall": 0.9667,
-    "macroF1": 0.9657,
-    "lowConfidenceCount": 15,
-    "lowConfidenceRate": 0.15,
+    "correct": 91,
+    "accuracy": 0.91,
+    "macroPrecision": 0.9283,
+    "macroRecall": 0.9167,
+    "macroF1": 0.9143,
+    "lowConfidenceCount": 22,
+    "lowConfidenceRate": 0.22,
     "perLabel": {
       "粤菜": {
         "support": 5,
@@ -25,18 +25,18 @@
       "川菜": {
         "support": 5,
         "predicted": 5,
-        "correct": 5,
-        "precision": 1,
-        "recall": 1,
-        "f1": 1
+        "correct": 4,
+        "precision": 0.8,
+        "recall": 0.8,
+        "f1": 0.8
       },
       "湘菜": {
         "support": 5,
-        "predicted": 5,
-        "correct": 5,
+        "predicted": 4,
+        "correct": 4,
         "precision": 1,
-        "recall": 1,
-        "f1": 1
+        "recall": 0.8,
+        "f1": 0.8889
       },
       "火锅": {
         "support": 5,
@@ -48,11 +48,11 @@
       },
       "烧烤": {
         "support": 5,
-        "predicted": 7,
-        "correct": 5,
-        "precision": 0.7143,
-        "recall": 1,
-        "f1": 0.8333
+        "predicted": 6,
+        "correct": 4,
+        "precision": 0.6667,
+        "recall": 0.8,
+        "f1": 0.7273
       },
       "螺蛳粉": {
         "support": 5,
@@ -96,11 +96,11 @@
       },
       "东北菜": {
         "support": 6,
-        "predicted": 6,
+        "predicted": 10,
         "correct": 6,
-        "precision": 1,
+        "precision": 0.6,
         "recall": 1,
-        "f1": 1
+        "f1": 0.75
       },
       "云南菜": {
         "support": 6,
@@ -136,19 +136,19 @@
       },
       "海鲜": {
         "support": 6,
-        "predicted": 6,
+        "predicted": 7,
         "correct": 5,
-        "precision": 0.8333,
+        "precision": 0.7143,
         "recall": 0.8333,
-        "f1": 0.8333
+        "f1": 0.7692
       },
       "其他": {
         "support": 12,
-        "predicted": 12,
-        "correct": 12,
+        "predicted": 9,
+        "correct": 9,
         "precision": 1,
-        "recall": 1,
-        "f1": 1
+        "recall": 0.75,
+        "f1": 0.8571
       }
     },
     "confusionMatrix": {
@@ -173,7 +173,7 @@
       },
       "川菜": {
         "粤菜": 0,
-        "川菜": 5,
+        "川菜": 4,
         "湘菜": 0,
         "火锅": 0,
         "烧烤": 0,
@@ -182,7 +182,7 @@
         "韩餐": 0,
         "西餐": 0,
         "东南亚菜": 0,
-        "东北菜": 0,
+        "东北菜": 1,
         "云南菜": 0,
         "面食": 0,
         "轻食": 0,
@@ -192,8 +192,8 @@
       },
       "湘菜": {
         "粤菜": 0,
-        "川菜": 0,
-        "湘菜": 5,
+        "川菜": 1,
+        "湘菜": 4,
         "火锅": 0,
         "烧烤": 0,
         "螺蛳粉": 0,
@@ -233,7 +233,7 @@
         "川菜": 0,
         "湘菜": 0,
         "火锅": 0,
-        "烧烤": 5,
+        "烧烤": 4,
         "螺蛳粉": 0,
         "日料": 0,
         "韩餐": 0,
@@ -244,7 +244,7 @@
         "面食": 0,
         "轻食": 0,
         "甜品奶茶": 0,
-        "海鲜": 0,
+        "海鲜": 1,
         "其他": 0
       },
       "螺蛳粉": {
@@ -467,13 +467,13 @@
         "韩餐": 0,
         "西餐": 0,
         "东南亚菜": 0,
-        "东北菜": 0,
+        "东北菜": 3,
         "云南菜": 0,
         "面食": 0,
         "轻食": 0,
         "甜品奶茶": 0,
         "海鲜": 0,
-        "其他": 12
+        "其他": 9
       }
     }
   }

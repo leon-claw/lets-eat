@@ -1,7 +1,7 @@
 {
   "name": "@lets-eat/miniprogram",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "scripts": {
     "build": "pnpm --filter @lets-eat/client-core build && rm -rf dist && tsc -p tsconfig.json && tsc -p tsconfig.client-core.json && node scripts/copy-static.mjs && node scripts/write-build-info.mjs",

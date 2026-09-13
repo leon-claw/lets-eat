@@ -3,6 +3,7 @@ import {
   parseNearbyFastTextLabel,
 } from './fasttext-input';
 import {
+  classifyKnownRestaurantBrand,
   classifyNearbyRestaurantName,
   type NearbyRestaurantClassification,
 } from './restaurant-type-classifier';
@@ -24,6 +25,7 @@ export type NearbyFastTextClassifier = {
 };
 
 const FASTTEXT_MODEL_URL = '/models/nearby-classifier/nearby-restaurant-classifier.ftz';
+const FASTTEXT_MIN_CONFIDENCE = 0.6;
 
 type FastTextBrowserRuntime = {
   FastText: new () => { loadModel(url: string): Promise<FastTextModelLike> };
@@ -66,11 +68,16 @@ export function createNearbyFastTextClassifier(options: { loadModel?: FastTextMo
       }
     },
     async classify(name, amapType) {
+      const knownBrandClassification = classifyKnownRestaurantBrand(name);
+      if (knownBrandClassification) return knownBrandClassification;
+
       try {
         const model = await getModel();
         const prediction = readTopPrediction(model.predict(formatNearbyRestaurantForFastText(name, amapType), 1, 0));
         const category = prediction ? parseNearbyFastTextLabel(prediction.label) : undefined;
-        if (!prediction || !category) return fallbackClassification(name, amapType);
+        if (!prediction || !category || prediction.probability < FASTTEXT_MIN_CONFIDENCE) {
+          return fallbackClassification(name, amapType);
+        }
         return { category, confidence: prediction.probability, source: 'fasttext' };
       } catch {
         return fallbackClassification(name, amapType);

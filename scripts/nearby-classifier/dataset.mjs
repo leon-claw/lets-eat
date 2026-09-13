@@ -32,18 +32,40 @@ const COMMON_SUFFIXES = ['馆', '小馆', '餐厅', '食府', '餐饮店', '料�
 
 const CATEGORY_PROFILES = {
   粤菜: {
-    amapTypes: ['餐饮服务|中餐厅|广东菜(粤菜)', '餐饮服务|中餐厅|综合酒楼', '餐饮服务|中餐厅|海鲜酒楼'],
-    anchors: ['粤菜', '广式早茶', '烧鹅', '叉烧', '煲仔饭', '肠粉', '潮州菜'],
+    amapTypes: ['餐饮服务|中餐厅|广东菜(粤菜)', '餐饮服务|中餐厅|综合酒楼', '餐饮服务|中餐厅|海鲜酒楼', '餐饮服务|快餐厅|茶餐厅'],
+    anchors: ['粤菜', '广式早茶', '烧鹅', '燒鵝', '叉烧', '煲仔饭', '肠粉', '点心', '點心', '广州味', '廣州味', '潮州菜', '广东菜', '茶餐厅'],
     brands: ['广州酒家', '陶陶居', '点都德', '利苑酒家', '翠园', '潮上潮'],
-    regions: ['广府', '潮汕', '岭南', '广州', '顺德', '佛山'],
+    regions: ['广府', '潮汕', '岭南', '广州', '廣州', '广东', '顺德', '佛山', '廣府'],
     neutral: ['云水轩', '南粤小馆', '珠江食府', '岭南食光', '榕树下', '茶点里'],
+    curatedCases: [
+      { name: '東園·廣州味·點心與燒鵝(农林·东山未来里店)', amap_type: '餐饮服务|中餐厅' },
+      { name: '广州味点心烧鹅馆', amap_type: '餐饮服务|中餐厅' },
+      { name: '廣州味點心燒鵝食府', amap_type: '餐饮服务|中餐厅' },
+      { name: '广府点心与烧鹅', amap_type: '餐饮服务|中餐厅' },
+      { name: '广州味粤菜馆', amap_type: '餐饮服务|中餐厅' },
+      { name: '點心燒鵝酒樓', amap_type: '餐饮服务|中餐厅' },
+      { name: '广东道至正家宴(东山宾馆店)', amap_type: '餐饮服务|中餐厅' },
+      { name: '广东家宴粤菜馆', amap_type: '餐饮服务|中餐厅' },
+    ],
   },
   川菜: {
     amapTypes: ['餐饮服务|中餐厅|四川菜(川菜)', '餐饮服务|中餐厅|四川菜', '餐饮服务|中餐厅|特色/地方风味餐厅'],
-    anchors: ['川菜', '四川风味', '麻辣', '水煮鱼', '回锅肉', '宫保鸡丁', '冒菜'],
+    anchors: ['川菜', '四川风味', '重庆菜', '重庆豆花', '豆花', '渝味', '渝菜', '重庆小面', '蜀味', '江湖菜', '麻辣', '水煮鱼', '回锅肉', '宫保鸡丁', '冒菜'],
     brands: ['眉州东坡', '小米椒川菜', '蜀香门第', '川西坝子', '辣府', '巴蜀人家'],
-    regions: ['蜀地', '川西', '天府', '成都', '巴蜀', '锦城'],
+    regions: ['蜀地', '川西', '天府', '成都', '巴蜀', '锦城', '重庆', '渝'],
     neutral: ['红油坊', '蜀味小馆', '椒香里', '天府食光', '麻香居', '锦城味道'],
+    curatedCases: [
+      { name: '新渝城·重庆豆花馆(东山宾馆店)', amap_type: '餐饮服务|中餐厅' },
+      { name: '重庆豆花馆', amap_type: '餐饮服务|中餐厅' },
+      { name: '渝味豆花馆', amap_type: '餐饮服务|中餐厅' },
+      { name: '重庆豆花川菜馆', amap_type: '餐饮服务|中餐厅' },
+      { name: '渝城重庆小面', amap_type: '餐饮服务|中餐厅' },
+      { name: '重庆味川菜馆', amap_type: '餐饮服务|中餐厅' },
+      { name: '渝味江湖菜', amap_type: '餐饮服务|中餐厅' },
+      { name: '重庆毛血旺馆', amap_type: '餐饮服务|中餐厅' },
+      { name: '鼎盛蜀坊重庆江湖菜(东山口店)', amap_type: '餐饮服务|中餐厅' },
+      { name: '蜀坊重庆江湖菜馆', amap_type: '餐饮服务|中餐厅' },
+    ],
   },
   湘菜: {
     amapTypes: ['餐饮服务|中餐厅|湖南菜(湘菜)', '餐饮服务|中餐厅|湖南菜', '餐饮服务|中餐厅|特色/地方风味餐厅'],
@@ -56,7 +78,7 @@ const CATEGORY_PROFILES = {
     amapTypes: ['餐饮服务|中餐厅|火锅店', '餐饮服务|火锅店', '餐饮服务|中餐厅|特色/地方风味餐厅'],
     anchors: ['火锅', '串串香', '麻辣锅', '牛油锅底', '涮肉', '重庆火锅', '鸳鸯锅'],
     brands: ['海底捞', '巴奴毛肚火锅', '小龙坎', '蜀大侠', '大龙燚', '珮姐老火锅'],
-    regions: ['重庆', '成都', '川渝', '北方', '老北京', '潮汕'],
+    regions: ['成都', '川渝', '北方', '老北京', '潮汕', '重庆火锅'],
     neutral: ['沸腾里', '围炉聚味', '一锅江湖', '热辣食光', '锅里乾坤', '沸点火锅'],
   },
   烧烤: {
@@ -132,7 +154,7 @@ const CATEGORY_PROFILES = {
   甜品奶茶: {
     amapTypes: ['餐饮服务|咖啡厅|咖啡厅', '餐饮服务|甜品店', '餐饮服务|冷饮店|奶茶店'],
     anchors: ['奶茶', '咖啡', '甜品', '蛋糕', '冰淇淋', '烘焙', '下午茶'],
-    brands: ['星巴克咖啡', '喜茶', '奈雪的茶', '蜜雪冰城', '一点点', '瑞幸咖啡'],
+    brands: ['喜茶', '奈雪的茶', '蜜雪冰城', '一点点', '瑞幸咖啡', '霸王茶姬'],
     regions: ['咖啡', '茶饮', '甜甜', '下午茶', '奶香', '烘焙'],
     neutral: ['糖水铺', '云朵甜品', '甜心工坊', '午后时光', '一口甜', '奶油研究所'],
   },
@@ -161,6 +183,25 @@ const OTHER_AMAP_TYPES = [
   '餐饮相关场所|餐饮相关',
 ];
 
+const OTHER_CURATED_CASES = [
+  { name: '长禧家.珑厨(东山口店)', amap_type: '餐饮服务|中餐厅' },
+  { name: '长禧家·珑厨', amap_type: '餐饮服务|中餐厅' },
+  { name: '珑厨东山口店', amap_type: '餐饮服务|中餐厅' },
+  { name: '味然香(执信店)', amap_type: '餐饮服务|中餐厅' },
+  { name: '味然香', amap_type: '餐饮服务|中餐厅' },
+  { name: '简·东山小厨家常菜', amap_type: '餐饮服务|中餐厅' },
+  { name: '东山小厨家常菜', amap_type: '餐饮服务|中餐厅' },
+  { name: '家宴小馆', amap_type: '餐饮服务|中餐厅' },
+  { name: '邻里家常菜馆', amap_type: '餐饮服务|中餐厅' },
+  { name: '一席家宴', amap_type: '餐饮服务|中餐厅' },
+  { name: '四季小馆', amap_type: '餐饮服务|中餐厅' },
+  { name: '老地方餐厅', amap_type: '餐饮服务|中餐厅' },
+  { name: '家门口食府', amap_type: '餐饮服务|中餐厅' },
+  { name: '食光里餐厅', amap_type: '餐饮服务|中餐厅' },
+  { name: '福满楼餐馆', amap_type: '餐饮服务|中餐厅' },
+  { name: '城南聚味餐厅', amap_type: '餐饮服务|中餐厅' },
+];
+
 const PATTERNS = ['brand', 'dish_and_type', 'region_and_style', 'amap_assisted', 'brand_and_type'];
 
 export function createSeededRandom(seed) {
@@ -187,8 +228,26 @@ function pick(items, index, offset = 0) {
   return items[(index + offset) % items.length];
 }
 
+function createCuratedRecord(label, index, curatedCase) {
+  return {
+    id: `sample-${String(index).padStart(4, '0')}-${label}`,
+    label,
+    name: curatedCase.name,
+    amap_type: curatedCase.amap_type,
+    source: 'synthetic',
+    pattern: 'curated_real_case',
+  };
+}
+
 function cleanText(value) {
-  return String(value).replace(/[\r\n\t|]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return String(value).replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function stripRestaurantNameParentheticals(value) {
+  return cleanText(value)
+    .replace(/\([^()]*\)|（[^（）]*）/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function normalizeName(value) {
@@ -196,6 +255,9 @@ function normalizeName(value) {
 }
 
 function createBusinessRecord(label, profile, index) {
+  const curatedCase = profile.curatedCases?.[index];
+  if (curatedCase) return createCuratedRecord(label, index, curatedCase);
+
   const pattern = PATTERNS[index % PATTERNS.length];
   const city = pick(COMMON_CITIES, index, label.length);
   const prefix = pick(COMMON_PREFIXES, index, label.length);
@@ -224,6 +286,11 @@ function createBusinessRecord(label, profile, index) {
 }
 
 function createOtherRecord(index) {
+  const curatedCase = OTHER_CURATED_CASES[index];
+  if (curatedCase) {
+    return createCuratedRecord(OTHER_LABEL, BUSINESS_RECORDS_PER_LABEL * BUSINESS_LABELS.length + index, curatedCase);
+  }
+
   const root = pick(OTHER_NAME_ROOTS, index);
   const location = pick(OTHER_LOCATIONS, Math.floor(index / OTHER_NAME_ROOTS.length));
   const suffix = pick(OTHER_SUFFIXES, Math.floor(index / OTHER_NAME_ROOTS.length), index);
@@ -264,10 +331,10 @@ export function generateDataset({ seed = 20260912 } = {}) {
 }
 
 export function toFastTextLine(record) {
-  const name = cleanText(record.name).replace(/\s/g, '_');
+  const name = stripRestaurantNameParentheticals(record.name).replace(/[|]/g, ' ').replace(/\s/g, '_');
   const amapFeatures = cleanText(record.amap_type)
-    .split(' ')
-    .flatMap((part) => part.split('|'))
+    .split(/[|;]/)
+    .flatMap((part) => part.split(/\s+/))
     .filter(Boolean)
     .map((part) => `amap_${part.replace(/[()（）/]/g, '_')}`);
   return `__label__${record.label} name_${name} ${amapFeatures.join(' ')}`;

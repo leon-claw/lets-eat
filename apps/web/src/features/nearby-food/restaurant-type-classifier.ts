@@ -1,3 +1,5 @@
+import { stripNearbyRestaurantNameParentheticals } from './fasttext-input';
+
 export type NearbyRestaurantClassification = {
   category: string;
   confidence: number;
@@ -11,20 +13,38 @@ type Feature = {
 
 const FALLBACK_CATEGORY = '其他';
 
+const KNOWN_BRAND_CLASSIFICATIONS: Array<{ brand: string; category: string }> = [
+  { brand: '麦当劳', category: '西餐' },
+  { brand: '星巴克', category: '甜品奶茶' },
+];
+
 // 这是一个很小的本地线性分类器：用商家名称和高德分类中的短语作为特征，
 // 特征权重越高，代表它对菜系的区分度越强。它不改变高德原始分类。
 const CATEGORY_FEATURES: Record<string, Feature[]> = {
   粤菜: [
     { phrase: '粤菜', weight: 4 },
     { phrase: '广东菜', weight: 4 },
+    { phrase: '广东', weight: 4 },
+    { phrase: '广州', weight: 3.5 },
+    { phrase: '广府', weight: 3.5 },
+    { phrase: '顺德', weight: 3 },
+    { phrase: '佛山', weight: 3 },
+    { phrase: '潮州', weight: 3 },
     { phrase: '潮州菜', weight: 4 },
     { phrase: '潮汕', weight: 3 },
     { phrase: '烧鹅', weight: 3 },
     { phrase: '早茶', weight: 3 },
+    { phrase: '茶餐厅', weight: 5 },
   ],
   川菜: [
     { phrase: '川菜', weight: 4 },
     { phrase: '四川菜', weight: 4 },
+    { phrase: '四川', weight: 4 },
+    { phrase: '重庆', weight: 4 },
+    { phrase: '渝', weight: 3.5 },
+    { phrase: '蜀', weight: 3.5 },
+    { phrase: '成都', weight: 3 },
+    { phrase: '巴蜀', weight: 3.5 },
     { phrase: '川味', weight: 3 },
     { phrase: '麻辣', weight: 2 },
     { phrase: '水煮鱼', weight: 3 },
@@ -38,7 +58,7 @@ const CATEGORY_FEATURES: Record<string, Feature[]> = {
     { phrase: '小炒肉', weight: 3 },
   ],
   火锅: [
-    { phrase: '火锅', weight: 5 },
+    { phrase: '火锅', weight: 8 },
     { phrase: '串串', weight: 4 },
     { phrase: '冒菜', weight: 3 },
     { phrase: '涮', weight: 3 },
@@ -130,7 +150,6 @@ const CATEGORY_FEATURES: Record<string, Feature[]> = {
     { phrase: '蛋糕', weight: 4 },
     { phrase: '面包', weight: 3 },
     { phrase: '冰淇淋', weight: 4 },
-    { phrase: '星巴克', weight: 5 },
   ],
   海鲜: [
     { phrase: '海鲜', weight: 5 },
@@ -208,6 +227,7 @@ const AMAP_CATEGORY_FEATURES: Record<string, Feature[]> = {
     { phrase: '潮州菜', weight: 4.2 },
     { phrase: '综合酒楼', weight: 3.8 },
     { phrase: '海鲜酒楼', weight: 5.6 },
+    { phrase: '茶餐厅', weight: 5.2 },
   ],
   川菜: [
     { phrase: '四川菜', weight: 4.2 },
@@ -249,7 +269,6 @@ const AMAP_CATEGORY_FEATURES: Record<string, Feature[]> = {
     { phrase: '冷饮店', weight: 3.8 },
     { phrase: '糕饼店', weight: 3.8 },
     { phrase: '甜品店', weight: 3.8 },
-    { phrase: '星巴克咖啡', weight: 4.2 },
   ],
   海鲜: [
     { phrase: '海鲜', weight: 3.8 },
@@ -265,6 +284,22 @@ function normalizeName(name: string): string {
     .toLocaleLowerCase()
     .replace(/[、，。！？；;：/\\|()[\]{}<>《》“”‘’'"`·•_-]+/g, ' ')
     .replace(/\s+/g, ' ');
+}
+
+function normalizeRestaurantName(name: string): string {
+  return normalizeName(stripNearbyRestaurantNameParentheticals(name));
+}
+
+export function classifyKnownRestaurantBrand(name: string): NearbyRestaurantClassification | undefined {
+  const normalizedName = normalizeRestaurantName(name);
+  const matchedBrand = KNOWN_BRAND_CLASSIFICATIONS.find(({ brand }) => normalizedName.includes(brand));
+  if (!matchedBrand) return undefined;
+
+  return {
+    category: matchedBrand.category,
+    confidence: 0.99,
+    source: 'local-model',
+  };
 }
 
 function clamp(value: number): number {
@@ -299,7 +334,10 @@ function fallback(confidence = 0): NearbyRestaurantClassification {
 }
 
 export function classifyNearbyRestaurantName(name: string, amapType = ''): NearbyRestaurantClassification {
-  const normalizedName = normalizeName(name);
+  const knownBrandClassification = classifyKnownRestaurantBrand(name);
+  if (knownBrandClassification) return knownBrandClassification;
+
+  const normalizedName = normalizeRestaurantName(name);
   if (!normalizedName) {
     return fallback();
   }
