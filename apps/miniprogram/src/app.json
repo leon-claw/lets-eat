@@ -3,6 +3,7 @@
     "pages/home/index",
     "pages/mode/index",
     "pages/dataset/index",
+    "pages/nearby/index",
     "pages/room/index",
     "pages/game/index",
     "pages/result/index",
@@ -16,6 +17,15 @@
     "backgroundColor": "#F5F5F7",
     "backgroundTextStyle": "light"
   },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于搜索附近餐饮门店"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation",
+    "chooseLocation"
+  ],
   "style": "v2",
   "sitemapLocation": "sitemap.json"
 }

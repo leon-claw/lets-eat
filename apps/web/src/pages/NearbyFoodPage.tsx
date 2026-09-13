@@ -6,11 +6,9 @@ import { aggregateNearbyRestaurantsToFoodChoices, NEARBY_FALLBACK_TEMPLATES } fr
 import { type NearbyFastTextClassifier } from '@/features/nearby-food/fasttext-browser-classifier';
 import { createNearbyRoundStore } from '@/features/nearby-food/nearby-storage';
 import type { NearbyRoundStore } from '@/features/nearby-food/nearby-round';
-import { defaultNearbyRestaurantClassifier, useNearbyRestaurantClassifications } from '@/features/nearby-food/useNearbyRestaurantClassifications';
+import { defaultNearbyRestaurantClassifier } from '@/features/nearby-food/useNearbyRestaurantClassifications';
 import type { GeoPoint } from '@/features/nearby-food/types';
 import {
-  DEFAULT_NEARBY_RADIUS_METERS,
-  NEARBY_RESULT_LIMIT_OPTIONS,
   NEARBY_RADIUS_OPTIONS,
   useNearbyFoodSearch,
   type NearbyFoodSearchDependencies,
@@ -66,7 +64,6 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
   const search = useNearbyFoodSearch(effectiveDependencies);
   const shownError = useRef<string | null>(null);
   const activeClassifier = classifier ?? defaultNearbyRestaurantClassifier;
-  const smartClassifications = useNearbyRestaurantClassifications(search.state.restaurants, activeClassifier);
   const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
@@ -158,11 +155,6 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
                 {NEARBY_RADIUS_OPTIONS.map((radius) => <option key={radius} value={radius}>{radiusLabel(radius)}</option>)}
               </select>
             </label>
-            <label className="min-w-0 text-sm font-black text-slate-700">菜品数量
-              <select aria-label="菜品数量" value={search.state.resultLimit} onChange={(event) => search.setResultLimit(Number(event.target.value) as (typeof NEARBY_RESULT_LIMIT_OPTIONS)[number])} className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold outline-none focus:border-sky-400">
-                {NEARBY_RESULT_LIMIT_OPTIONS.map((limit) => <option key={limit} value={limit}>{limit} 家</option>)}
-              </select>
-            </label>
           </div>
           <button type="button" aria-label="更换位置" onClick={() => navigate('/nearby/location')} className="pressable mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 px-3 py-3 text-sm font-black text-slate-700 hover:bg-slate-50"><MapPin className="h-4 w-4 text-sky-600" />更换位置</button>
         </div>
@@ -196,25 +188,7 @@ export function NearbyFoodPage({ searchDependencies, roundStore = browserRoundSt
         )}
         {search.state.errorCode === 'INVALID_CONFIG' && <button type="button" onClick={() => navigate('/settings?return=nearby')} className="pressable rounded-2xl border border-rose-100 bg-white px-4 py-3 text-sm font-black text-rose-700 shadow-sm">前往设置</button>}
 
-        {search.state.restaurants.length > 0 && (
-          <div className="space-y-2" aria-label="附近餐厅列表">
-            {search.state.restaurants.map((restaurant) => {
-              const smartClassification = smartClassifications.get(restaurant.id);
-              return (
-                <article key={restaurant.id} className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600"><UtensilsIcon /></div>
-                  <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h3 className="truncate font-black text-slate-900">{restaurant.name}</h3>{restaurant.rating !== undefined && <span className="shrink-0 text-xs font-black text-amber-600">评分 {restaurant.rating.toFixed(1)}</span>}</div><p className="mt-1 truncate text-xs text-slate-500">{restaurant.type || '餐饮服务'}</p>{smartClassification && <p className="mt-1 truncate text-xs text-sky-700">智能分类：{smartClassification.category}</p>}</div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-
       </section>
     </PageShell>
   );
-}
-
-function UtensilsIcon() {
-  return <span aria-hidden="true" className="text-lg">🍽️</span>;
 }

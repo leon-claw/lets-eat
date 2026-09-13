@@ -19,6 +19,10 @@ describe('settings page', () => {
     expect(markup).toContain('大类');
     expect(markup).toContain('小类');
     expect(markup).toContain('保存自定义菜品');
+    expect(markup).toContain('周围菜品配置');
+    expect(markup).toContain('高德 Key');
+    expect(markup).toContain('securityJsCode');
+    expect(markup).toContain('保存高德配置');
     expect(markup).toContain('class="build-info"');
     expect(markup).toContain('{{buildLabel}}');
     expect(markup).toContain('bindtap="onToggleItem"');
@@ -29,6 +33,9 @@ describe('settings page', () => {
     expect(script).toContain('MIN_CUSTOM_CATALOG_ITEMS');
     expect(script).toContain('readCustomCatalog');
     expect(script).toContain('saveCustomCatalog');
+    expect(script).toContain('readAmapConfig');
+    expect(script).toContain('saveAmapConfig');
+    expect(script).toContain('/pages/nearby/index');
     expect(script).toContain('loadCatalog');
     expect(script).toContain('confirmVisible');
     expect(script).toContain("import { BUILD_LABEL } from '../../config/build-info'");

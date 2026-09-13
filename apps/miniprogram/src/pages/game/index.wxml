@@ -81,8 +81,8 @@
           </view>
           <text class="food-description">{{nextChoice.description}}</text>
 
-          <view class="representative-section">
-            <text class="section-label">代表美食</text>
+          <view class="representative-section {{nearbyMode ? 'representative-section--nearby' : ''}}">
+            <text class="section-label">{{nearbyMode ? '附近门店' : '代表美食'}}</text>
             <view class="representative-list">
               <text wx:for="{{nextChoice.representativeFoods}}" wx:key="*this" class="representative-item">{{item}}</text>
             </view>
@@ -114,8 +114,8 @@
           </view>
           <text class="food-description">{{currentChoice.description}}</text>
 
-          <view class="representative-section">
-            <text class="section-label">代表美食</text>
+          <view class="representative-section {{nearbyMode ? 'representative-section--nearby' : ''}}">
+            <text class="section-label">{{nearbyMode ? '附近门店' : '代表美食'}}</text>
             <view class="representative-list">
               <text wx:for="{{currentChoice.representativeFoods}}" wx:key="*this" class="representative-item">{{item}}</text>
             </view>

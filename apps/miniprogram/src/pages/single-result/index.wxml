@@ -10,7 +10,7 @@
     <text class="state-title">结果暂时无法加载</text>
     <text class="state-message">{{errorMessage}}</text>
     <button class="state-button pressable" bindtap="onRetry">重试</button>
-    <button class="state-button state-button--secondary pressable" bindtap="onBack">返回模式选择</button>
+    <button class="state-button state-button--secondary pressable" bindtap="onBack">{{nearbyMode ? '返回菜品数据集' : '返回模式选择'}}</button>
   </view>
 
   <view wx:elif="{{status === 'empty'}}" class="state-panel">
@@ -18,7 +18,7 @@
     <text class="state-title">还没有本轮结果</text>
     <text class="state-message">重新开始一轮，挑选今天想吃的菜吧</text>
     <button class="state-button pressable" bindtap="onRestart">开始选菜</button>
-    <button class="state-button state-button--secondary pressable" bindtap="onBack">返回模式选择</button>
+    <button class="state-button state-button--secondary pressable" bindtap="onBack">{{nearbyMode ? '返回菜品数据集' : '返回模式选择'}}</button>
   </view>
 
   <view wx:else class="result-content">
@@ -43,6 +43,6 @@
     </view>
 
     <button class="primary-button pressable entry-fade-up entry-delay-80" bindtap="onRestart">再来一轮</button>
-    <button class="secondary-button pressable entry-fade-up entry-delay-120" bindtap="onBack">返回模式选择</button>
+    <button class="secondary-button pressable entry-fade-up entry-delay-120" bindtap="onBack">{{nearbyMode ? '返回菜品数据集' : '返回模式选择'}}</button>
   </view>
 </view>

@@ -12,6 +12,13 @@ export type {
   FoodChoice,
 } from './catalog/types.js';
 export {
+  classifyKnownRestaurantBrand,
+  classifyNearbyRestaurantName,
+  hasStrongNearbyLuosifenSignal,
+  stripNearbyRestaurantNameParentheticals,
+} from './nearby/restaurant-classifier.js';
+export type { NearbyRestaurantClassification } from './nearby/restaurant-classifier.js';
+export {
   advanceGameState,
   createGameState,
   getCurrentChoice,

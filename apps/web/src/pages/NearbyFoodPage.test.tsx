@@ -87,19 +87,19 @@ function renderNearby(
 }
 
 describe('NearbyFoodPage', () => {
-  it('首次进入自动搜索并最多展示 20 家餐厅的名称和餐饮类型', async () => {
+  it('首次进入自动搜索并展示附近餐厅摘要', async () => {
     const deps = dependencies(Array.from({ length: 21 }, (_, index) => restaurant(index + 1)));
     renderNearby(deps);
 
     expect(await screen.findByRole('heading', { name: '周围菜品' })).toBeInTheDocument();
     expect(await screen.findByText('找到 20 家餐厅')).toBeInTheDocument();
-    expect(screen.getByText('餐厅 1')).toBeInTheDocument();
-    expect(screen.getAllByText('餐饮服务;中餐厅')).toHaveLength(20);
+    expect(screen.queryByText('餐厅 1')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('附近餐厅列表')).not.toBeInTheDocument();
     expect(screen.queryByText('should not render')).not.toBeInTheDocument();
     expect(screen.queryByText('地址')).not.toBeInTheDocument();
   });
 
-  it('在前 20 家门店下方展示本地智能分类，并保留高德分类', async () => {
+  it('不在附近菜品页面展示门店或智能分类列表', async () => {
     const deps = dependencies([
       { ...restaurant(1), name: '蜀香老妈火锅' },
       { ...restaurant(2), name: '京都寿司屋' },
@@ -108,59 +108,29 @@ describe('NearbyFoodPage', () => {
     renderNearby(deps);
 
     expect(await screen.findByText('找到 20 家餐厅')).toBeInTheDocument();
-    expect(screen.getByText('智能分类：火锅')).toBeInTheDocument();
-    expect(screen.getByText('智能分类：日料')).toBeInTheDocument();
-    expect(screen.getAllByText(/^智能分类：/)).toHaveLength(20);
-    expect(screen.getAllByText('餐饮服务;中餐厅')).toHaveLength(20);
+    expect(screen.queryByText('智能分类：火锅')).not.toBeInTheDocument();
+    expect(screen.queryByText('智能分类：日料')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('附近餐厅列表')).not.toBeInTheDocument();
   });
 
-  it('模型加载后替换规则分类，并保留高德分类', async () => {
-    let releaseModel: (() => void) | undefined;
+  it('未进入游戏时不加载附近门店分类模型', async () => {
     const classifier: NearbyFastTextClassifier = {
-      ready: vi.fn(() => new Promise<void>((resolve) => { releaseModel = resolve; })),
+      ready: vi.fn().mockResolvedValue(undefined),
       classify: vi.fn().mockResolvedValue({ category: '火锅', confidence: 0.91, source: 'fasttext' }),
     };
     const deps = dependencies([{ ...restaurant(1), name: '本地餐馆', type: '餐饮服务;中餐厅' }]);
     renderNearby(deps, '/nearby', undefined, classifier);
 
-    expect(await screen.findByText('智能分类：其他')).toBeInTheDocument();
-    expect(screen.getByText('餐饮服务;中餐厅')).toBeInTheDocument();
-    releaseModel?.();
-    await waitFor(() => expect(screen.getByText('智能分类：火锅')).toBeInTheDocument());
-    expect(classifier.classify).toHaveBeenCalledWith('本地餐馆', '餐饮服务;中餐厅');
+    expect(await screen.findByText('找到 1 家餐厅')).toBeInTheDocument();
+    expect(classifier.ready).not.toHaveBeenCalled();
+    expect(classifier.classify).not.toHaveBeenCalled();
   });
 
-  it('将高德分类作为智能分类的辅助输入', async () => {
-    const deps = dependencies([
-      { ...restaurant(1), name: '本地餐馆甲', type: '餐饮服务;外国餐厅;日本料理' },
-      { ...restaurant(2), name: '本地餐馆乙', type: '餐饮服务;中餐厅;四川菜(川菜)' },
-      { ...restaurant(3), name: '本地餐馆丙', type: '餐饮服务;咖啡厅' },
-    ]);
-    renderNearby(deps);
-
-    expect(await screen.findByText('找到 3 家餐厅')).toBeInTheDocument();
-    expect(screen.getByText('智能分类：日料')).toBeInTheDocument();
-    expect(screen.getByText('智能分类：川菜')).toBeInTheDocument();
-    expect(screen.getByText('智能分类：甜品奶茶')).toBeInTheDocument();
-  });
-
-  it('只为当前展示的前 20 家门店展示智能分类', async () => {
-    const deps = dependencies([
-      ...Array.from({ length: 20 }, (_, index) => restaurant(index + 1)),
-      { ...restaurant(21), name: '第二十一家火锅' },
-    ]);
-    renderNearby(deps);
-
-    expect(await screen.findByText('找到 20 家餐厅')).toBeInTheDocument();
-    expect(screen.queryByText('第二十一家火锅')).not.toBeInTheDocument();
-    expect(screen.getAllByText(/^智能分类：/)).toHaveLength(20);
-  });
-
-  it('显示高德评分，并允许从有效门店开始游戏', async () => {
+  it('有效门店达到 3 家时允许开始游戏', async () => {
     const deps = dependencies([restaurant(1, 4.8), restaurant(2, 4.2), restaurant(3, 3.9)]);
     renderNearby(deps);
 
-    expect(await screen.findByText('评分 4.8')).toBeInTheDocument();
+    expect(await screen.findByText('找到 3 家餐厅')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '开始游戏' })).toBeEnabled();
   });
 
@@ -238,27 +208,22 @@ describe('NearbyFoodPage', () => {
     expect(deps.searchRestaurants).toHaveBeenLastCalledWith(expect.objectContaining({ radiusMeters: 5000, resultLimit: 20 }));
   });
 
-  it('可以选择 10、20、30 家门店，并在重新搜索后应用数量', async () => {
+  it('不显示菜品数量选项，并按默认数量搜索', async () => {
     const user = userEvent.setup();
     const deps = dependencies(Array.from({ length: 30 }, (_, index) => restaurant(index + 1)));
     renderNearby(deps);
     await screen.findByText('找到 20 家餐厅');
     const callsBefore = deps.searchRestaurants.mock.calls.length;
 
-    const resultLimit = screen.getByRole('combobox', { name: '菜品数量' });
-    expect(Array.from((resultLimit as HTMLSelectElement).options).map((option) => option.value)).toEqual(['10', '20', '30']);
-    await user.selectOptions(resultLimit, '30');
-    expect(deps.searchRestaurants).toHaveBeenCalledTimes(callsBefore);
-    expect(screen.getByRole('button', { name: '请先重新搜索' })).toBeDisabled();
+    expect(screen.queryByRole('combobox', { name: '菜品数量' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '重新搜索' }));
 
-    expect(deps.searchRestaurants).toHaveBeenLastCalledWith(expect.objectContaining({ resultLimit: 30 }));
-    expect(await screen.findByText('找到 30 家餐厅')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '开始游戏' })).toBeEnabled();
+    expect(deps.searchRestaurants).toHaveBeenCalledTimes(callsBefore + 1);
+    expect(deps.searchRestaurants).toHaveBeenLastCalledWith(expect.objectContaining({ resultLimit: 20 }));
   });
 
-  it('将开始游戏和退出按钮放在搜索范围下方、门店列表上方', async () => {
+  it('将开始游戏和退出按钮放在搜索范围下方、结果摘要上方', async () => {
     const deps = dependencies();
     renderNearby(deps);
     await screen.findByText('找到 3 家餐厅');
@@ -269,11 +234,11 @@ describe('NearbyFoodPage', () => {
     const searchRange = screen.getByRole('combobox', { name: '搜索范围' });
     const startGame = screen.getByRole('button', { name: '开始游戏' });
     const exitNearby = screen.getByRole('button', { name: '退出周围菜品' });
-    const restaurantList = screen.getByLabelText('附近餐厅列表');
+    const resultsHeading = screen.getByText('找到 3 家餐厅');
 
     expect(follows(searchRange, startGame)).toBe(true);
     expect(follows(searchRange, exitNearby)).toBe(true);
-    expect(follows(exitNearby, restaurantList)).toBe(true);
+    expect(follows(exitNearby, resultsHeading)).toBe(true);
   });
 
   it('将定位和重新搜索作为并排普通按钮，并使用深色退出按钮', async () => {
@@ -369,7 +334,7 @@ describe('NearbyFoodPage', () => {
     await user.click(screen.getByRole('button', { name: '重新搜索' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('网络暂时不可用');
-    expect(screen.getByText('餐厅 1')).toBeInTheDocument();
+    expect(screen.getByText('找到 3 家餐厅')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '重新搜索' })).toBeEnabled();
   });
 

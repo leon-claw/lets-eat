@@ -5,6 +5,7 @@ import {
 } from '../../adapters/wx-custom-catalog';
 import { API_BASE_URL } from '../../config/runtime';
 import { createShareConfig } from '../../shared/share-config';
+import { readAmapConfig } from '../../adapters/wx-nearby-storage';
 
 interface DatasetPageData {
   countsLoading: boolean;
@@ -12,6 +13,7 @@ interface DatasetPageData {
   smallCount: number;
   customCount: number;
   customConfigured: boolean;
+  nearbyConfigured: boolean;
   toastMessage: string;
   toastVisible: boolean;
 }
@@ -24,6 +26,7 @@ interface DatasetPageMethods {
   onNearbyTap(): void;
   onBack(): void;
   refreshCustomSummary(): void;
+  refreshNearbySummary(): void;
   showToast(message: string): void;
 }
 
@@ -38,12 +41,14 @@ Page<DatasetPageData, DatasetPageMethods>({
     smallCount: 0,
     customCount: 0,
     customConfigured: false,
+    nearbyConfigured: false,
     toastMessage: '',
     toastVisible: false,
   },
 
   onLoad() {
     this.refreshCustomSummary();
+    this.refreshNearbySummary();
     void loadCatalogCounts(API_BASE_URL).then((counts) => {
       this.setData({
         countsLoading: false,
@@ -59,6 +64,7 @@ Page<DatasetPageData, DatasetPageMethods>({
 
   onShow() {
     this.refreshCustomSummary();
+    this.refreshNearbySummary();
   },
 
   refreshCustomSummary() {
@@ -67,6 +73,10 @@ Page<DatasetPageData, DatasetPageMethods>({
       customCount: customCatalog?.itemIds.length ?? 0,
       customConfigured: (customCatalog?.itemIds.length ?? 0) >= MIN_CUSTOM_CATALOG_ITEMS,
     });
+  },
+
+  refreshNearbySummary() {
+    this.setData({ nearbyConfigured: Boolean(readAmapConfig()) });
   },
 
   onBack() {
@@ -91,7 +101,9 @@ Page<DatasetPageData, DatasetPageMethods>({
   },
 
   onNearbyTap() {
-    this.showToast('周围菜品待上线，敬请期待');
+    wx.navigateTo({
+      url: readAmapConfig() ? '/pages/nearby/index' : '/pages/settings/index?return=nearby',
+    });
   },
 
   showToast(message: string) {

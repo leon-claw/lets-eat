@@ -19,7 +19,7 @@ describe('dataset page', () => {
     expect(datasetMarkup).toContain('小类菜品');
     expect(datasetMarkup).toContain('螺蛳粉、火锅、披萨等小分类');
     expect(datasetMarkup).toContain('周围菜品');
-    expect(datasetMarkup).toContain('待上线，点击催开发进度');
+    expect(datasetMarkup).toContain('按位置搜索高分餐厅');
     expect(datasetMarkup).toContain('自定义菜品');
     expect(datasetMarkup).toContain('至少选择 3 道菜品');
     expect(datasetMarkup).toContain('onLargeTap');
@@ -37,5 +37,7 @@ describe('dataset page', () => {
     expect(script).toContain('refreshCustomSummary');
     expect(script).toContain("/pages/game/index?dataset=custom");
     expect(script).toContain("/pages/settings/index");
+    expect(script).toContain("/pages/nearby/index");
+    expect(script).toContain('readAmapConfig');
   });
 });

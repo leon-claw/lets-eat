@@ -6,7 +6,19 @@
       <text class="summary-message">选择至少 {{minItems}} 道菜品，保存后只保存在当前设备。</text>
     </view>
 
-    <view class="filter-tabs entry-fade-up entry-delay-40">
+    <view class="amap-config-card entry-fade-up entry-delay-40">
+      <view class="section-heading">
+        <text class="section-title">周围菜品配置</text>
+        <text class="section-status {{amapConfigured ? 'section-status--ready' : ''}}">{{amapConfigured ? '已配置' : '未配置'}}</text>
+      </view>
+      <text class="section-hint">使用你自己的高德 Web 服务 Key，只保存在当前设备，不会上传给开发者。</text>
+      <input class="config-input" value="{{amapKey}}" placeholder="请输入高德 Key" bindinput="onAmapKeyInput" maxlength="64" />
+      <input class="config-input" value="{{amapSecurityJsCode}}" password placeholder="请输入 securityJsCode" bindinput="onAmapSecurityJsCodeInput" maxlength="128" />
+      <text class="config-hint">还需要在高德控制台和微信后台配置对应的请求合法域名。</text>
+      <button class="config-save-button pressable" bindtap="onSaveAmapConfig">保存高德配置</button>
+    </view>
+
+    <view class="filter-tabs entry-fade-up entry-delay-80">
       <button class="filter-button pressable {{filter === 'all' ? 'filter-button--selected' : ''}}" data-filter="all" bindtap="onFilterTap">全部</button>
       <button class="filter-button pressable {{filter === 'large' ? 'filter-button--selected' : ''}}" data-filter="large" bindtap="onFilterTap">大类</button>
       <button class="filter-button pressable {{filter === 'small' ? 'filter-button--selected' : ''}}" data-filter="small" bindtap="onFilterTap">小类</button>

@@ -11,6 +11,7 @@ import {
 import { BUILD_LABEL } from '../../config/build-info';
 import { API_BASE_URL } from '../../config/runtime';
 import { createShareConfig } from '../../shared/share-config';
+import { readAmapConfig, saveAmapConfig } from '../../adapters/wx-nearby-storage';
 
 type SettingsPageStatus = 'loading' | 'ready' | 'error';
 type CatalogFilter = 'all' | 'large' | 'small';
@@ -21,6 +22,9 @@ interface SettingsItemView extends CatalogItem {
 
 interface SettingsPageData {
   buildLabel: string;
+  amapKey: string;
+  amapSecurityJsCode: string;
+  amapConfigured: boolean;
   status: SettingsPageStatus;
   filter: CatalogFilter;
   minItems: number;
@@ -40,13 +44,20 @@ interface ItemEvent {
   currentTarget: { dataset: { id?: string } };
 }
 
+interface InputEvent {
+  detail: { value: string };
+}
+
 interface SettingsPageMethods {
-  onLoad(): void;
+  onLoad(options?: { return?: string }): void;
   onUnload(): void;
   onBack(): void;
   onFilterTap(event: FilterEvent): void;
   onToggleItem(event: ItemEvent): void;
   onSave(): void;
+  onAmapKeyInput(event: InputEvent): void;
+  onAmapSecurityJsCodeInput(event: InputEvent): void;
+  onSaveAmapConfig(): void;
   onRetry(): void;
   onConfirmDiscard(): void;
   onCancelConfirm(): void;
@@ -58,6 +69,11 @@ interface SettingsPageMethods {
 let catalog: CatalogSnapshot | null = null;
 let draftSelectedIds: string[] = [];
 let savedSelectedIds: string[] = [];
+let draftAmapKey = '';
+let savedAmapKey = '';
+let draftAmapSecurityJsCode = '';
+let savedAmapSecurityJsCode = '';
+let returnToNearby = false;
 let currentFilter: CatalogFilter = 'all';
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 let loadToken = 0;
@@ -67,6 +83,9 @@ Page<SettingsPageData, SettingsPageMethods>({
 
   data: {
     buildLabel: BUILD_LABEL,
+    amapKey: '',
+    amapSecurityJsCode: '',
+    amapConfigured: false,
     status: 'loading',
     filter: 'all',
     minItems: MIN_CUSTOM_CATALOG_ITEMS,
@@ -78,14 +97,23 @@ Page<SettingsPageData, SettingsPageMethods>({
     toastVisible: false,
   },
 
-  onLoad() {
+  onLoad(options) {
     const stored = readCustomCatalog();
+    const amapConfig = readAmapConfig();
+    draftAmapKey = amapConfig?.key ?? '';
+    savedAmapKey = draftAmapKey;
+    draftAmapSecurityJsCode = amapConfig?.securityJsCode ?? '';
+    savedAmapSecurityJsCode = draftAmapSecurityJsCode;
+    returnToNearby = options?.return === 'nearby';
     draftSelectedIds = stored?.itemIds.slice() ?? [];
     savedSelectedIds = stored?.itemIds.slice() ?? [];
     currentFilter = 'all';
     catalog = null;
     this.setData({
       status: 'loading',
+      amapKey: draftAmapKey,
+      amapSecurityJsCode: draftAmapSecurityJsCode,
+      amapConfigured: Boolean(amapConfig),
       filter: currentFilter,
       draftSelectedCount: draftSelectedIds.length,
       visibleItems: [],
@@ -101,6 +129,11 @@ Page<SettingsPageData, SettingsPageMethods>({
     catalog = null;
     draftSelectedIds = [];
     savedSelectedIds = [];
+    draftAmapKey = '';
+    savedAmapKey = '';
+    draftAmapSecurityJsCode = '';
+    savedAmapSecurityJsCode = '';
+    returnToNearby = false;
   },
 
   onBack() {
@@ -146,6 +179,35 @@ Page<SettingsPageData, SettingsPageMethods>({
       this.showToast('自定义菜品已保存');
     } catch (cause) {
       this.showToast(cause instanceof Error ? cause.message : '保存失败，请重试');
+    }
+  },
+
+  onAmapKeyInput(event) {
+    draftAmapKey = event.detail.value;
+    this.setData({
+      amapKey: draftAmapKey,
+      amapConfigured: Boolean(draftAmapKey.trim() && draftAmapSecurityJsCode.trim()),
+    });
+  },
+
+  onAmapSecurityJsCodeInput(event) {
+    draftAmapSecurityJsCode = event.detail.value;
+    this.setData({
+      amapSecurityJsCode: draftAmapSecurityJsCode,
+      amapConfigured: Boolean(draftAmapKey.trim() && draftAmapSecurityJsCode.trim()),
+    });
+  },
+
+  onSaveAmapConfig() {
+    try {
+      saveAmapConfig({ key: draftAmapKey, securityJsCode: draftAmapSecurityJsCode });
+      savedAmapKey = draftAmapKey.trim();
+      savedAmapSecurityJsCode = draftAmapSecurityJsCode.trim();
+      this.setData({ amapKey: savedAmapKey, amapSecurityJsCode: savedAmapSecurityJsCode, amapConfigured: true });
+      if (returnToNearby) wx.redirectTo({ url: '/pages/nearby/index' });
+      else this.showToast('高德配置已保存在本机');
+    } catch (cause) {
+      this.showToast(cause instanceof Error ? cause.message : '保存高德配置失败');
     }
   },
 
@@ -208,5 +270,7 @@ function getVisibleItems(): SettingsItemView[] {
 }
 
 function isDirty(): boolean {
-  return JSON.stringify(draftSelectedIds) !== JSON.stringify(savedSelectedIds);
+  return JSON.stringify(draftSelectedIds) !== JSON.stringify(savedSelectedIds)
+    || draftAmapKey.trim() !== savedAmapKey
+    || draftAmapSecurityJsCode.trim() !== savedAmapSecurityJsCode;
 }

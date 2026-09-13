@@ -40,6 +40,12 @@ import {
   type StoredSingleRound,
 } from './single-round-storage';
 import { MULTIPLAYER_ROUND_STORAGE_KEY_PREFIX } from './multiplayer-round-storage';
+import {
+  clearStoredNearbyRound,
+  readStoredNearbyRound,
+  saveStoredNearbyRound,
+  type StoredNearbyRound,
+} from '../../adapters/wx-nearby-storage';
 import { createShareConfig } from '../../shared/share-config';
 import { writeRealtimeLog } from '../../shared/realtime-logger';
 
@@ -55,6 +61,7 @@ interface GamePageData {
   roundId: string;
   status: PageStatus;
   datasetLabel: string;
+  nearbyMode: boolean;
   currentChoice: GameChoice | null;
   nextChoice: GameChoice | null;
   progressCurrent: number;
@@ -89,6 +96,7 @@ interface GamePageMethods {
   onBackToRoom(): void;
   onRestart(): void;
   loadRound(): void;
+  loadNearbyRound(): void;
   loadMultiplayerRound(): void;
   refreshMultiplayerRound(): void;
   connectMultiplayerRealtime(): void;
@@ -115,7 +123,7 @@ const CARD_ENTRY_REVEAL_DELAY = 200;
 const CARD_TRANSITION = 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1), opacity 180ms ease-out';
 const CARD_CENTER_TRANSFORM = 'translate3d(0, 0, 0) rotate(0deg)';
 const CARD_ENTRY_TRANSFORM = 'translate3d(0, 12px, 0) scale(0.97) rotate(0deg)';
-let datasetType: CatalogDatasetType = 'large';
+let datasetType: CatalogDatasetType | 'nearby' = 'large';
 let gameMode: GameMode = 'single';
 let roundId = '';
 let multiplayerRound: RoundSnapshot | null = null;
@@ -140,6 +148,7 @@ let multiplayerLoadToken = 0;
 let navigatedResultRoundId = '';
 let gameState: GameState | null = null;
 let catalogSelection: CatalogSelection | null = null;
+let nearbyRound: StoredNearbyRound | null = null;
 let touchStartX: number | null = null;
 let touchCurrentX = 0;
 let touchCurrentTime = 0;
@@ -157,6 +166,7 @@ Page<GamePageData, GamePageMethods>({
     roundId: '',
     status: 'loading',
     datasetLabel: '大类菜品',
+    nearbyMode: false,
     currentChoice: null,
     nextChoice: null,
     progressCurrent: 0,
@@ -182,6 +192,7 @@ Page<GamePageData, GamePageMethods>({
     roundId = options?.roundId ?? '';
     multiplayerRound = null;
     multiplayerSelection = null;
+    nearbyRound = null;
     multiplayerRealtimeRevisions = { roomRevision: 0, roundRevision: 0 };
     multiplayerRefreshInFlight = false;
     multiplayerRefreshQueued = false;
@@ -194,7 +205,9 @@ Page<GamePageData, GamePageMethods>({
       this.loadMultiplayerRound();
       return;
     }
-    datasetType = options?.dataset === 'small'
+    datasetType = options?.dataset === 'nearby'
+      ? 'nearby'
+      : options?.dataset === 'small'
       ? 'small'
       : options?.dataset === 'custom'
         ? 'custom'
@@ -204,7 +217,10 @@ Page<GamePageData, GamePageMethods>({
         ? '小类菜品'
         : datasetType === 'custom'
           ? '自定义菜品'
+          : datasetType === 'nearby'
+            ? '周围菜品'
           : '大类菜品',
+      nearbyMode: datasetType === 'nearby',
     });
     this.loadRound();
   },
@@ -234,6 +250,10 @@ Page<GamePageData, GamePageMethods>({
   },
 
   loadRound() {
+    if (datasetType === 'nearby') {
+      this.loadNearbyRound();
+      return;
+    }
     const currentLoadToken = ++loadToken;
     this.setData({ status: 'loading', errorMessage: '', isSwiping: false });
     const selectionPromise = datasetType === 'custom'
@@ -262,6 +282,40 @@ Page<GamePageData, GamePageMethods>({
           progressTotal: 0,
         });
       });
+  },
+
+  loadNearbyRound() {
+    const currentLoadToken = ++loadToken;
+    const stored = readStoredNearbyRound();
+    this.setData({
+      status: 'loading',
+      errorMessage: '',
+      nearbyMode: true,
+      isSwiping: false,
+      currentChoice: null,
+      nextChoice: null,
+    });
+    if (!stored) {
+      this.setData({ status: 'error', errorMessage: '附近菜品游戏已失效，请返回重新搜索' });
+      return;
+    }
+    const restored = restoreStoredNearbyRound(stored);
+    if (currentLoadToken !== loadToken) return;
+    if (!restored) {
+      nearbyRound = null;
+      this.setData({ status: 'error', errorMessage: '附近菜品游戏数据无效，请返回重新搜索' });
+      return;
+    }
+    nearbyRound = stored;
+    catalogSelection = null;
+    gameState = restored;
+    persistNearbyRound(gameState, nearbyRound);
+    if (gameState.status === 'exhausted') {
+      this.syncData();
+      navigateToSingleResult();
+      return;
+    }
+    this.syncData();
   },
 
   loadMultiplayerRound() {
@@ -529,6 +583,7 @@ Page<GamePageData, GamePageMethods>({
     const undone = gameState.history[gameState.history.length - 1];
     gameState = undoGameState(gameState);
     if (gameMode === 'single' && catalogSelection) persistRound(gameState, catalogSelection);
+    if (gameMode === 'single' && datasetType === 'nearby' && nearbyRound) persistNearbyRound(gameState, nearbyRound);
     if (gameMode === 'multiplayer' && multiplayerSelection && undone) {
       persistMultiplayerRound(gameState, multiplayerSelection, roundId);
       queueDeleteDecision(roundId, undone.choiceId);
@@ -562,6 +617,7 @@ Page<GamePageData, GamePageMethods>({
     decisionTimer = setTimeout(() => {
       gameState = advanceGameState(gameState!, decision);
       if (gameMode === 'single' && catalogSelection) persistRound(gameState, catalogSelection);
+      if (gameMode === 'single' && datasetType === 'nearby' && nearbyRound) persistNearbyRound(gameState, nearbyRound);
       if (gameMode === 'multiplayer' && multiplayerSelection) {
         persistMultiplayerRound(gameState, multiplayerSelection, roundId);
         const record = gameState.history[gameState.history.length - 1];
@@ -624,6 +680,11 @@ Page<GamePageData, GamePageMethods>({
   },
 
   onRestart() {
+    if (datasetType === 'nearby') {
+      clearStoredNearbyRound();
+      wx.navigateBack({ delta: 1 });
+      return;
+    }
     clearStoredSingleRound();
     this.loadRound();
   },
@@ -644,6 +705,7 @@ Page<GamePageData, GamePageMethods>({
       likedCount: gameState.likedIds.length,
       canUndo: gameState.history.length > 0,
       isSwiping: interactionLocked,
+      nearbyMode: datasetType === 'nearby',
     });
   },
 
@@ -832,6 +894,36 @@ function persistRound(state: GameState, selection: CatalogSelection): void {
     saveStoredSingleRound(stored);
   } catch (cause) {
     console.warn('保存游戏进度失败', cause);
+  }
+}
+
+function restoreStoredNearbyRound(stored: StoredNearbyRound): GameState | null {
+  const itemsById = new Map(stored.choices.map((item) => [item.id, item]));
+  const orderedItems = stored.itemIds.map((id) => itemsById.get(id));
+  if (
+    orderedItems.length !== stored.choices.length
+    || orderedItems.some((item): item is undefined => !item)
+    || new Set(stored.itemIds).size !== stored.choices.length
+  ) return null;
+
+  let restored = createGameState(orderedItems as GameChoice[]);
+  for (const record of stored.history) {
+    if (getCurrentChoice(restored)?.id !== record.choiceId) return null;
+    restored = advanceGameState(restored, record.decision);
+  }
+  return restored;
+}
+
+function persistNearbyRound(state: GameState, stored: StoredNearbyRound): void {
+  try {
+    saveStoredNearbyRound({
+      ...stored,
+      itemIds: state.choices.map((choice) => choice.id),
+      history: state.history,
+      completedAt: state.status === 'exhausted' ? new Date().toISOString() : null,
+    });
+  } catch (cause) {
+    console.warn('保存周围菜品游戏进度失败', cause);
   }
 }
 

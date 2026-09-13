@@ -54,8 +54,9 @@
         <view class="dataset-row">
           <text class="dataset-icon dataset-icon--nearby">⌖</text>
           <text class="dataset-title">周围菜品</text>
+          <text class="dataset-count dataset-count--nearby">{{nearbyConfigured ? '已配置' : '去配置'}}</text>
         </view>
-        <text class="dataset-description">待上线，点击催开发进度</text>
+        <text class="dataset-description">按位置搜索高分餐厅，再滑动选择今天吃什么</text>
       </button>
     </view>
   </view>

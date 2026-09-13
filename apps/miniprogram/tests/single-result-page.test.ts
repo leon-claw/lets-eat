@@ -15,11 +15,15 @@ describe('single-player result page', () => {
     if (!existsSync(resolve(pageRoot, 'index.wxml'))) return;
 
     const markup = await readFile(resolve(pageRoot, 'index.wxml'), 'utf8');
-    const script = await readFile(resolve(process.cwd(), 'src/pages/game/index.ts'), 'utf8');
+    const script = await readFile(resolve(pageRoot, 'index.ts'), 'utf8');
+    const gameScript = await readFile(resolve(process.cwd(), 'src/pages/game/index.ts'), 'utf8');
 
     expect(markup).toContain('看完全部菜品啦');
     expect(markup).toContain('查看备选清单');
     expect(markup).toContain('返回模式选择');
-    expect(script).toContain('/pages/single-result/index');
+    expect(markup).toContain('返回菜品数据集');
+    expect(gameScript).toContain('/pages/single-result/index');
+    expect(script).toContain('readStoredNearbyRound');
+    expect(script).toContain('/pages/nearby/index');
   });
 });

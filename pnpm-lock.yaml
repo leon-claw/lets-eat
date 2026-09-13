@@ -94,6 +94,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@lets-eat/client-core':
+        specifier: workspace:*
+        version: link:../../packages/client-core
       '@lets-eat/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

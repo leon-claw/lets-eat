@@ -10,6 +10,11 @@ import {
   type StoredSingleRound,
 } from '../game/single-round-storage';
 import { createShareConfig } from '../../shared/share-config';
+import {
+  clearStoredNearbyRound,
+  readStoredNearbyRound,
+  type StoredNearbyRound,
+} from '../../adapters/wx-nearby-storage';
 
 type SingleResultStatus = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -19,6 +24,7 @@ interface SingleResultPageData {
   selectedCount: number;
   listVisible: boolean;
   errorMessage: string;
+  nearbyMode: boolean;
 }
 
 interface SingleResultPageMethods {
@@ -31,6 +37,7 @@ interface SingleResultPageMethods {
 }
 
 let storedRound: StoredSingleRound | null = null;
+let storedNearbyRound: StoredNearbyRound | null = null;
 let loadToken = 0;
 
 Page<SingleResultPageData, SingleResultPageMethods>({
@@ -42,6 +49,7 @@ Page<SingleResultPageData, SingleResultPageMethods>({
     selectedCount: 0,
     listVisible: true,
     errorMessage: '',
+    nearbyMode: false,
   },
 
   onLoad() {
@@ -49,11 +57,21 @@ Page<SingleResultPageData, SingleResultPageMethods>({
   },
 
   onBack() {
+    if (storedNearbyRound) {
+      clearStoredNearbyRound();
+      wx.redirectTo({ url: '/pages/dataset/index' });
+      return;
+    }
     clearStoredSingleRound();
     wx.redirectTo({ url: '/pages/mode/index' });
   },
 
   onRestart() {
+    if (storedNearbyRound) {
+      clearStoredNearbyRound();
+      wx.redirectTo({ url: '/pages/nearby/index' });
+      return;
+    }
     clearStoredSingleRound();
     wx.redirectTo({ url: '/pages/dataset/index' });
   },
@@ -68,14 +86,25 @@ Page<SingleResultPageData, SingleResultPageMethods>({
 
   loadResult() {
     const currentLoadToken = ++loadToken;
+    storedNearbyRound = readStoredNearbyRound();
     storedRound = readStoredSingleRound();
+    if (storedNearbyRound) storedRound = null;
     this.setData({
       status: 'loading',
       choices: [],
       selectedCount: 0,
       errorMessage: '',
       listVisible: true,
+      nearbyMode: Boolean(storedNearbyRound),
     });
+    if (storedNearbyRound) {
+      const likedIds = new Set(storedNearbyRound.history
+        .filter((record) => record.decision === 'liked')
+        .map((record) => record.choiceId));
+      const choices = storedNearbyRound.choices.filter((choice) => likedIds.has(choice.id));
+      this.setData({ status: 'ready', choices, selectedCount: choices.length });
+      return;
+    }
     if (!storedRound) {
       this.setData({ status: 'empty' });
       return;

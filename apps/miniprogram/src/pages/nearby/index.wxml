@@ -1,0 +1,87 @@
+<view class="nearby-page">
+  <view class="nearby-shell">
+    <view class="nearby-header">
+      <button class="back-button pressable" bindtap="onExit">
+        <text class="back-arrow">‹</text>
+        <text>返回</text>
+      </button>
+      <text class="page-title">周围菜品</text>
+      <view class="header-spacer"></view>
+    </view>
+
+    <view class="nearby-content">
+      <view class="nearby-hero entry-fade-up">
+        <view class="nearby-hero-top">
+          <view class="nearby-hero-copy">
+            <text class="nearby-kicker">NEARBY FOOD</text>
+            <text class="nearby-title">从附近开始挑</text>
+            <text class="nearby-subtitle">评分最高的门店，滑动选择今天去哪吃。</text>
+          </view>
+          <view class="nearby-hero-icon">⌖</view>
+        </view>
+        <view class="nearby-hero-status" role="status">
+          <view class="status-dot {{status === 'locating' ? 'status-dot--busy' : hasLocation ? 'status-dot--ready' : 'status-dot--busy'}}"></view>
+          <text>{{status === 'locating' ? '正在获取当前位置' : hasLocation ? '已准备搜索位置' : '正在准备搜索位置'}}</text>
+        </view>
+      </view>
+
+      <view class="filter-card entry-fade-up entry-delay-40">
+        <view class="filter-row">
+          <view class="filter-item">
+            <text class="filter-label">搜索范围</text>
+            <picker range="{{radiusLabels}}" value="{{radiusIndex}}" bindchange="onRadiusChange">
+              <view class="picker-value">{{radiusLabels[radiusIndex]}}⌄</view>
+            </picker>
+          </view>
+        </view>
+        <button class="change-location-button pressable" bindtap="onChooseLocation"><text class="action-icon">⌖</text>更换位置</button>
+      </view>
+
+      <view class="search-actions">
+        <button class="plain-button pressable" disabled="{{status === 'searching' || !hasLocation}}" bindtap="onSearchTap"><text class="action-icon">↻</text>{{status === 'searching' ? '搜索中…' : '重新搜索'}}</button>
+        <button class="plain-button pressable" disabled="{{status === 'locating' || status === 'searching'}}" bindtap="onLocateTap"><text class="action-icon">⌖</text>{{status === 'locating' ? '定位中…' : '定位到我'}}</button>
+      </view>
+
+      <view class="nearby-actions entry-fade-up">
+        <button class="nearby-action-button start-button pressable {{candidateCount < 3 || hasPendingSearchChange || isStarting ? 'start-button--disabled' : ''}}" disabled="{{candidateCount < 3 || hasPendingSearchChange || isStarting}}" bindtap="onStartGame">{{hasPendingSearchChange ? '请先重新搜索' : isStarting ? '正在准备游戏…' : '开始游戏'}}</button>
+        <button class="nearby-action-button exit-button pressable" bindtap="onExit">退出周围菜品</button>
+      </view>
+
+      <view class="results-heading entry-fade-up">
+        <view>
+          <text wx:if="{{restaurants.length > 0}}" class="results-title">找到 {{restaurants.length}} 家餐厅</text>
+          <text wx:else class="results-title">附近餐厅</text>
+          <text class="results-subtitle">显示评分最高的 {{resultLimit}} 家，游戏将从 {{candidateCount}} 家候选门店聚合</text>
+        </view>
+      </view>
+
+      <view wx:if="{{status === 'loading' || status === 'locating'}}" class="state-panel entry-fade-up">
+        <text class="state-emoji">📍</text>
+        <text class="state-title">{{status === 'locating' ? '正在获取当前位置…' : '正在准备周围菜品…'}}</text>
+        <text class="state-message">允许定位后，就能搜索附近的餐饮门店</text>
+      </view>
+
+      <view wx:if="{{status === 'searching'}}" class="state-panel entry-fade-up">
+        <text class="state-emoji">🔎</text>
+        <text class="state-title">正在搜索附近餐厅…</text>
+        <text class="state-message">正在读取高德评分和门店信息</text>
+      </view>
+
+      <view wx:if="{{status === 'empty'}}" class="state-panel entry-fade-up">
+        <text class="state-emoji">🍽️</text>
+        <text class="state-title">附近没有找到餐厅</text>
+        <text class="state-message">可以更换位置或扩大搜索范围。</text>
+      </view>
+
+      <view wx:if="{{status === 'insufficient'}}" class="notice-panel notice-panel--warning entry-fade-up">有效评分门店不足 3 家，可以扩大搜索范围或更换位置。</view>
+
+      <view wx:if="{{status === 'error'}}" class="notice-panel notice-panel--error entry-fade-up">
+        <text>{{errorMessage}}</text>
+        <text wx:if="{{restaurants.length > 0}}" class="notice-subtitle">仍保留上次结果，可以重新定位或重新搜索。</text>
+      </view>
+      <button wx:if="{{locationPermissionDenied}}" class="notice-button pressable" bindtap="onOpenLocationSettings">打开定位权限</button>
+      <button wx:if="{{configMissing}}" class="notice-button pressable" bindtap="onSettings">前往设置</button>
+
+    </view>
+  </view>
+</view>

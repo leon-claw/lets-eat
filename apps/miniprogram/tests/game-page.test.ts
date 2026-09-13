@@ -44,6 +44,16 @@ describe('game page', () => {
     expect(styles).toContain('color: #d97706;');
   });
 
+  it('keeps game cards at one height and truncates nearby stores', async () => {
+    const markup = await readFile(pagePath, 'utf8');
+    const styles = await readFile(stylePath, 'utf8');
+
+    expect(styles).toContain('height: 500px;');
+    expect(styles).toContain('max-height: 42px;');
+    expect(styles).toContain('text-overflow: ellipsis;');
+    expect(markup).toContain('representative-section--nearby');
+  });
+
   it('supports multiplayer round navigation and the waiting state', async () => {
     const markup = await readFile(pagePath, 'utf8');
     const script = await readFile(scriptPath, 'utf8');
@@ -66,9 +76,13 @@ describe('game page', () => {
 
   it('loads the saved custom catalog in single-player mode', async () => {
     const script = await readFile(scriptPath, 'utf8');
+    const markup = await readFile(pagePath, 'utf8');
 
     expect(script).toContain("options?.dataset === 'custom'");
     expect(script).toContain('loadLocalCustomCatalogSelection');
     expect(script).toContain("const selectionPromise = datasetType === 'custom'");
+    expect(script).toContain("options?.dataset === 'nearby'");
+    expect(script).toContain('loadNearbyRound');
+    expect(markup).toContain("{{nearbyMode ? '附近门店' : '代表美食'}}");
   });
 });
