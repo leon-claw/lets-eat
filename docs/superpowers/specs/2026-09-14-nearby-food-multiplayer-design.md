@@ -166,7 +166,7 @@ large | small | custom | nearby
 
 ### 5.2 NearbyCatalogSnapshot
 
-房间和 round 使用同一份规范化快照结构：
+房间和 round 使用同一份规范化快照结构。selectionHash 由服务端对规范化快照生成，客户端提交的输入不包含该字段：
 
 ~~~ts
 type NearbyCatalogSnapshot = {
@@ -234,7 +234,7 @@ PUT /api/rooms/:roomId/nearby-catalog
 ~~~ts
 type SaveNearbyCatalogRequest = {
   expectedRevision: number;
-  catalog: NearbyCatalogSnapshot;
+  catalog: Omit<NearbyCatalogSnapshot, 'selectionHash' | 'preparedAt'>;
 };
 ~~~
 
@@ -248,9 +248,10 @@ type SaveNearbyCatalogRequest = {
 6. 验证 itemIds 无重复，且与 items 一一对应。
 7. 验证至少有 3 个有效大类。
 8. 验证门店名称长度、数量和快照总大小。
-9. 事务内保存附近快照并设置 selectedDataset=nearby。
-10. revision 增加一次。
-11. 发布 room.updated。
+9. 规范化快照并由服务端计算 selectionHash 和 preparedAt。
+10. 事务内保存附近快照并设置 selectedDataset=nearby。
+11. revision 增加一次。
+12. 发布 room.updated。
 
 服务端不负责重新调用高德或重新运行分类器。分类器版本和选择哈希只用于追踪和一致性校验。
 
