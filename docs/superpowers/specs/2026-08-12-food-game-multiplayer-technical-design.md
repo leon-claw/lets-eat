@@ -13,9 +13,10 @@
 - 单人和最多 8 人的组队游戏。
 - 匿名 Web 身份、房间、轮次、选择、等待和聚合结果。
 - 刷新恢复、断线重连、幂等重试和乐观并发控制。
+- Web 和微信小程序的多人“周围菜品”房主搜索、房间快照和 round 冻结。
 - 版本化固定菜单、Docker 部署、Cloudflare Tunnel 和 PostgreSQL 备份。
 
-本轮不包含微信小程序客户端、账号注册、菜单管理、图片上传、附近餐厅、支付、Redis、消息队列、微服务和 Kubernetes。
+本轮不包含账号注册、菜单管理、图片上传、支付、Redis、消息队列、微服务和 Kubernetes。微信小程序只在周围菜品多人接入范围内纳入本轮；不扩展其他小程序专属能力。
 
 ## 2. 技术选型与代码结构
 
@@ -123,8 +124,9 @@ type CustomCatalogSnapshot = {
 `rooms`
 
 - `id`、唯一 4 位数字 `code`、`host_user_id`。
-- `selected_dataset`，默认 `large`，允许 `large | small | custom`。
+- `selected_dataset`，默认 `large`，允许 `large | small | custom | nearby`。
 - `custom_catalog`，可空 JSONB，保存创建房间时冻结的 `CustomCatalogSnapshot`。
+- `nearby_catalog`，可空 JSONB，保存等待状态下由房主提交并通过校验的 `NearbyCatalogSnapshot`。
 - `status`: `waiting | playing | results`。
 - `current_round_id`、`revision`、`last_activity_at`、时间戳。
 
@@ -138,6 +140,7 @@ type CustomCatalogSnapshot = {
 - `id`、`room_id`、轮次序号。
 - `catalog_version`、`catalog_hash`、`dataset_type`。
 - `custom_catalog`，可空 JSONB；自定义轮次保存开始时从房间复制的快照，大类或小类轮次为空。
+- `nearby_catalog`，可空 JSONB；周围菜品轮次保存开始时从房间复制的附近菜品快照，大类、小类或自定义轮次为空。
 - `status`: `playing | completed`。
 - `result_snapshot`：完成时生成的匿名聚合 JSON，进行中为空。
 - `revision`、开始和完成时间。
@@ -184,8 +187,9 @@ type CustomCatalogSnapshot = {
 2. 读取并锁定当前成员，确认人数为 1 至 8 人。
 3. 锁定当前菜单版本和数据集。
 4. 如果数据集为 `custom`，读取并校验房间级 `custom_catalog`，复制到轮次快照。
-5. 创建轮次及成员快照。
-6. 将房间状态改为 `playing`，递增 revision。
+5. 如果数据集为 `nearby`，读取并校验房间级 `nearby_catalog`，复制到轮次快照。
+6. 创建轮次及成员快照。
+7. 将房间状态改为 `playing`，递增 revision。
 
 成员完成前，服务端验证其发送队列已经落库，即所选数据集的每个条目都有一条 `liked` 或 `disliked` 决定。最后一个有效成员完成时，事务生成匿名 `result_snapshot`，将轮次标为完成并把房间改为 `results`。后续成员退出可以删除其个人选择，但不得重算或改变该快照。
 
@@ -265,6 +269,8 @@ POST   /api/rooms
 POST   /api/rooms/join
 GET    /api/rooms/:roomId
 GET    /api/rooms/:roomId/custom-catalog
+GET    /api/rooms/:roomId/nearby-catalog
+PUT    /api/rooms/:roomId/nearby-catalog
 PATCH  /api/rooms/:roomId/dataset
 POST   /api/rooms/:roomId/leave
 DELETE /api/rooms/:roomId
@@ -279,7 +285,7 @@ GET    /api/rounds/:roundId/result
 POST   /api/rooms/:roomId/open-next-round
 ```
 
-`POST /api/rooms` 的请求可以携带完整 `customCatalog`；服务端只在创建房间时接受该字段，并自动切换当前身份已有的房间。`PATCH /dataset` 只修改 `large`、`small` 或 `custom` 选择，不接受自定义 ID 列表。`POST /rooms/join` 的入口响应返回完整房间自定义快照，并自动切换当前身份已有的房间；`GET /rooms/:roomId/custom-catalog` 仅供刷新恢复或本地 Hash 缺失时读取。开始轮次接口从房间快照读取自定义菜品，不接受客户端二次替换。
+`POST /api/rooms` 的请求可以携带完整 `customCatalog`；服务端只在创建房间时接受该字段，并自动切换当前身份已有的房间。`PATCH /dataset` 只修改 `large`、`small`、`custom` 或 `nearby` 选择，不接受自定义 ID 列表或附近原始 POI。`PUT /rooms/:roomId/nearby-catalog` 只接受房主在 waiting 状态下提交的规范化附近菜品快照，并在成功时将数据集设置为 nearby。`POST /rooms/join` 的入口响应返回完整房间自定义快照和附近菜品摘要，并自动切换当前身份已有的房间；`GET /rooms/:roomId/custom-catalog` 和 `GET /rooms/:roomId/nearby-catalog` 仅供刷新恢复或本地 Hash 缺失时读取。开始轮次接口从房间快照读取自定义菜品或附近菜品，不接受客户端二次替换。
 
 常规房间状态响应包含 `customSelectionHash` 和 `customItemCount`，不重复返回完整 `itemIds`。自定义快照只对房间成员可读。
 
