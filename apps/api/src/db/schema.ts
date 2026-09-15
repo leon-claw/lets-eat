@@ -11,7 +11,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-export const datasetTypeEnum = pgEnum('dataset_type', ['large', 'small', 'custom']);
+export const datasetTypeEnum = pgEnum('dataset_type', ['large', 'small', 'custom', 'nearby']);
 export const roomStatusEnum = pgEnum('room_status', ['waiting', 'playing', 'results']);
 export const memberRoleEnum = pgEnum('member_role', ['host', 'guest']);
 export const roundStatusEnum = pgEnum('round_status', ['playing', 'completed']);
@@ -24,6 +24,7 @@ export const rooms = pgTable('rooms', {
   hostUserId: uuid('host_user_id').notNull(),
   selectedDataset: datasetTypeEnum('selected_dataset').notNull().default('large'),
   customCatalog: jsonb('custom_catalog'),
+  nearbyCatalog: jsonb('nearby_catalog'),
   status: roomStatusEnum('status').notNull().default('waiting'),
   currentRoundId: uuid('current_round_id'),
   revision: integer('revision').notNull().default(0),
@@ -49,6 +50,7 @@ export const rounds = pgTable('rounds', {
   catalogHash: text('catalog_hash').notNull(),
   datasetType: datasetTypeEnum('dataset_type').notNull(),
   customCatalog: jsonb('custom_catalog'),
+  nearbyCatalog: jsonb('nearby_catalog'),
   status: roundStatusEnum('status').notNull().default('playing'),
   resultSnapshot: jsonb('result_snapshot'),
   revision: integer('revision').notNull().default(0),

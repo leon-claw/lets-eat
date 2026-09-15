@@ -39,7 +39,7 @@ describe('RoundService', () => {
     if (!database) return;
     const hostId = randomUUID();
     const guestId = randomUUID();
-    const room = await roomService.createRoom(hostId, { displayName: '房主' });
+    const room = await roomService.createRoom(hostId, { displayName: '房主', datasetType: 'large' });
     const joined = await roomService.joinRoom(guestId, { code: room.code, displayName: '客人' });
     const round = await roundService.startRound(hostId, room.id, { expectedRoomRevision: joined.revision }, 'start-1');
 
@@ -66,7 +66,7 @@ describe('RoundService', () => {
   it('returns the first start response for a repeated idempotency key', async () => {
     if (!database) return;
     const hostId = randomUUID();
-    const room = await roomService.createRoom(hostId, { displayName: '房主' });
+    const room = await roomService.createRoom(hostId, { displayName: '房主', datasetType: 'large' });
     const first = await roundService.startRound(hostId, room.id, { expectedRoomRevision: 0 }, 'start-1');
     const replay = await roundService.startRound(hostId, room.id, { expectedRoomRevision: 0 }, 'start-1');
     expect(replay).toEqual(first);
@@ -76,7 +76,7 @@ describe('RoundService', () => {
   it('rejects a stale room revision and a simultaneous second start', async () => {
     if (!database) return;
     const hostId = randomUUID();
-    const room = await roomService.createRoom(hostId, { displayName: '房主' });
+    const room = await roomService.createRoom(hostId, { displayName: '房主', datasetType: 'large' });
     await expect(roundService.startRound(hostId, room.id, { expectedRoomRevision: 1 }, 'start-stale'))
       .rejects.toMatchObject({ code: 'ROOM_REVISION_CONFLICT' });
     await roundService.startRound(hostId, room.id, { expectedRoomRevision: 0 }, 'start-1');
@@ -87,7 +87,7 @@ describe('RoundService', () => {
   it('upserts liked/disliked by round-member-item without changing round revision', async () => {
     if (!database) return;
     const hostId = randomUUID();
-    const room = await roomService.createRoom(hostId, { displayName: '房主' });
+    const room = await roomService.createRoom(hostId, { displayName: '房主', datasetType: 'large' });
     const round = await roundService.startRound(hostId, room.id, { expectedRoomRevision: 0 }, 'start-1');
     await roundService.putDecision(hostId, round.id, 'cantonese', 'liked');
     await roundService.putDecision(hostId, round.id, 'cantonese', 'disliked');
@@ -102,7 +102,7 @@ describe('RoundService', () => {
     if (!database) return;
     const hostId = randomUUID();
     const guestId = randomUUID();
-    const room = await roomService.createRoom(hostId, { displayName: '房主' });
+    const room = await roomService.createRoom(hostId, { displayName: '房主', datasetType: 'large' });
     const joined = await roomService.joinRoom(guestId, { code: room.code, displayName: '客人' });
     const round = await roundService.startRound(hostId, room.id, { expectedRoomRevision: joined.revision }, 'start-1');
     await roundService.putDecision(hostId, round.id, 'cantonese', 'liked');
@@ -121,7 +121,7 @@ describe('RoundService', () => {
   it('rejects catalog item IDs outside the locked round dataset', async () => {
     if (!database) return;
     const hostId = randomUUID();
-    const room = await roomService.createRoom(hostId, { displayName: '房主' });
+    const room = await roomService.createRoom(hostId, { displayName: '房主', datasetType: 'large' });
     const round = await roundService.startRound(hostId, room.id, { expectedRoomRevision: 0 }, 'start-1');
     await expect(roundService.putDecision(hostId, round.id, 'hotpot', 'liked'))
       .rejects.toMatchObject({ code: 'CATALOG_ITEM_NOT_IN_ROUND' });
@@ -133,7 +133,7 @@ describe('RoundService', () => {
     if (!database) return;
     const hostId = randomUUID();
     const outsiderId = randomUUID();
-    const room = await roomService.createRoom(hostId, { displayName: '房主' });
+    const room = await roomService.createRoom(hostId, { displayName: '房主', datasetType: 'large' });
     const round = await roundService.startRound(hostId, room.id, { expectedRoomRevision: 0 }, 'start-1');
     await expect(roundService.putDecision(outsiderId, round.id, 'cantonese', 'liked'))
       .rejects.toMatchObject({ code: 'ROUND_MEMBER_REQUIRED' });
@@ -148,18 +148,15 @@ describe('RoundService', () => {
     const hostId = randomUUID();
     const room = await roomService.createRoom(hostId, {
       displayName: '房主',
+      datasetType: 'custom',
       customCatalog: {
         catalogVersion: 'v1',
         catalogHash: catalogService.getManifest().catalogHash,
         itemIds: ['cantonese', 'western', 'hotpot'],
       },
     });
-    const customRoom = await roomService.changeDataset(hostId, room.id, {
-      datasetType: 'custom',
-      expectedRevision: room.revision,
-    });
     const round = await roundService.startRound(hostId, room.id, {
-      expectedRoomRevision: customRoom.revision,
+      expectedRoomRevision: room.revision,
     }, 'custom-start-1');
 
     expect(round.datasetType).toBe('custom');

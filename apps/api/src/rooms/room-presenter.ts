@@ -1,5 +1,11 @@
 import { asc, eq } from 'drizzle-orm';
-import { CustomCatalogSnapshotSchema, RoomSnapshotSchema, type RoomSnapshot } from '@lets-eat/contracts';
+import {
+  CustomCatalogSnapshotSchema,
+  NearbyCatalogSnapshotSchema,
+  RoomSnapshotSchema,
+  type NearbyCatalogSummary,
+  type RoomSnapshot,
+} from '@lets-eat/contracts';
 import type { DatabaseExecutor } from '../idempotency/idempotency-service.js';
 import { roomMembers, rooms } from '../db/schema.js';
 
@@ -22,6 +28,9 @@ export async function presentRoom(executor: DatabaseExecutor, roomId: string): P
   const customCatalog = room.customCatalog
     ? CustomCatalogSnapshotSchema.parse(room.customCatalog)
     : null;
+  const nearbyCatalog = room.nearbyCatalog
+    ? NearbyCatalogSnapshotSchema.parse(room.nearbyCatalog)
+    : null;
 
   return RoomSnapshotSchema.parse({
     id: room.id,
@@ -34,6 +43,7 @@ export async function presentRoom(executor: DatabaseExecutor, roomId: string): P
       selectionHash: customCatalog.selectionHash,
       itemCount: customCatalog.itemIds.length,
     } : null,
+    nearbyCatalog: nearbyCatalog ? summarizeNearbyCatalog(nearbyCatalog) : null,
     status: room.status,
     currentRoundId: room.currentRoundId,
     revision: room.revision,
@@ -45,4 +55,19 @@ export async function presentRoom(executor: DatabaseExecutor, roomId: string): P
       joinedAt: member.joinedAt.toISOString(),
     })),
   });
+}
+
+function summarizeNearbyCatalog(snapshot: {
+  selectionHash: string;
+  catalogVersion: string;
+  items: Array<{ merchantNames: string[] }>;
+  preparedAt: string;
+}): NearbyCatalogSummary {
+  return {
+    selectionHash: snapshot.selectionHash,
+    catalogVersion: snapshot.catalogVersion,
+    categoryCount: snapshot.items.length,
+    merchantCount: snapshot.items.reduce((count, item) => count + item.merchantNames.length, 0),
+    preparedAt: snapshot.preparedAt,
+  };
 }

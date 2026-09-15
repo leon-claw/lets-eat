@@ -8,6 +8,9 @@ import {
   GetRoomResponseSchema,
   JoinRoomRequestSchema,
   JoinRoomResponseSchema,
+  NearbyCatalogSnapshotSchema,
+  SaveNearbyCatalogRequestSchema,
+  SaveNearbyCatalogResponseSchema,
 } from '@lets-eat/contracts';
 import { ApiError } from '../http/api-error.js';
 import { requireAuth } from '../auth/auth-middleware.js';
@@ -55,6 +58,26 @@ export function createRoomRouter(roomService: RoomService, tokenService: TokenSe
   router.get('/rooms/:roomId/custom-catalog', auth, async (request, response) => {
     const snapshot = await roomService.getCustomCatalog(requireUserId(request), getParam(request.params.roomId));
     response.json(CustomCatalogSnapshotSchema.parse(snapshot));
+  });
+
+  router.get('/rooms/:roomId/nearby-catalog', auth, async (request, response) => {
+    const snapshot = await roomService.getNearbyCatalog(requireUserId(request), getParam(request.params.roomId));
+    response.json(NearbyCatalogSnapshotSchema.parse(snapshot));
+  });
+
+  router.put('/rooms/:roomId/nearby-catalog', auth, async (request, response) => {
+    const input = parseBody(SaveNearbyCatalogRequestSchema, request.body);
+    const roomEntry = await roomService.saveNearbyCatalog(
+      requireUserId(request),
+      getParam(request.params.roomId),
+      input,
+    );
+    hub?.publish(createRealtimeEvent({
+      type: 'room.updated',
+      roomId: roomEntry.room.id,
+      roomRevision: roomEntry.room.revision,
+    }));
+    response.json(SaveNearbyCatalogResponseSchema.parse(roomEntry));
   });
 
   router.patch('/rooms/:roomId/dataset', auth, async (request, response) => {

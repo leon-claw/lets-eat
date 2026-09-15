@@ -6,6 +6,48 @@ import {
   UuidSchema,
 } from './common.js';
 
+const CatalogVersionSchema = z.string().regex(/^v[1-9]\d*$/);
+const CatalogHashSchema = z.string().regex(/^[a-f0-9]{64}$/);
+const CatalogItemIdSchema = z.string().regex(/^[a-z0-9-]+$/);
+
+const NearbyCatalogItemSchema = z.object({
+  itemId: CatalogItemIdSchema,
+  merchantNames: z.array(z.string().trim().min(1).max(80)).min(1).max(50),
+}).strict();
+
+const UniqueStringArraySchema = z.array(CatalogItemIdSchema).min(1).max(24)
+  .refine((values) => new Set(values).size === values.length, 'itemIds must be unique');
+
+export const NearbyCatalogInputSchema = z.object({
+  version: z.literal(1),
+  catalogVersion: CatalogVersionSchema,
+  catalogHash: CatalogHashSchema,
+  classifierVersion: z.string().trim().min(1).max(64),
+  itemIds: UniqueStringArraySchema,
+  items: z.array(NearbyCatalogItemSchema).min(1).max(24)
+    .refine((items) => new Set(items.map((item) => item.itemId)).size === items.length, 'items must be unique'),
+  searchRadiusMeters: z.number().int().positive().max(50_000),
+  candidateCount: z.number().int().nonnegative().max(200),
+}).strict();
+
+export const NearbyCatalogSnapshotSchema = NearbyCatalogInputSchema.extend({
+  selectionHash: CatalogHashSchema,
+  preparedAt: z.string().datetime(),
+}).strict();
+
+export const NearbyCatalogSummarySchema = z.object({
+  selectionHash: CatalogHashSchema,
+  catalogVersion: CatalogVersionSchema,
+  categoryCount: z.number().int().nonnegative().max(24),
+  merchantCount: z.number().int().nonnegative().max(200),
+  preparedAt: z.string().datetime(),
+}).strict();
+
+export const SaveNearbyCatalogRequestSchema = z.object({
+  expectedRevision: RevisionSchema,
+  catalog: NearbyCatalogInputSchema,
+}).strict();
+
 export const CustomCatalogInputSchema = z.object({
   catalogVersion: z.string().regex(/^v[1-9]\d*$/),
   catalogHash: z.string().regex(/^[a-f0-9]{64}$/),
@@ -37,6 +79,7 @@ export const RoomSnapshotSchema = z.object({
   hostUserId: UuidSchema,
   selectedDataset: RoomDatasetTypeSchema,
   customCatalog: CustomCatalogSummarySchema.nullable().default(null),
+  nearbyCatalog: NearbyCatalogSummarySchema.nullable().default(null),
   status: RoomStatusSchema,
   currentRoundId: UuidSchema.nullable(),
   revision: RevisionSchema,
@@ -49,6 +92,7 @@ export const CurrentRoomResponseSchema = z.object({
 
 export const CreateRoomRequestSchema = z.object({
   displayName: z.string().trim().min(1).max(24),
+  datasetType: RoomDatasetTypeSchema,
   customCatalog: CustomCatalogInputSchema.optional(),
 }).strict();
 
@@ -69,10 +113,12 @@ export const OpenNextRoundRequestSchema = z.object({
 export const RoomEntryResponseSchema = z.object({
   room: RoomSnapshotSchema,
   customCatalog: CustomCatalogSnapshotSchema.nullable(),
+  nearbyCatalog: NearbyCatalogSnapshotSchema.nullable().default(null),
 }).strict();
 
 export const CreateRoomResponseSchema = RoomEntryResponseSchema;
 export const JoinRoomResponseSchema = RoomEntryResponseSchema;
+export const SaveNearbyCatalogResponseSchema = RoomEntryResponseSchema;
 export const GetRoomResponseSchema = RoomSnapshotSchema;
 export const ChangeDatasetResponseSchema = RoomSnapshotSchema;
 export const OpenNextRoundResponseSchema = RoomSnapshotSchema;
@@ -81,6 +127,10 @@ export type RoomMember = z.infer<typeof RoomMemberSchema>;
 export type CustomCatalogInput = z.infer<typeof CustomCatalogInputSchema>;
 export type CustomCatalogSummary = z.infer<typeof CustomCatalogSummarySchema>;
 export type CustomCatalogSnapshot = z.infer<typeof CustomCatalogSnapshotSchema>;
+export type NearbyCatalogInput = z.infer<typeof NearbyCatalogInputSchema>;
+export type NearbyCatalogSnapshot = z.infer<typeof NearbyCatalogSnapshotSchema>;
+export type NearbyCatalogSummary = z.infer<typeof NearbyCatalogSummarySchema>;
+export type SaveNearbyCatalogRequest = z.infer<typeof SaveNearbyCatalogRequestSchema>;
 export type RoomEntryResponse = z.infer<typeof RoomEntryResponseSchema>;
 export type RoomSnapshot = z.infer<typeof RoomSnapshotSchema>;
 export type CurrentRoomResponse = z.infer<typeof CurrentRoomResponseSchema>;

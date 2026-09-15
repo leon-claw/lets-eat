@@ -58,7 +58,7 @@ describe('authenticated WebSocket server', () => {
 
   it('rejects a valid token whose user is not a room member', async () => {
     if (!database) return;
-    const room = await roomService.createRoom(randomUUID(), { displayName: '房主' });
+    const room = await roomService.createRoom(randomUUID(), { displayName: '房主', datasetType: 'large' });
     const outsider = await tokenService.issue();
     const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
     const closeCode = await new Promise<number>((resolve, reject) => {
@@ -74,7 +74,7 @@ describe('authenticated WebSocket server', () => {
   it('authenticates room members and broadcasts revision-only events without decisions', async () => {
     if (!database) return;
     const host = await tokenService.issue();
-    const room = await roomService.createRoom(host.userId, { displayName: '房主' });
+    const room = await roomService.createRoom(host.userId, { displayName: '房主', datasetType: 'large' });
     const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
     const messages: unknown[] = [];
     await new Promise<void>((resolve, reject) => {

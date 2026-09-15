@@ -2,6 +2,8 @@ import { randomInt } from 'node:crypto';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import {
   CustomCatalogSnapshotSchema,
+  NearbyCatalogSnapshotSchema,
+  type SaveNearbyCatalogRequest,
   type ChangeDatasetRequest,
   type CreateRoomRequest,
   type JoinRoomRequest,
@@ -15,6 +17,7 @@ import { hashRequest, IdempotencyService, type DatabaseExecutor } from '../idemp
 import { presentRoom } from './room-presenter.js';
 import type { CatalogService } from '../catalog/catalog-service.js';
 import { validateCustomCatalog } from '../catalog/custom-catalog.js';
+import { validateAndBuildNearbyCatalog } from './nearby-catalog-validation.js';
 
 const ROOM_CREATE_SCOPE = 'room:create';
 const MAX_MEMBERS = 8;
@@ -45,7 +48,10 @@ export class RoomService {
 
   async createRoom(actorUserId: string, input: CreateRoomRequest, idempotencyKey?: string): Promise<RoomSnapshot> {
     const requestHash = hashRequest(input);
-    const customCatalog = input.customCatalog
+    if (input.datasetType === 'custom' && !input.customCatalog) {
+      throw new ApiError(409, 'CUSTOM_CATALOG_INVALID', '请先配置至少 3 道自定义菜品');
+    }
+    const customCatalog = input.datasetType === 'custom' && input.customCatalog
       ? validateCustomCatalog(this.requireCatalogService(), input.customCatalog)
       : null;
     if (idempotencyKey) {
@@ -76,7 +82,7 @@ export class RoomService {
           const [room] = await tx.insert(rooms).values({
             code: this.codeGenerator(),
             hostUserId: actorUserId,
-            selectedDataset: 'large',
+            selectedDataset: input.datasetType,
             customCatalog,
             status: 'waiting',
             revision: 0,
@@ -135,13 +141,60 @@ export class RoomService {
 
   async getRoomEntry(actorUserId: string, roomId: string): Promise<RoomEntryResponse> {
     const room = await this.getRoom(actorUserId, roomId);
-    if (!room.customCatalog) return { room, customCatalog: null };
-    const [storedRoom] = await this.options.db.select({ customCatalog: rooms.customCatalog })
+    return this.readRoomEntry(this.options.db, room);
+  }
+
+  async getNearbyCatalog(actorUserId: string, roomId: string) {
+    const room = await this.getRoom(actorUserId, roomId);
+    if (!room.nearbyCatalog) {
+      throw new ApiError(404, 'NEARBY_CATALOG_NOT_FOUND', '当前房间还没有准备周围菜品');
+    }
+    const [storedRoom] = await this.options.db.select({ nearbyCatalog: rooms.nearbyCatalog })
       .from(rooms)
       .where(eq(rooms.id, roomId))
       .limit(1);
-    const customCatalog = CustomCatalogSnapshotSchema.parse(storedRoom?.customCatalog);
-    return { room, customCatalog };
+    if (!storedRoom?.nearbyCatalog) {
+      throw new ApiError(404, 'NEARBY_CATALOG_NOT_FOUND', '当前房间还没有准备周围菜品');
+    }
+    return NearbyCatalogSnapshotSchema.parse(storedRoom.nearbyCatalog);
+  }
+
+  async saveNearbyCatalog(
+    actorUserId: string,
+    roomId: string,
+    input: SaveNearbyCatalogRequest,
+  ): Promise<RoomEntryResponse> {
+    return this.options.db.transaction(async (tx) => {
+      const room = await this.lockRoom(tx, roomId);
+      const member = await this.findMembership(tx, actorUserId, roomId);
+      if (!member || member.role !== 'host') {
+        throw new ApiError(403, 'HOST_ONLY', '只有房主可以准备周围菜品');
+      }
+      if (room.status !== 'waiting') {
+        throw new ApiError(409, 'ROOM_NOT_WAITING', '房间已经开始游戏，无法修改周围菜品');
+      }
+      if (room.selectedDataset !== 'nearby') {
+        throw new ApiError(409, 'ROOM_DATASET_LOCKED', '当前房间不是周围菜品数据集，请退出房间后重新选择');
+      }
+      if (room.revision !== input.expectedRevision) {
+        const latest = await presentRoom(tx, roomId);
+        throw new ApiError(409, 'ROOM_REVISION_CONFLICT', '房间信息已更新，请刷新后重试', latest);
+      }
+      const nearbyCatalog = validateAndBuildNearbyCatalog(
+        input.catalog,
+        this.requireCatalogService(),
+        this.now,
+      );
+      await tx.update(rooms).set({
+        nearbyCatalog,
+        revision: room.revision + 1,
+        lastActivityAt: this.now(),
+        updatedAt: this.now(),
+      }).where(eq(rooms.id, roomId));
+      const updatedRoom = await presentRoom(tx, roomId);
+      if (!updatedRoom) throw new Error('Updated room could not be read');
+      return this.readRoomEntry(tx, updatedRoom);
+    });
   }
 
   async getCustomCatalog(actorUserId: string, roomId: string) {
@@ -211,28 +264,13 @@ export class RoomService {
     });
   }
 
-  async changeDataset(actorUserId: string, roomId: string, input: ChangeDatasetRequest): Promise<RoomSnapshot> {
+  async changeDataset(actorUserId: string, roomId: string, _input: ChangeDatasetRequest): Promise<RoomSnapshot> {
     return this.options.db.transaction(async (tx) => {
       const room = await this.lockRoom(tx, roomId);
       const member = await this.findMembership(tx, actorUserId, roomId);
       if (!member || member.role !== 'host') throw new ApiError(403, 'HOST_ONLY', '只有房主可以修改菜品数据集');
       if (room.status !== 'waiting') throw new ApiError(409, 'ROOM_NOT_WAITING', '房间已经开始游戏，无法修改菜品数据集');
-      if (input.datasetType === 'custom' && !room.customCatalog) {
-        throw new ApiError(409, 'CUSTOM_CATALOG_INVALID', '请先配置至少 3 道自定义菜品');
-      }
-      if (room.revision !== input.expectedRevision) {
-        const latest = await presentRoom(tx, roomId);
-        throw new ApiError(409, 'ROOM_REVISION_CONFLICT', '房间信息已更新，请刷新后重试', latest);
-      }
-      await tx.update(rooms).set({
-        selectedDataset: input.datasetType,
-        revision: room.revision + 1,
-        lastActivityAt: this.now(),
-        updatedAt: this.now(),
-      }).where(eq(rooms.id, roomId));
-      const snapshot = await presentRoom(tx, roomId);
-      if (!snapshot) throw new Error('Updated room could not be read');
-      return snapshot;
+      throw new ApiError(409, 'ROOM_DATASET_LOCKED', '房间创建后不能切换菜品数据集，请退出房间后重新选择');
     });
   }
 
@@ -277,6 +315,23 @@ export class RoomService {
   private requireCatalogService(): CatalogService {
     if (!this.options.catalogService) throw new Error('RoomService requires a catalog service for custom catalogs');
     return this.options.catalogService;
+  }
+
+  private async readRoomEntry(
+    executor: DatabaseExecutor,
+    room: RoomSnapshot,
+  ): Promise<RoomEntryResponse> {
+    const [storedRoom] = await executor.select({
+      customCatalog: rooms.customCatalog,
+      nearbyCatalog: rooms.nearbyCatalog,
+    }).from(rooms).where(eq(rooms.id, room.id)).limit(1);
+    const customCatalog = storedRoom?.customCatalog
+      ? CustomCatalogSnapshotSchema.parse(storedRoom.customCatalog)
+      : null;
+    const nearbyCatalog = storedRoom?.nearbyCatalog
+      ? NearbyCatalogSnapshotSchema.parse(storedRoom.nearbyCatalog)
+      : null;
+    return { room, customCatalog, nearbyCatalog };
   }
 
   private async touchRoom(executor: DatabaseExecutor, roomId: string, revision: number): Promise<void> {

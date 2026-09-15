@@ -15,6 +15,13 @@
       "when": 1786839334628,
       "tag": "0001_first_dark_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789357518277,
+      "tag": "0002_powerful_falcon",
+      "breakpoints": true
     }
   ]
 }

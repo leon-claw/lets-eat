@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const UuidSchema = z.string().uuid();
 export const RevisionSchema = z.number().int().nonnegative();
 export const DatasetTypeSchema = z.enum(['large', 'small']);
-export const RoomDatasetTypeSchema = z.enum(['large', 'small', 'custom']);
+export const RoomDatasetTypeSchema = z.enum(['large', 'small', 'custom', 'nearby']);
 export const DecisionSchema = z.enum(['liked', 'disliked']);
 export const RoomStatusSchema = z.enum(['waiting', 'playing', 'results']);
 export const RoundStatusSchema = z.enum(['playing', 'completed']);

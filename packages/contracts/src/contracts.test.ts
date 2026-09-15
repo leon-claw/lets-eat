@@ -5,9 +5,13 @@ import {
   ClientAuthMessageSchema,
   CreateRoomRequestSchema,
   JoinRoomRequestSchema,
+  NearbyCatalogInputSchema,
+  NearbyCatalogSnapshotSchema,
   PutDecisionRequestSchema,
+  RoomEntryResponseSchema,
   RoomDatasetTypeSchema,
   RoomSnapshotSchema,
+  RoundSnapshotSchema,
   RoundResultSchema,
   ServerEventSchema,
 } from './index.js';
@@ -143,7 +147,7 @@ describe('shared contracts', () => {
       catalogHash: 'a'.repeat(64),
       itemIds: ['cantonese', 'hotpot', 'western'],
     };
-    expect(CreateRoomRequestSchema.safeParse({ displayName: '房主', customCatalog }).success).toBe(true);
+    expect(CreateRoomRequestSchema.safeParse({ displayName: '房主', datasetType: 'custom', customCatalog }).success).toBe(true);
     expect(RoomSnapshotSchema.safeParse({
       id: randomUUID(),
       code: '1234',
@@ -166,5 +170,117 @@ describe('shared contracts', () => {
         joinedAt: new Date(0).toISOString(),
       }],
     }).success).toBe(true);
+  });
+
+  it('accepts nearby as a room dataset type', () => {
+    expect(RoomDatasetTypeSchema.parse('nearby')).toBe('nearby');
+  });
+
+  it('requires a dataset when creating a room', () => {
+    expect(CreateRoomRequestSchema.safeParse({ displayName: '房主' }).success).toBe(false);
+    expect(CreateRoomRequestSchema.parse({ displayName: '房主', datasetType: 'large' })).toEqual({
+      displayName: '房主',
+      datasetType: 'large',
+    });
+  });
+
+  it('accepts a nearby room entry and frozen round snapshot', () => {
+    const hostUserId = randomUUID();
+    const memberId = randomUUID();
+    const roomId = randomUUID();
+    const nearbyCatalog = {
+      version: 1,
+      catalogVersion: 'v1',
+      catalogHash: 'a'.repeat(64),
+      classifierVersion: 'fasttext-v1',
+      selectionHash: 'b'.repeat(64),
+      itemIds: ['cantonese', 'western', 'hotpot'],
+      items: [
+        { itemId: 'cantonese', merchantNames: ['粤菜馆'] },
+        { itemId: 'western', merchantNames: ['咖啡店'] },
+        { itemId: 'hotpot', merchantNames: ['火锅店'] },
+      ],
+      searchRadiusMeters: 2000,
+      candidateCount: 20,
+      preparedAt: new Date(0).toISOString(),
+    };
+    const room = {
+      id: roomId,
+      code: '1234',
+      status: 'waiting',
+      selectedDataset: 'nearby',
+      nearbyCatalog: {
+        selectionHash: nearbyCatalog.selectionHash,
+        catalogVersion: nearbyCatalog.catalogVersion,
+        categoryCount: 3,
+        merchantCount: 3,
+        preparedAt: nearbyCatalog.preparedAt,
+      },
+      customCatalog: null,
+      revision: 1,
+      currentRoundId: null,
+      hostUserId,
+      members: [{
+        id: memberId,
+        userId: hostUserId,
+        displayName: '房主',
+        role: 'host',
+        joinedAt: new Date(0).toISOString(),
+      }],
+    };
+
+    expect(RoomEntryResponseSchema.safeParse({
+      room,
+      customCatalog: null,
+      nearbyCatalog,
+    }).success).toBe(true);
+    expect(RoundSnapshotSchema.safeParse({
+      id: randomUUID(),
+      roomId,
+      sequence: 1,
+      catalogVersion: nearbyCatalog.catalogVersion,
+      catalogHash: nearbyCatalog.catalogHash,
+      datasetType: 'nearby',
+      nearbyCatalog,
+      status: 'playing',
+      revision: 0,
+      members: [{
+        memberId,
+        displayName: '房主',
+        status: 'choosing',
+        isSelf: true,
+        role: 'host',
+      }],
+      ownDecisions: [],
+    }).success).toBe(true);
+  });
+
+  it('rejects server-owned nearby fields and duplicate nearby item records', () => {
+    const input = {
+      version: 1,
+      catalogVersion: 'v1',
+      catalogHash: 'a'.repeat(64),
+      classifierVersion: 'fasttext-v1',
+      itemIds: ['cantonese', 'western', 'hotpot'],
+      items: [
+        { itemId: 'cantonese', merchantNames: ['粤菜馆'] },
+        { itemId: 'western', merchantNames: ['咖啡店'] },
+        { itemId: 'hotpot', merchantNames: ['火锅店'] },
+      ],
+      searchRadiusMeters: 2000,
+      candidateCount: 20,
+    };
+
+    expect(NearbyCatalogInputSchema.safeParse({
+      ...input,
+      selectionHash: 'b'.repeat(64),
+      preparedAt: new Date(0).toISOString(),
+    }).success).toBe(false);
+    expect(NearbyCatalogSnapshotSchema.safeParse({
+      ...input,
+      items: [...input.items, { itemId: 'hotpot', merchantNames: ['另一家火锅店'] }],
+      selectionHash: 'b'.repeat(64),
+      preparedAt: new Date(0).toISOString(),
+    }).success).toBe(false);
   });
 });

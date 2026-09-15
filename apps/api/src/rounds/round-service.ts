@@ -8,7 +8,10 @@ import {
   type RoundSnapshot,
   type StartRoundRequest,
 } from '@lets-eat/contracts';
-import { CustomCatalogSnapshotSchema } from '@lets-eat/contracts';
+import {
+  CustomCatalogSnapshotSchema,
+  NearbyCatalogSnapshotSchema,
+} from '@lets-eat/contracts';
 import type { Database } from '../db/client.js';
 import { ApiError } from '../http/api-error.js';
 import { IdempotencyService, hashRequest, type DatabaseExecutor } from '../idempotency/idempotency-service.js';
@@ -18,6 +21,7 @@ import { presentRound } from './round-presenter.js';
 import { presentRoom } from '../rooms/room-presenter.js';
 import { aggregateResult } from './result-aggregator.js';
 import { getCustomCatalogItems, summarizeCustomCatalog } from '../catalog/custom-catalog.js';
+import { getNearbyCatalogItems, validateAndVerifyNearbyCatalog } from '../rooms/nearby-catalog-validation.js';
 
 interface RoundServiceOptions {
   db: Database;
@@ -78,6 +82,9 @@ export class RoundService {
       const customCatalog = room.selectedDataset === 'custom'
         ? this.readCustomCatalog(room.customCatalog)
         : null;
+      const nearbyCatalog = room.selectedDataset === 'nearby'
+        ? this.readNearbyCatalog(room.nearbyCatalog)
+        : null;
       const selection = room.selectedDataset === 'custom'
         ? {
             catalogVersion: customCatalog!.catalogVersion,
@@ -85,6 +92,13 @@ export class RoundService {
             datasetType: 'custom' as const,
             items: getCustomCatalogItems(this.options.catalogService, customCatalog!),
           }
+        : room.selectedDataset === 'nearby'
+          ? {
+              catalogVersion: nearbyCatalog!.catalogVersion,
+              catalogHash: nearbyCatalog!.catalogHash,
+              datasetType: 'nearby' as const,
+              items: getNearbyCatalogItems(nearbyCatalog!, this.options.catalogService),
+            }
         : this.options.catalogService.getCurrentSelection(room.selectedDataset);
       const [latestRound] = await tx.select({ sequence: rounds.sequence })
         .from(rounds)
@@ -99,6 +113,7 @@ export class RoundService {
         catalogHash: selection.catalogHash,
         datasetType: selection.datasetType,
         customCatalog,
+        nearbyCatalog,
         status: 'playing',
         revision: 0,
         startedAt: this.now(),
@@ -365,6 +380,9 @@ export class RoundService {
     if (round.datasetType === 'custom') {
       return getCustomCatalogItems(this.options.catalogService, this.readCustomCatalog(round.customCatalog));
     }
+    if (round.datasetType === 'nearby') {
+      return getNearbyCatalogItems(this.readNearbyCatalog(round.nearbyCatalog), this.options.catalogService);
+    }
     const catalog = this.options.catalogService.getCatalogWithHash(round.catalogVersion);
     if (!catalog) throw new ApiError(409, 'CATALOG_VERSION_NOT_FOUND', '轮次菜单版本不可用');
     if (catalog.catalogHash !== round.catalogHash) {
@@ -378,6 +396,13 @@ export class RoundService {
   private readCustomCatalog(value: unknown) {
     if (!value) throw new ApiError(409, 'CUSTOM_CATALOG_INVALID', '当前房间没有有效的自定义菜品');
     return CustomCatalogSnapshotSchema.parse(value);
+  }
+
+  private readNearbyCatalog(value: unknown) {
+    if (!value) throw new ApiError(409, 'NEARBY_CATALOG_INVALID', '当前房间没有有效的周围菜品');
+    const parsed = NearbyCatalogSnapshotSchema.safeParse(value);
+    if (!parsed.success) throw new ApiError(409, 'NEARBY_CATALOG_INVALID', '附近菜品快照格式不正确');
+    return validateAndVerifyNearbyCatalog(parsed.data, this.options.catalogService);
   }
 
   private async finalizeIfReady(executor: DatabaseExecutor, round: typeof rounds.$inferSelect, nextRevision: number): Promise<boolean> {
@@ -419,6 +444,9 @@ export class RoundService {
       datasetType: round.datasetType,
       customCatalog: round.customCatalog
         ? summarizeCustomCatalog(this.readCustomCatalog(round.customCatalog))
+        : null,
+      nearbyCatalog: round.datasetType === 'nearby'
+        ? this.readNearbyCatalog(round.nearbyCatalog)
         : null,
       ...aggregated,
     });

@@ -36,7 +36,7 @@ describe('RoundService completion lifecycle', () => {
   async function startTwoMembers() {
     const hostId = randomUUID();
     const guestId = randomUUID();
-    const room = await roomService.createRoom(hostId, { displayName: '房主' });
+    const room = await roomService.createRoom(hostId, { displayName: '房主', datasetType: 'large' });
     const joined = await roomService.joinRoom(guestId, { code: room.code, displayName: '客人' });
     const round = await roundService.startRound(hostId, room.id, { expectedRoomRevision: joined.revision }, 'start-1');
     return { hostId, guestId, room, round };

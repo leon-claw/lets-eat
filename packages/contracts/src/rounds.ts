@@ -7,7 +7,10 @@ import {
   RoundStatusSchema,
   UuidSchema,
 } from './common.js';
-import { CustomCatalogSummarySchema } from './rooms.js';
+import {
+  CustomCatalogSummarySchema,
+  NearbyCatalogSnapshotSchema,
+} from './rooms.js';
 
 export const StartRoundRequestSchema = z.object({
   expectedRoomRevision: RevisionSchema,
@@ -47,6 +50,7 @@ export const RoundSnapshotSchema = z.object({
   catalogHash: z.string().regex(/^[a-f0-9]{64}$/),
   datasetType: RoomDatasetTypeSchema,
   customCatalog: CustomCatalogSummarySchema.nullable().optional(),
+  nearbyCatalog: NearbyCatalogSnapshotSchema.nullable().optional(),
   status: RoundStatusSchema,
   revision: RevisionSchema,
   members: z.array(RoundMemberSchema).min(1).max(8),
@@ -70,6 +74,7 @@ export const RoundResultSchema = z.object({
   catalogHash: z.string().regex(/^[a-f0-9]{64}$/),
   datasetType: RoomDatasetTypeSchema,
   customCatalog: CustomCatalogSummarySchema.nullable().optional(),
+  nearbyCatalog: NearbyCatalogSnapshotSchema.nullable().optional(),
   commonItems: z.array(ResultItemSchema),
   players: z.array(ResultPlayerSchema).max(8),
 }).strict();

@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { beforeAll, afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { ApiError } from '../http/api-error.js';
 import { decisions, idempotencyRecords, roomMembers, rooms, roundMembers, rounds } from '../db/schema.js';
 import { createTestDatabase, closeTestDatabase } from '../test/database.js';
 import { generateRoomCode, RoomService } from './room-service.js';
@@ -29,7 +28,7 @@ describe('RoomService', () => {
 
   it('generates a four-digit room code by default', async () => {
     if (!database) return;
-    const room = await service.createRoom(randomUUID(), { displayName: '房主' });
+    const room = await service.createRoom(randomUUID(), { displayName: '房主', datasetType: 'large' });
     expect(room.code).toMatch(/^\d{4}$/);
   });
 
@@ -41,7 +40,7 @@ describe('RoomService', () => {
     if (!database) return;
     const userId = randomUUID();
     const room = await new RoomService({ db: database.db, codeGenerator: () => '1234' })
-      .createRoom(userId, { displayName: '房主' });
+      .createRoom(userId, { displayName: '房主', datasetType: 'large' });
     expect(room).toMatchObject({
       code: '1234',
       hostUserId: userId,
@@ -54,10 +53,16 @@ describe('RoomService', () => {
     expect(room.members[0]).toMatchObject({ userId, displayName: '房主', role: 'host' });
   });
 
+  it('creates a room with the selected dataset', async () => {
+    if (!database) return;
+    const room = await service.createRoom(randomUUID(), { displayName: '房主', datasetType: 'small' });
+    expect(room.selectedDataset).toBe('small');
+  });
+
   it('accepts eight members and rejects the ninth', async () => {
     if (!database) return;
     const room = await new RoomService({ db: database.db, codeGenerator: () => '1234' })
-      .createRoom(randomUUID(), { displayName: '房主' });
+      .createRoom(randomUUID(), { displayName: '房主', datasetType: 'large' });
     for (let index = 1; index < 8; index += 1) {
       await service.joinRoom(randomUUID(), { code: room.code, displayName: `客人${index}` });
     }
@@ -71,7 +76,7 @@ describe('RoomService', () => {
   it('rejects joining a playing or results room', async () => {
     if (!database) return;
     const room = await new RoomService({ db: database.db, codeGenerator: () => '1234' })
-      .createRoom(randomUUID(), { displayName: '房主' });
+      .createRoom(randomUUID(), { displayName: '房主', datasetType: 'large' });
     await database.db.update(rooms).set({ status: 'playing' }).where(eq(rooms.id, room.id));
     await expect(service.joinRoom(randomUUID(), { code: room.code, displayName: '客人' }))
       .rejects.toMatchObject({ code: 'ROOM_NOT_JOINABLE' });
@@ -80,20 +85,14 @@ describe('RoomService', () => {
       .rejects.toMatchObject({ code: 'ROOM_NOT_JOINABLE' });
   });
 
-  it('returns the latest snapshot for a stale dataset revision', async () => {
+  it('does not allow changing a room dataset after creation', async () => {
     if (!database) return;
     const hostId = randomUUID();
     const room = await new RoomService({ db: database.db, codeGenerator: () => '1234' })
-      .createRoom(hostId, { displayName: '房主' });
-    const updated = await service.changeDataset(hostId, room.id, { datasetType: 'small', expectedRevision: 0 });
-    expect(updated.revision).toBe(1);
-    try {
-      await service.changeDataset(hostId, room.id, { datasetType: 'large', expectedRevision: 0 });
-      throw new Error('Expected revision conflict');
-    } catch (error) {
-      expect(error).toBeInstanceOf(ApiError);
-      expect(error).toMatchObject({ code: 'ROOM_REVISION_CONFLICT', latest: expect.objectContaining({ revision: 1, selectedDataset: 'small' }) });
-    }
+      .createRoom(hostId, { displayName: '房主', datasetType: 'large' });
+    await expect(service.changeDataset(hostId, room.id, { datasetType: 'small', expectedRevision: room.revision }))
+      .rejects.toMatchObject({ status: 409, code: 'ROOM_DATASET_LOCKED' });
+    expect(await service.getRoom(hostId, room.id)).toMatchObject({ selectedDataset: 'large', revision: room.revision });
   });
 
   it('lets a guest leave but only the host can delete the room', async () => {
@@ -101,7 +100,7 @@ describe('RoomService', () => {
     const hostId = randomUUID();
     const guestId = randomUUID();
     const room = await new RoomService({ db: database.db, codeGenerator: () => '1234' })
-      .createRoom(hostId, { displayName: '房主' });
+      .createRoom(hostId, { displayName: '房主', datasetType: 'large' });
     await service.joinRoom(guestId, { code: room.code, displayName: '客人' });
     await service.leaveRoom(guestId, room.id);
     expect((await service.getRoom(hostId, room.id)).members).toHaveLength(1);
@@ -118,19 +117,19 @@ describe('RoomService', () => {
       db: database.db,
       codeGenerator: () => `${1230 + (++calls)}`,
     });
-    const first = await idempotentService.createRoom(hostId, { displayName: '房主' }, 'create-1');
-    const replay = await idempotentService.createRoom(hostId, { displayName: '房主' }, 'create-1');
+    const first = await idempotentService.createRoom(hostId, { displayName: '房主', datasetType: 'large' }, 'create-1');
+    const replay = await idempotentService.createRoom(hostId, { displayName: '房主', datasetType: 'large' }, 'create-1');
     expect(replay).toEqual(first);
     expect(calls).toBe(1);
-    await expect(idempotentService.createRoom(hostId, { displayName: '另一个名字' }, 'create-1'))
+    await expect(idempotentService.createRoom(hostId, { displayName: '另一个名字', datasetType: 'large' }, 'create-1'))
       .rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' });
   });
 
   it('returns ROOM_CODE_EXHAUSTED after ten duplicate code attempts', async () => {
     if (!database) return;
     const fixedCodeService = new RoomService({ db: database.db, codeGenerator: () => '1234' });
-    await fixedCodeService.createRoom(randomUUID(), { displayName: '房主' });
-    await expect(fixedCodeService.createRoom(randomUUID(), { displayName: '第二位房主' }))
+    await fixedCodeService.createRoom(randomUUID(), { displayName: '房主', datasetType: 'large' });
+    await expect(fixedCodeService.createRoom(randomUUID(), { displayName: '第二位房主', datasetType: 'large' }))
       .rejects.toMatchObject({ code: 'ROOM_CODE_EXHAUSTED' });
   });
 
@@ -138,7 +137,7 @@ describe('RoomService', () => {
     if (!database) return;
     const hostId = randomUUID();
     const current = await new RoomService({ db: database.db, codeGenerator: () => '1234' })
-      .createRoom(hostId, { displayName: '房主' });
+      .createRoom(hostId, { displayName: '房主', datasetType: 'large' });
     await expect(service.joinRoom(hostId, {
       code: '5678',
       displayName: '房主',
@@ -147,7 +146,7 @@ describe('RoomService', () => {
 
     const targetHost = randomUUID();
     const target = await new RoomService({ db: database.db, codeGenerator: () => '5678' })
-      .createRoom(targetHost, { displayName: '目标房主' });
+      .createRoom(targetHost, { displayName: '目标房主', datasetType: 'large' });
     const joined = await service.joinRoom(hostId, { code: target.code, displayName: '房主' });
     expect(joined.id).toBe(target.id);
     expect(await service.getCurrentRoom(hostId)).toMatchObject({ id: target.id });
@@ -159,11 +158,11 @@ describe('RoomService', () => {
     const oldHostId = randomUUID();
     const guestId = randomUUID();
     const oldRoom = await new RoomService({ db: database.db, codeGenerator: () => '1234' })
-      .createRoom(oldHostId, { displayName: '旧房主' });
+      .createRoom(oldHostId, { displayName: '旧房主', datasetType: 'large' });
     await service.joinRoom(guestId, { code: oldRoom.code, displayName: '客人' });
     const targetHost = randomUUID();
     const targetRoom = await new RoomService({ db: database.db, codeGenerator: () => '5678' })
-      .createRoom(targetHost, { displayName: '新房主' });
+      .createRoom(targetHost, { displayName: '新房主', datasetType: 'large' });
 
     const joined = await service.joinRoom(guestId, { code: targetRoom.code, displayName: '客人' });
 
@@ -181,10 +180,10 @@ describe('RoomService', () => {
       db: database.db,
       codeGenerator: () => nextCode++ === 0 ? '1234' : '5678',
     });
-    const oldRoom = await creatingService.createRoom(hostId, { displayName: '旧房主' });
+    const oldRoom = await creatingService.createRoom(hostId, { displayName: '旧房主', datasetType: 'large' });
     await service.joinRoom(guestId, { code: oldRoom.code, displayName: '旧客人' });
 
-    const newRoom = await creatingService.createRoom(hostId, { displayName: '新房主' });
+    const newRoom = await creatingService.createRoom(hostId, { displayName: '新房主', datasetType: 'large' });
 
     expect(newRoom.id).not.toBe(oldRoom.id);
     expect(await service.getCurrentRoom(hostId)).toMatchObject({ id: newRoom.id });
@@ -196,11 +195,11 @@ describe('RoomService', () => {
     const oldHostId = randomUUID();
     const guestId = randomUUID();
     const oldRoom = await new RoomService({ db: database.db, codeGenerator: () => '1234' })
-      .createRoom(oldHostId, { displayName: '旧房主' });
+      .createRoom(oldHostId, { displayName: '旧房主', datasetType: 'large' });
     await service.joinRoom(guestId, { code: oldRoom.code, displayName: '旧客人' });
 
     const newRoom = await new RoomService({ db: database.db, codeGenerator: () => '5678' })
-      .createRoom(guestId, { displayName: '新房主' });
+      .createRoom(guestId, { displayName: '新房主', datasetType: 'large' });
 
     expect(await service.getCurrentRoom(guestId)).toMatchObject({ id: newRoom.id });
     expect((await service.getRoom(oldHostId, oldRoom.id)).members).toHaveLength(1);

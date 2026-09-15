@@ -39,7 +39,7 @@ describe('room HTTP routes', () => {
 
   afterAll(async () => closeTestDatabase(database?.pool));
 
-  it('creates, reads, changes dataset, and leaves a room through authenticated routes', async () => {
+  it('creates, reads a fixed dataset, and leaves a room through authenticated routes', async () => {
     if (!database) return;
     const host = await tokens.issue();
     const guest = await tokens.issue();
@@ -47,7 +47,7 @@ describe('room HTTP routes', () => {
       .post('/api/rooms')
       .set('authorization', `Bearer ${host.token}`)
       .set('idempotency-key', 'room-create-1')
-      .send({ displayName: '房主' })
+      .send({ displayName: '房主', datasetType: 'large' })
       .expect(201);
     expect(created.body.room).toMatchObject({ hostUserId: host.userId, revision: 0, selectedDataset: 'large' });
     expect(created.body.customCatalog).toBeNull();
@@ -56,7 +56,7 @@ describe('room HTTP routes', () => {
       .post('/api/rooms')
       .set('authorization', `Bearer ${host.token}`)
       .set('idempotency-key', 'room-create-1')
-      .send({ displayName: '房主' })
+      .send({ displayName: '房主', datasetType: 'large' })
     expect(replay.status).toBe(201);
     expect(replay.body).toEqual(created.body);
 
@@ -71,12 +71,12 @@ describe('room HTTP routes', () => {
       .expect(200);
     expect(latest.body.members).toHaveLength(2);
 
-    const changed = await request(app)
+    const locked = await request(app)
       .patch(`/api/rooms/${created.body.room.id}/dataset`)
       .set('authorization', `Bearer ${host.token}`)
       .send({ datasetType: 'small', expectedRevision: latest.body.revision })
-      .expect(200);
-    expect(changed.body).toMatchObject({ selectedDataset: 'small', revision: latest.body.revision + 1 });
+      .expect(409);
+    expect(locked.body).toMatchObject({ code: 'ROOM_DATASET_LOCKED' });
 
     await request(app)
       .post(`/api/rooms/${created.body.room.id}/leave`)
@@ -92,7 +92,7 @@ describe('room HTTP routes', () => {
     const created = await request(app)
       .post('/api/rooms')
       .set('authorization', `Bearer ${host.token}`)
-      .send({ displayName: '房主' })
+      .send({ displayName: '房主', datasetType: 'large' })
       .expect(201);
     await request(app)
       .post('/api/rooms/join')
@@ -100,22 +100,23 @@ describe('room HTTP routes', () => {
       .send({ code: created.body.room.code, displayName: '客人' })
       .expect(200);
 
-    await request(app)
+    const firstChange = await request(app)
       .patch(`/api/rooms/${created.body.room.id}/dataset`)
       .set('authorization', `Bearer ${host.token}`)
       .send({ datasetType: 'small', expectedRevision: 1 })
-      .expect(200);
-    const conflict = await request(app)
+      .expect(409);
+    expect(firstChange.body).toMatchObject({ code: 'ROOM_DATASET_LOCKED' });
+    const locked = await request(app)
       .patch(`/api/rooms/${created.body.room.id}/dataset`)
       .set('authorization', `Bearer ${host.token}`)
       .send({ datasetType: 'large', expectedRevision: 0 })
       .expect(409);
-    expect(conflict.body).toMatchObject({ code: 'ROOM_REVISION_CONFLICT', latest: { revision: 2, selectedDataset: 'small' } });
+    expect(locked.body).toMatchObject({ code: 'ROOM_DATASET_LOCKED' });
 
     const guestChange = await request(app)
       .patch(`/api/rooms/${created.body.room.id}/dataset`)
       .set('authorization', `Bearer ${guest.token}`)
-      .send({ datasetType: 'large', expectedRevision: 2 })
+      .send({ datasetType: 'large', expectedRevision: 1 })
       .expect(403);
     expect(guestChange.body.code).toBe('HOST_ONLY');
   });
@@ -138,7 +139,7 @@ describe('room HTTP routes', () => {
     const oldRoom = await request(switchApp)
       .post('/api/rooms')
       .set('authorization', `Bearer ${host.token}`)
-      .send({ displayName: '旧房主' })
+      .send({ displayName: '旧房主', datasetType: 'large' })
       .expect(201);
     await request(switchApp)
       .post('/api/rooms/join')
@@ -149,7 +150,7 @@ describe('room HTTP routes', () => {
     const newRoom = await request(switchApp)
       .post('/api/rooms')
       .set('authorization', `Bearer ${host.token}`)
-      .send({ displayName: '新房主' })
+      .send({ displayName: '新房主', datasetType: 'large' })
       .expect(201);
 
     expect(newRoom.body.room.id).not.toBe(oldRoom.body.room.id);
@@ -184,7 +185,7 @@ describe('room HTTP routes', () => {
     const oldRoom = await request(switchApp)
       .post('/api/rooms')
       .set('authorization', `Bearer ${host.token}`)
-      .send({ displayName: '旧房主' })
+      .send({ displayName: '旧房主', datasetType: 'large' })
       .expect(201);
     await request(switchApp)
       .post('/api/rooms/join')
@@ -195,7 +196,7 @@ describe('room HTTP routes', () => {
     await request(switchApp)
       .post('/api/rooms')
       .set('authorization', `Bearer ${host.token}`)
-      .send({ displayName: '新房主' })
+      .send({ displayName: '新房主', datasetType: 'large' })
       .expect(201);
 
     expect(publish).toHaveBeenCalledWith(expect.objectContaining({
@@ -216,7 +217,7 @@ describe('room HTTP routes', () => {
     const created = await request(app)
       .post('/api/rooms')
       .set('authorization', `Bearer ${host.token}`)
-      .send({ displayName: '房主', customCatalog })
+      .send({ displayName: '房主', datasetType: 'custom', customCatalog })
       .expect(201);
 
     expect(created.body.room.customCatalog).toMatchObject({ itemCount: 3 });
@@ -235,12 +236,12 @@ describe('room HTTP routes', () => {
       .expect(200);
     expect(fullSnapshot.body).toMatchObject(customCatalog);
 
-    const changed = await request(app)
+    const locked = await request(app)
       .patch(`/api/rooms/${created.body.room.id}/dataset`)
       .set('authorization', `Bearer ${host.token}`)
       .send({ datasetType: 'custom', expectedRevision: joined.body.room.revision })
-      .expect(200);
-    expect(changed.body).toMatchObject({ selectedDataset: 'custom', customCatalog: { itemCount: 3 } });
+      .expect(409);
+    expect(locked.body).toMatchObject({ code: 'ROOM_DATASET_LOCKED' });
   });
 
   it('does not update lastActivityAt for read-only endpoints', async () => {
@@ -249,7 +250,7 @@ describe('room HTTP routes', () => {
     const created = await request(app)
       .post('/api/rooms')
       .set('authorization', `Bearer ${host.token}`)
-      .send({ displayName: '房主' })
+      .send({ displayName: '房主', datasetType: 'large' })
       .expect(201);
     const [before] = await database.db.select({ lastActivityAt: rooms.lastActivityAt }).from(rooms).where(eq(rooms.id, created.body.room.id));
     await request(app).get('/api/me/room').set('authorization', `Bearer ${host.token}`).expect(200);
